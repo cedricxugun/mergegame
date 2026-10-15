@@ -1,7 +1,10 @@
-import {STORAGE_KEY,CHAINS,FOOTPRINT,BOARD,BRIDGE_CELL,WAVES,newGame,act,openCells,occupancy,cellsOf,shapeFor,keyOf,inBag,itemName,findPlacement,canPlace,previewMerge,getHint,isComplete,bridgeReady,bridgeAvailable,settlementPreview,validateState,migrateState} from './game.mjs';
+import {STORAGE_KEY,CHAINS,FOOTPRINT,BOARD,BRIDGE_CELL,WAVES,CONSTRUCTION_STAGES,newGame,act,openCells,occupancy,cellsOf,shapeFor,keyOf,inBag,itemName,findPlacement,canPlace,previewMerge,getHint,isComplete,bridgeReady,bridgeAvailable,settlementPreview,validateState,migrateState,projectFor,stageComplete,completedStages,currentOrder,canContribute,orderItem,landscapeCells,spaceSummary,hexBoundary} from './game.mjs';
 
 const $=selector=>document.querySelector(selector);
 const board=$('#board'),modal=$('#modal');
+const qaMode=new URLSearchParams(location.search).has('qa');
+const saveKey=qaMode?`${STORAGE_KEY}.qa-v3`:STORAGE_KEY;
+let saveStorage;try{saveStorage=qaMode?sessionStorage:localStorage;}catch{/* Storage can be disabled independently of gameplay. */}
 const icons={
   undo:'<path d="M3 7v5h5M3 12a8 8 0 1 1 2 7"/>',
   hint:'<path d="M9 18h6M10 21h4M8 14a6 6 0 1 1 8 0c-1 .8-1 2-1 2H9s0-1.2-1-2Z"/>',
@@ -31,12 +34,12 @@ const REGIONS={
 };
 let layout={width:440,height:350,size:25,origin:[220,174]};
 try{
-  const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null');
+  const saved=JSON.parse(saveStorage?.getItem(saveKey)||'null');
   const migrated=saved&&migrateState(saved.state);
   if(migrated&&validateState(migrated)){state=migrated;history=(Array.isArray(saved.history)?saved.history:[]).map(migrateState).filter(validateState).slice(-30);sound=saved.sound===true;if(saved.camera&&Number.isFinite(saved.camera.q)&&Number.isFinite(saved.camera.r)&&Math.abs(saved.camera.q)<=4&&Math.abs(saved.camera.r)<=4)camera={q:saved.camera.q,r:saved.camera.r,zoom:saved.camera.zoom==='wide'?'wide':'near'};}
 }catch{/* A damaged or unavailable local save does not block a new game. */}
 function persist(){
-  try{localStorage.setItem(STORAGE_KEY,JSON.stringify({state,history:history.slice(-30),sound,camera}));saveFailed=false;}
+  try{if(!saveStorage)throw Error('Storage unavailable');saveStorage.setItem(saveKey,JSON.stringify({state,history:history.slice(-30),sound,camera}));saveFailed=false;}
   catch{saveFailed=true;}
   $('#save-status').innerHTML=saveFailed?'本轮进度暂未保存':'<i></i>进度自动保存';
 }
@@ -93,6 +96,7 @@ function cellAt(pixel){
   return [rx,rz];
 }
 function centroid(cells){return cells.map(point).reduce((sum,p)=>[sum[0]+p[0]/cells.length,sum[1]+p[1]/cells.length],[0,0]);}
+function outlinePath(cells){return hexBoundary(cells).map(loop=>loop.map(([x,y],index)=>`${index?'L':'M'}${(layout.origin[0]+x*layout.size).toFixed(2)},${(layout.origin[1]+y*layout.size).toFixed(2)}`).join(' ')+'Z').join(' ');}
 function drawPiece(item,eventTypes=new Map()){
   const isBridge=item.chain==='bridge';const cells=isBridge?[BRIDGE_CELL]:cellsOf(item);if(!cells.length)return '';
   const [cx,cy]=centroid(cells),size=layout.size,count=cells.length;
@@ -101,13 +105,18 @@ function drawPiece(item,eventTypes=new Map()){
   const current=state.items.find(other=>other.id===selected);
   const match=current&&!item.settled&&current.id!==item.id&&current.chain===item.chain&&current.level===item.level&&item.level<CHAINS[item.chain]?.target;
   const event=eventTypes.get(item.id);
-  const classes=['piece',item.settled?'settled':'',item.id===selected?'selected':'',match?'match':'',item.id===hintTarget?'hint-target':'',event==='growth'?'grow':event?'pop':''].filter(Boolean).join(' ');
-  const label=isBridge?'木桥，已修复':`${itemName(item)}，${item.level}级，占${count}格${item.settled?'，已落成':''}`;
-  const tint=isBridge?'#e0c58f':item.chain==='forest'?'#a7ca86':item.chain==='water'?'#a6d3b6':'#c5d39b';
+  const classes=['piece',item.settled?'settled landscape':'movable',item.id===selected?'selected':'',match?'match':'',item.id===hintTarget?'hint-target':'',event==='growth'?'grow':event?'pop':''].filter(Boolean).join(' ');
+  const label=isBridge?'木桥，已修复，景观区':`${itemName(item)}，${item.level}级，${item.settled?'景观区':'可移动素材'}，占${count}格`;
+  const outline=outlinePath(cells),badgeWidth=item.settled?58:(count>1?69:57),badgeY=cy+size*.58;
+  const tint=item.settled?(isBridge?'#bec798':'#a5c886'):'#fff0c8';
   return `<g class="${classes}" data-item-id="${esc(item.id)}" role="button" tabindex="0" aria-label="${esc(label)}" data-cx="${cx}" data-cy="${cy}" style="--cx:${cx}px;--cy:${cy}px">
-    ${cells.map(cell=>{const [px,py]=point(cell);return `<polygon class="footprint" points="${polygon(corners(px,py,size-1))}" fill="${tint}"/>`;}).join('')}
+    <path class="piece-base" d="${outline}" transform="translate(0,${item.settled?2:6})" fill="${item.settled?'#779761':'#b99858'}" pointer-events="none"/>
+    <path class="footprint" d="${outline}" fill="${tint}" stroke-linejoin="round"/>
+    ${item.settled?`<path class="scene-edge" d="${outline}" fill="none" stroke="#e3d4a3" stroke-width="4" stroke-dasharray="4 5" stroke-linecap="round" pointer-events="none"/>`:''}
+    ${item.id===selected&&!item.settled?cells.map(cell=>{const [px,py]=point(cell);return `<circle cx="${px}" cy="${py}" r="3" fill="#c3a15f" opacity=".55" pointer-events="none"/>`;}).join(''):''}
     <image class="piece-image" href="${art(item)}" x="${x}" y="${y}" width="${spriteWidth}" height="${spriteWidth}"/>
-    <g pointer-events="none"><circle cx="${cx}" cy="${cy+size*.64}" r="8.2" fill="${item.settled?'#71994d':'#faf1d4'}" stroke="${item.settled?'#eff3d6':'#d6c99d'}" stroke-width="1.4"/><text class="${item.settled?'item-check':'item-grade'}" x="${cx}" y="${cy+size*.64+.2}" text-anchor="middle" dominant-baseline="central">${item.settled?'✓':item.level}</text></g>
+    ${item.id===selected&&!item.settled?`<path class="selection-footprint" d="${outline}" fill="none" stroke="#d99d27" stroke-width="3.5" stroke-linejoin="round" pointer-events="none"/>`:''}
+    <g pointer-events="none"><rect x="${cx-badgeWidth/2}" y="${badgeY-9}" width="${badgeWidth}" height="18" rx="8" fill="${item.settled?'#527747':'#fff6df'}" stroke="${item.settled?'#d8e5bc':'#b99d61'}" stroke-width="1.2"/><text class="${item.settled?'item-check':'item-grade'}" x="${cx}" y="${badgeY+.3}" text-anchor="middle" dominant-baseline="central">${item.settled?'景观 · '+count+'格':'L'+item.level+' · '+count+'格'}</text></g>
   </g>`;
 }
 function renderWorld(width,height){
@@ -120,8 +129,8 @@ function renderWorld(width,height){
     const x=center[0]+region.offset[0]*scale,y=center[1]+region.offset[1]*scale,w=143*scale;
     markup+=`<g class="world-region" data-region="${id}" role="button" tabindex="0" aria-label="${region.direction}的${region.name}"><image href="./assets/region-${id}.svg" x="${x-w/2}" y="${y-w*.51}" width="${w}" height="${w*.75}" filter="url(#world-shadow)"/><rect x="${x-48}" y="${y+30*scale}" width="96" height="25" rx="12" fill="#f7f5e6" stroke="#d9dfc7"/><text x="${x}" y="${y+43*scale}" text-anchor="middle" dominant-baseline="central" fill="#6b8058" font-size="12" font-weight="600">${region.name}</text></g>`;
   }
-  const campArt=state.goals.camp?'camp-6':state.wins>=4?'camp-4':'forest-5';
-  markup+=`<g class="world-region current-region" data-region="camp" role="button" tabindex="0" aria-label="返回林间营地建设"><ellipse cx="${center[0]}" cy="${center[1]+13}" rx="72" ry="44" fill="#c3d7a0" stroke="#edf1d9" stroke-width="3"/><image href="./assets/${campArt}.svg" x="${center[0]-69}" y="${center[1]-92}" width="138" height="138" filter="url(#world-shadow)"/><rect x="${center[0]-55}" y="${center[1]+31}" width="110" height="28" rx="13" fill="#688a4f" stroke="#ecf0d5" stroke-width="2"/><text x="${center[0]}" y="${center[1]+46}" text-anchor="middle" dominant-baseline="central" fill="#fff9dd" font-size="13" font-weight="700">林间营地</text><text x="${center[0]}" y="${center[1]+74}" text-anchor="middle" fill="#84956d" font-size="10">${state.departed?'已完成 · 永久保留':`当前建设 · ${openCells(state).length} / 37 格`}</text></g>`;
+  const campArt=projectFor(state,'camp')?`camp-${projectFor(state,'camp').level}`:projectFor(state,'forest')?`forest-${projectFor(state,'forest').level}`:'forest-3';
+  markup+=`<g class="world-region current-region" data-region="camp" role="button" tabindex="0" aria-label="返回林间营地建设"><ellipse cx="${center[0]}" cy="${center[1]+13}" rx="72" ry="44" fill="#c3d7a0" stroke="#edf1d9" stroke-width="3"/><image href="./assets/${campArt}.svg" x="${center[0]-69}" y="${center[1]-92}" width="138" height="138" filter="url(#world-shadow)"/><rect x="${center[0]-55}" y="${center[1]+31}" width="110" height="28" rx="13" fill="#688a4f" stroke="#ecf0d5" stroke-width="2"/><text x="${center[0]}" y="${center[1]+46}" text-anchor="middle" dominant-baseline="central" fill="#fff9dd" font-size="13" font-weight="700">林间营地</text><text x="${center[0]}" y="${center[1]+74}" text-anchor="middle" fill="#84956d" font-size="10">${state.departed?'已完成 · 永久保留':`区域建设 · ${completedStages(state)} / 10 阶段`}</text></g>`;
   board.innerHTML=markup;
 }
 function renderBoard(events=[]){
@@ -130,8 +139,8 @@ function renderBoard(events=[]){
   const size=camera.zoom==='wide'?Math.min((width-28)/(7*Math.sqrt(3)),(height-75)/11):Math.min(55,(width-55)/(3*Math.sqrt(3)),(height-100)/5);
   const center=camera.zoom==='wide'?[0,0]:[camera.q,camera.r];
   layout={width,height,size,origin:[width/2-Math.sqrt(3)*size*(center[0]+center[1]/2),height/2+8-1.5*size*center[1]]};board.setAttribute('viewBox',`0 0 ${width} ${height}`);
-  const open=new Set(openCells(state).map(keyOf)),occupied=occupancy(state),wave=events.find(event=>event.type==='unlock')?.wave;
-  const revealed=new Set(wave!==undefined?WAVES[wave].map(keyOf):[]);
+  const open=new Set(openCells(state).map(keyOf)),occupied=occupancy(state),scenery=new Set(landscapeCells(state).map(keyOf));
+  const revealed=new Set(events.flatMap(event=>event.cells||[]).map(keyOf));
   const eventTypes=new Map(events.filter(event=>event.itemId).map(event=>[event.itemId,event.type]));
   const tiles=BOARD.slice().sort((a,b)=>point(a)[1]-point(b)[1]||a[0]-b[0]);
   let markup=`<defs><filter id="land-shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="9" stdDeviation="7" flood-color="#527348" flood-opacity=".17"/></filter><linearGradient id="ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c3d998"/><stop offset="1" stop-color="#b1cd83"/></linearGradient><linearGradient id="fog" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4e9d9"/><stop offset="1" stop-color="#d5deca"/></linearGradient></defs>`;
@@ -139,16 +148,17 @@ function renderBoard(events=[]){
   for(const [index,cell]of tiles.entries()){
     const [x,y]=point(cell),key=keyOf(cell),available=open.has(key),empty=!occupied.has(key);
     if(x< -size*2||x>width+size*2||y< -size*2||y>height+size*2)continue;
+    if(scenery.has(key))continue;
     const base=corners(x,y,size-1),side=base.map(([px,py])=>[px,py+5]);
     if(!available&&camera.zoom==='near'){markup+=`<g class="fog-bank" data-q="${cell[0]}" data-r="${cell[1]}" opacity=".6"><ellipse cx="${x}" cy="${y+4}" rx="${size*.92}" ry="${size*.55}" fill="#e4ead6"/><ellipse cx="${x-size*.18}" cy="${y-6}" rx="${size*.63}" ry="${size*.4}" fill="#ecf0df"/></g>`;continue;}
-    markup+=`<g class="hex-cell ${available?'open':'locked'}${empty?' empty':''}${revealed.has(key)?' revealed':''}" data-q="${cell[0]}" data-r="${cell[1]}" style="--delay:${(index%5)*40}ms"><polygon points="${polygon(side)}" fill="${available?'#8ea96c':'#b7c5aa'}"/><polygon class="hex-top" points="${polygon(base)}" fill="${available?(index%3===0?'#b8d48f':'url(#ground)'):'url(#fog)'}"/>`;
+    markup+=`<g class="hex-cell ${available?'open work-cell':'locked'}${empty?' empty':''}${revealed.has(key)?' revealed':''}" data-q="${cell[0]}" data-r="${cell[1]}" style="--delay:${(index%5)*40}ms"><polygon points="${polygon(side)}" fill="${available?(state.departed?'#8ea96c':'#b4a778'):'#b7c5aa'}"/><polygon class="hex-top" points="${polygon(base)}" fill="${available?(state.departed?(index%3===0?'#b8d48f':'url(#ground)'):(index%3===0?'#e3d9b4':'#eaddba')):'url(#fog)'}"/>`;
     if(!available){markup+=`<g pointer-events="none" opacity=".75"><ellipse cx="${x-3}" cy="${y+1}" rx="${size*.57}" ry="${size*.27}" fill="#f2f3e8"/><circle cx="${x-5}" cy="${y-3}" r="${size*.29}" fill="#f2f3e8"/><circle cx="${x+5}" cy="${y-2}" r="${size*.25}" fill="#f2f3e8"/></g>`;}
-    else if(empty){const a=index%3;markup+=`<path d="M${x-6+a} ${y+8}q-1-4-4-5m4 5q2-6 5-6" stroke="#82a960" stroke-width="1.4" fill="none" opacity=".42" stroke-linecap="round" pointer-events="none"/>`;if(state.departed&&index%2===0)markup+=`<circle cx="${x+8}" cy="${y+1}" r="1.6" fill="#f7efb7"/><circle cx="${x+11}" cy="${y-2}" r="1.3" fill="#f8ebca"/>`;}
+    else if(empty){const a=index%3;if(state.departed)markup+=`<path d="M${x-6+a} ${y+8}q-1-4-4-5m4 5q2-6 5-6" stroke="#82a960" stroke-width="1.4" fill="none" opacity=".42" stroke-linecap="round" pointer-events="none"/>`;else markup+=`<path d="M${x-4} ${y}h8m-4-4v8" stroke="#ab9c6c" stroke-width="1.3" opacity=".35" stroke-linecap="round" pointer-events="none"/>`;if(state.departed&&index%2===0)markup+=`<circle cx="${x+8}" cy="${y+1}" r="1.6" fill="#f7efb7"/><circle cx="${x+11}" cy="${y-2}" r="1.3" fill="#f8ebca"/>`;}
     markup+='</g>';
   }
   markup+='</g>';
-  if(state.goals.forest){const a=point([-1.3,.4]),b=point([1,0]),c=point([3,-1]);markup+=`<path d="M${a} Q${point([-.4,1.2])} ${b}${state.bridge>=8?` Q${point([2,.4])} ${c}`:''}" stroke="#daca94" stroke-width="${size*.35}" fill="none" stroke-linecap="round" opacity=".9" pointer-events="none"/>`;}
-  if(state.goals.water){const a=point([.5,-2]),b=point([3,-1]);markup+=`<path d="M${a} Q${point([2.5,-2.7])} ${b}" stroke="#78b7b0" stroke-width="${size*.28}" fill="none" stroke-linecap="round" pointer-events="none"/><path d="M${a} Q${point([2.5,-2.7])} ${b}" stroke="#b4e0cc" stroke-width="${size*.09}" fill="none" stroke-linecap="round" pointer-events="none"/>`;}
+  if(state.departed&&state.goals.forest){const a=point([-1.3,.4]),b=point([1,0]),c=point([3,-1]);markup+=`<path d="M${a} Q${point([-.4,1.2])} ${b}${state.bridge>=8?` Q${point([2,.4])} ${c}`:''}" stroke="#daca94" stroke-width="${size*.35}" fill="none" stroke-linecap="round" opacity=".9" pointer-events="none"/>`;}
+  if(state.departed&&state.goals.water){const a=point([.5,-2]),b=point([3,-1]);markup+=`<path d="M${a} Q${point([2.5,-2.7])} ${b}" stroke="#78b7b0" stroke-width="${size*.28}" fill="none" stroke-linecap="round" pointer-events="none"/><path d="M${a} Q${point([2.5,-2.7])} ${b}" stroke="#b4e0cc" stroke-width="${size*.09}" fill="none" stroke-linecap="round" pointer-events="none"/>`;}
   if(state.bridge<8&&state.wins>=4){const [x,y]=point(BRIDGE_CELL);markup+=`<g data-special="bridge" role="button" tabindex="0" aria-label="修复木桥"><image href="./assets/bridge.svg" x="${x-size*1.2}" y="${y-size*1.5}" width="${size*2.4}" height="${size*2.4}" opacity=".65"/><rect x="${x-19}" y="${y+size*.4}" width="38" height="17" rx="8" fill="#f6edcf" stroke="#d8c28f"/><text x="${x}" y="${y+size*.4+9}" text-anchor="middle" dominant-baseline="central" font-size="10" fill="#947747">${state.bridge}/8</text></g>`;}
   const pieces=state.items.filter(item=>!inBag(item)).map(item=>({...item}));
   if(state.bridge>=8)pieces.push({id:'bridge',chain:'bridge',level:1,q:3,r:-1,rotation:0,settled:true});
@@ -158,13 +168,11 @@ function renderBoard(events=[]){
   board.innerHTML=markup;
 }
 function renderGoals(){
-  const available=Object.entries(CHAINS).filter(([key])=>key==='forest'||(key==='water'&&state.wins>=3)||(key==='camp'&&state.wins>=4));
-  $('#goals').classList.toggle('solo',available.length===1);
-  $('#goals').style.gridTemplateColumns=`repeat(${available.length+(state.wins>=4?1:0)},minmax(0,1fr))`;
-  $('#goals').innerHTML=available.map(([key,chain])=>{
-    const complete=state.goals[key],ready=state.items.some(item=>item.chain===key&&item.level===chain.target&&!item.settled);
-    return `<button class="goal${complete?' complete':''}${ready?' ready':''}" data-action="goal" data-chain="${key}" aria-label="${chain.names[chain.target]}，${complete?'已落成':ready?'可以落成':`需要${chain.target}级`}"><img src="./assets/${key}-${chain.target}.svg" alt=""><span class="goal-name">${key==='forest'?'林荫小径':key==='water'?'清澈溪湾':'林间营地'}</span><span class="goal-status">${complete?'已落成':ready?'点击落成':`合至 L${chain.target}`}</span>${complete?'<span class="goal-check">✓</span>':''}</button>`;
-  }).join('')+(state.wins>=4?`<button class="goal${state.bridge>=8?' complete':''}${bridgeReady(state)&&bridgeAvailable(state)?' ready':''}" data-action="bridge" aria-label="木桥，修复进度 ${state.bridge} / 8"><img src="./assets/bridge.svg" alt=""><span class="goal-name">林间木桥</span><span class="goal-status">${state.bridge>=8?'已修复':`${state.bridge} / 8 建设值`}</span>${state.bridge>=8?'<span class="goal-check">✓</span>':''}</button>`:'');
+  const order=currentOrder(state),done=completedStages(state),ready=order?.chain==='bridge'?bridgeAvailable(state)>0:!!orderItem(state);
+  const item=order?(order.chain==='bridge'?{chain:'bridge',level:1}:{chain:order.chain,level:order.requiredLevel}):{chain:'camp',level:6};
+  const need=!order?'营地建设已全部完成':order.chain==='bridge'?`修桥材料 ${state.bridge} / 8`:`交付 ${CHAINS[order.chain].names[order.requiredLevel]} L${order.requiredLevel} ×1`;
+  $('#goals').className='goals phase-goals';$('#goals').style.gridTemplateColumns='1fr';
+  $('#goals').innerHTML=`<div class="phase-card${ready?' ready':''}"><button class="phase-main" data-action="${order?.chain==='bridge'?'bridge':'order'}" aria-label="当前建设目标：${order?.title||'营地已建成'}"><img src="${art(item)}" alt=""><span><strong>${order?.title||'这里已经有了家的模样'}</strong><small>${need}</small></span><b>${ready?'建设 →':`${done}/10`}</b></button><div class="phase-footer"><span>${done} / 10 个建设阶段</span><button data-action="timeline">查看进度 ${icon('chevron',12)}</button></div><div class="phase-track" aria-hidden="true">${CONSTRUCTION_STAGES.map(stage=>`<i class="${stageComplete(state,stage)?'done':stage.id===order?.id?'current':''}"></i>`).join('')}</div></div>`;
 }
 function renderInspector(){
   if(worldView){$('#inspector').innerHTML=`<div class="guide-avatar">${icon('world',25)}</div><div class="guide-copy"><div class="guide-title">从营地，走向更远的地方</div><p>拖动世界地图，点一个区域看看。林间营地是当前的建设区域。</p></div>`;return;}
@@ -172,11 +180,14 @@ function renderInspector(){
   if(!item){
     $('#inspector').innerHTML=`<div class="guide-avatar"><img src="./assets/${state.departed?'camp-6':'forest-2'}.svg" alt=""></div><div class="guide-copy"><div class="guide-title">${state.departed?'灯火已亮，旅途继续':isComplete(state)?'这里已经有了家的模样':'向导的小提示'}</div><p>${esc(hint.message)}</p></div>`;return;
   }
-  let detail=item.settled?'已落成 · 永久保留':`L${item.level} · 占 ${FOOTPRINT[item.level]} 格${inBag(item)?' · 背包中':''}`;
-  if(!item.settled&&item.level<CHAINS[item.chain].target)detail+=` → 下级 ${FOOTPRINT[item.level+1]} 格`;
+  const order=currentOrder(state),contributes=canContribute(state,item);
+  const chainStages=CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain);
+  let detail=item.settled?`景观区 · 已建设 ${chainStages.filter(stage=>item.level>=stage.level).length}/${chainStages.length} 阶段`:`可移动 · L${item.level} · 占 ${FOOTPRINT[item.level]} 格${inBag(item)?' · 背包中':''}`;
+  if(contributes)detail+=` · 可完成当前建设`;
+  else if(!item.settled&&item.level<CHAINS[item.chain].target)detail+=` → ${FOOTPRINT[item.level+1]} 格`;
   let actions='';
   if(!item.settled){
-    if(item.level===CHAINS[item.chain].target&&!state.goals[item.chain])actions+=`<button class="small-button gold" data-action="settle" data-id="${item.id}">${icon('check')}落成</button>`;
+    if(contributes)actions+=`<button class="small-button gold" data-action="settle" data-id="${item.id}" aria-label="交付素材完成${order.title}">${icon('check')}建设</button>`;
     else if(inBag(item)){actions+=`<button class="small-button" data-action="restore" data-id="${item.id}" aria-label="将${itemName(item)}放回地图">放回</button>`;if(FOOTPRINT[item.level]===3)actions+=`<button class="small-button" data-action="rotate" data-id="${item.id}" aria-label="旋转背包中的景物">${icon('rotate')}</button>`;}
     else if(FOOTPRINT[item.level]===3)actions+=`<button class="small-button" data-action="rotate" data-id="${item.id}" aria-label="旋转景物">${icon('rotate')}</button>`;
     if(!inBag(item))actions+=`<button class="small-button" data-action="store" data-id="${item.id}" aria-label="暂存${itemName(item)}">${icon('bag')}</button>`;
@@ -194,13 +205,14 @@ function render(events=[]){
   $('#app').classList.toggle('world-mode',worldView);
   $('#app').classList.toggle('zoomed-in',camera.zoom==='near'&&!worldView);
   $('#region-edges').hidden=worldView;
-  $('#land-counter').textContent=worldView?'世界地图':`${openCells(state).length} / 37 地块`;
-  $('#chapter-status').textContent=worldView?'四个方向，不同的风景':state.departed?'灯火温暖，营地长存':isComplete(state)?'营地建成，准备出发':'拖动空地，探索四周';
+  const space=spaceSummary(state);
+  $('#land-counter').innerHTML=worldView?'世界地图':state.departed?'营地已永久保留':`<i class="work-key"></i>工作空位 ${space.free}/${space.capacity} <i class="scene-key"></i>景观 ${space.landscape} 格`;
+  $('#chapter-status').textContent=worldView?'四个方向，不同的风景':state.departed?'灯火温暖，营地长存':'可拖动探索';
   renderGoals();renderBoard(events);renderInspector();renderBag();
   $('#chest-count').textContent=state.chests.length;$('#chest-caption').textContent=state.chests.length?`${state.chests.length} 箱等待开启`:'胜利后获得';$('#chest-button').classList.toggle('available',state.chests.length>0);$('#chest-button').disabled=!state.chests.length||state.departed;
   $('#win-button').disabled=!worldView&&state.wins>=8&&!isComplete(state)&&!state.departed;$('#win-button').classList.toggle('finish',isComplete(state)&&!state.departed);
   $('#win-label').textContent=state.departed?'回看旅程结算':isComplete(state)?'结算物资 · 出发':state.wins>=8?'营地物资已备齐':'模拟三消胜利';
-  $('#win-counter').textContent=state.departed?`下一站 · ${state.route==='river'?'河湾':'山坡'}`:isComplete(state)?'选择你的下一站':state.wins>=8?'合成并落成剩余景物':`第 ${state.wins+1} / 8 局`;
+  $('#win-counter').textContent=state.departed?`下一站 · ${state.route==='river'?'河湾':'山坡'}`:isComplete(state)?'选择你的下一站':state.wins>=8?'完成剩余建设阶段':`第 ${state.wins+1} / 8 局`;
   if(worldView){$('#win-label').textContent='回到林间营地';$('#win-counter').textContent='继续这一站的建设';$('#chest-button').disabled=true;}
   $('#zoom-button').innerHTML=`${icon('zoom',14)}${camera.zoom==='near'?'全景':'近景'}`;$('#zoom-button').disabled=worldView;
   $('#world-button').innerHTML=`${icon('world',14)}${worldView?'返回营地':'世界'}`;
@@ -237,8 +249,8 @@ function showHint(){
 }
 function drawPreview(cells,valid=true,ghost=null){
   const layer=$('#preview-layer');if(!layer)return;
-  layer.innerHTML=(cells||[]).map(cell=>{const [x,y]=point(cell);return `<polygon class="preview-cell${valid?'':' invalid'}" points="${polygon(corners(x,y,layout.size-1))}"/>`;}).join('');
-  if(ghost&&cells?.length){const [cx,cy]=centroid(cells),w=layout.size*(cells.length===1?2.25:cells.length===3?3.95:5.45);layer.innerHTML+=`<image href="${art(ghost)}" x="${cx-w/2}" y="${cy+layout.size*.1-w*.8125}" width="${w}" height="${w}" opacity=".82"/>`;}
+  layer.innerHTML=cells?.length?`<path class="preview-cell${valid?'':' invalid'}" d="${outlinePath(cells)}" stroke-linejoin="round"/>${cells.map(cell=>{const [x,y]=point(cell);return `<circle cx="${x}" cy="${y}" r="3" fill="${valid?'#ba8f32':'#b2694f'}"/>`;}).join('')}`:'';
+  if(ghost&&cells?.length){const [cx,cy]=centroid(cells),w=layout.size*(cells.length===1?2.25:cells.length===3?3.95:5.45);layer.innerHTML+=`<image href="${art(ghost)}" x="${cx-w/2}" y="${cy+layout.size*.1-w*.8125}" width="${w}" height="${w}" opacity=".82"/><path d="${outlinePath(cells)}" fill="none" stroke="${valid?'#bb8824':'#b2694f'}" stroke-width="3" stroke-linejoin="round"/>`;}
 }
 function hitAt(event){
   const element=document.elementFromPoint(event.clientX,event.clientY);
@@ -300,7 +312,23 @@ board.addEventListener('keydown',event=>{if(!['Enter',' '].includes(event.key))r
 function openModal(content){$('#modal-body').innerHTML=content;if(!modal.open)modal.showModal();}
 function closeModal(){if(modal.open)modal.close();}
 const modalHead=(eyebrow,title)=>`<div class="modal-topline"><div><div class="modal-eyebrow">${esc(eyebrow)}</div><h2>${esc(title)}</h2></div><button class="modal-close" data-action="close-modal" aria-label="关闭">${icon('close')}</button></div>`;
-function showHelp(){openModal(`<div class="modal-content">${modalHead('FOREST CAMP','让营地慢慢长出来')}<div class="help-step"><span class="help-number">1</span><div><strong>赢一局，开一箱</strong><p>点「模拟三消胜利」，再打开物资箱。你也可以攒几箱一起开。</p></div></div><div class="help-step"><span class="help-number">2</span><div><strong>两件相同素材，合出下一等级</strong><p>拖到一起，或先点一件、再点另一件。到 L4 占三格，营地 L6 占七格。</p></div></div><div class="help-step"><span class="help-number">3</span><div><strong>摆得下，景色才长得开</strong><p>选中后可移动、旋转三格景物，或免费暂存。点「提示」可高亮下一对素材。</p></div></div><div class="help-step"><span class="help-number">4</span><div><strong>落成景物，带上补给出发</strong><p>终点景物点击「落成」。额外树林素材用来修桥；离区时剩余素材统一结算。</p></div></div><button class="modal-button" data-action="close-modal">回到我的营地</button></div>`);}
+function showHelp(){openModal(`<div class="modal-content">${modalHead('FOREST CAMP','一步一步建成营地')}
+  <div class="help-step"><span class="help-number">1</span><div><strong>工作区是米色六角格</strong><p>可移动素材有凸起的完整底座，并标明等级与占地。相同种类、相同等级可以合成。</p></div></div>
+  <div class="help-step"><span class="help-number">2</span><div><strong>按当前目标交付建设</strong><p>先栽小树，再扩成树丛和小径。已建的内容会保留，下一份素材让它继续升级。</p></div></div>
+  <div class="help-step"><span class="help-number">3</span><div><strong>景观区有绿色地面和石边</strong><p>景观不再作为合成素材。它每新增一格占地，就补开一格工作地；关键阶段还会扩大工作区。</p></div></div>
+  <div class="help-step"><span class="help-number">4</span><div><strong>提前合高了也能交付</strong><p>高等级素材可连续完成同链的多个阶段，多余部分退回同类素材。额外树林用于修桥，最后统一结算剩料。</p></div></div>
+  <button class="modal-button" data-action="close-modal">回到我的营地</button></div>`);}
+function showOrder(){
+  const order=currentOrder(state);if(!order){showSettlement();return;}
+  if(order.chain==='bridge'){showBridge();return;}
+  const item=orderItem(state);
+  if(item){selected=item.id;hintTarget=null;if(inBag(item))bagOpen=true;else focusItem(item.id,false);render();toast(order.title,'已选中可交付素材，点「建设」完成这一步。高等级也能交付。');}
+  else toast(order.title,`${order.description} 需要 ${CHAINS[order.chain].names[order.requiredLevel]} L${order.requiredLevel} ×1。`);
+}
+function showTimeline(){
+  const current=currentOrder(state);
+  openModal(`<div class="modal-content">${modalHead('林间营地 · 建设手记',`已经完成 ${completedStages(state)} / 10 步`)}<p>同一处景观会逐步升级。每新增一格景观，都会补开一格工作地。</p><div class="construction-list">${CONSTRUCTION_STAGES.map((stage,index)=>{const done=stageComplete(state,stage),active=stage.id===current?.id;return `<div class="construction-step${done?' done':''}${active?' current':''}"><span class="construction-number">${done?'✓':index+1}</span><img src="${art(stage.chain==='bridge'?{chain:'bridge',level:1}:{chain:stage.chain,level:stage.level})}" alt=""><span><strong>${stage.title}</strong><small>${done?'已完成':active?'当前目标':'后续建设'}</small></span></div>`;}).join('')}</div><button class="modal-button" data-action="close-modal">继续建设</button></div>`);
+}
 function showSettings(){openModal(`<div class="modal-content">${modalHead('营地手记','旅途设置')}<button class="setting-row" data-action="toggle-sound"><span>轻柔音效<small>合成、开箱和景物生长时的提示音</small></span><strong>${sound?'已开启':'已关闭'}</strong></button><button class="setting-row" data-action="help"><span>玩法帮助<small>合成、旋转、暂存与地块解锁</small></span>${icon('arrow')}</button><button class="setting-row" data-action="reset-prompt"><span>重新开始<small>清除本次营地进度，从第一箱物资开始</small></span>${icon('undo')}</button><p>进度保存在当前浏览器。林间营地是本次试玩的完整区域。</p></div>`);}
 function showReset(){openModal(`<div class="modal-content">${modalHead('重新启程','从第一箱物资开始？')}<p>当前营地、背包和旅行补给会被重置。你可以重新体验全部八次胜利与合成过程。</p><button class="modal-button danger" data-action="reset-confirm">确认重新开始</button><button class="modal-button secondary" data-action="close-modal">继续现在的营地</button></div>`);}
 function showRegion(id){
@@ -309,7 +337,7 @@ function showRegion(id){
 }
 function showBridge(){
   const ready=bridgeReady(state),available=bridgeAvailable(state);
-  openModal(`<div class="modal-content">${modalHead('连接下一段旅程',state.bridge>=8?'木桥已经修好了':'让木桥重新通行')}<img class="completion-art" src="./assets/bridge.svg" alt="木桥"><p>${state.bridge>=8?'溪流两岸又连在了一起。完成营地后，就能沿着小路继续探索。':ready?'投入任意等级的额外树林素材。树种值 1 点、树苗 2 点、小树 4 点、树丛 8 点。多交的部分返还旅行补给。':'先落成林荫小径和清澈溪湾，向导就能开始修桥。已落成的景物会永久保留。'}</p><div class="settlement-total"><span>修桥进度</span><strong>${state.bridge} / 8</strong></div>${ready?`<p>背包和地图上共有 ${available} 点可用树林材料。</p><button class="modal-button" data-action="build-bridge" ${available?'':'disabled'}>投入材料修桥</button>`:`<button class="modal-button secondary" data-action="close-modal">回到营地</button>`}</div>`);
+  openModal(`<div class="modal-content">${modalHead('第 9 阶段 · 连接下一段旅程',state.bridge>=8?'木桥已经修好了':'让木桥重新通行')}<img class="completion-art" src="./assets/bridge.svg" alt="木桥"><p>${state.bridge>=8?'溪流两岸又连在了一起。完成营地后，就能沿着小路继续探索。':ready?'投入任意等级的额外树林素材。树种值 1 点、树苗 2 点、小树 4 点、树丛 8 点。多交的部分返还旅行补给。':'先按当前目标建好篝火营位，再来修桥。已建景观会永久保留。'}</p><div class="settlement-total"><span>修桥进度</span><strong>${state.bridge} / 8</strong></div>${ready?`<p>背包和地图上共有 ${available} 点可用树林材料。</p><button class="modal-button" data-action="build-bridge" ${available?'':'disabled'}>投入材料修桥</button>`:`<button class="modal-button secondary" data-action="close-modal">回到营地</button>`}</div>`);
 }
 function showSettlement(){
   if(state.departed){showCompletion();return;}
@@ -328,6 +356,8 @@ document.addEventListener('click',event=>{
   else if(action==='store')perform({type:'STORE',id});
   else if(action==='rotate')perform({type:'ROTATE',id});
   else if(action==='settle')perform({type:'SETTLE',id});
+  else if(action==='order')showOrder();
+  else if(action==='timeline')showTimeline();
   else if(action==='restore'){const item=state.items.find(item=>item.id===id);const position=item&&findPlacement(state,item.level,CHAINS[item.chain].anchor,[id],item.rotation);if(position)perform({type:'MOVE',id,...position});else toast('需要腾一点位置','先把地图上的其他素材合成或暂存。',true);}
   else if(action==='goal'){const chain=button.dataset.chain;const item=state.items.find(item=>item.chain===chain&&item.level===CHAINS[chain].target);if(item){selected=item.id;focusItem(item.id,false);render();if(!item.settled)toast('景物准备好了','点下方的「落成」，让它成为营地的一部分。');}else toast(CHAINS[chain].names[CHAINS[chain].target],`${CHAINS[chain].description} 合成到 L${CHAINS[chain].target} 即可落成。`);}
   else if(action==='bridge')showBridge();

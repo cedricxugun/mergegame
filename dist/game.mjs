@@ -1,4 +1,4 @@
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const STORAGE_KEY = 'forest-camp.hex.v1';
 export const FOOTPRINT = [0, 1, 1, 1, 3, 3, 7];
 export const CHAINS = {
@@ -6,6 +6,30 @@ export const CHAINS = {
   water: { name: '溪流', short: '水', target: 4, anchor: [0, -2], color: '#3b9fa4', names: ['', '水滴', '浅水洼', '小池塘', '清澈溪湾'], description: '汇聚清水，恢复溪岸的生机。' },
   camp: { name: '营地', short: '营', target: 6, anchor: [1, 0], color: '#d68c4f', names: ['', '营地材料包', '帐篷组件', '小帐篷', '双帐篷营位', '篝火营位', '完整林间营地'], description: '搭起帐篷，为每位旅人留一处暖意。' }
 };
+export const CONSTRUCTION_STAGES = [
+  {id:'forest-3',chain:'forest',level:3,title:'栽下第一棵树',description:'先让一棵小树在营地边扎根。'},
+  {id:'forest-4',chain:'forest',level:4,title:'让树丛长起来',description:'再栽一棵小树，把林缘扩成三格树丛。'},
+  {id:'forest-5',chain:'forest',level:5,title:'铺出林荫小径',description:'补齐树丛，让旅人有一条阴凉的小路。'},
+  {id:'water-3',chain:'water',level:3,title:'找到一处水源',description:'先汇成小池塘，给营地留住清水。'},
+  {id:'water-4',chain:'water',level:4,title:'接通清澈溪湾',description:'把水源扩成溪湾，打开新的溪岸。'},
+  {id:'camp-3',chain:'camp',level:3,title:'搭起第一顶帐篷',description:'先为旅人准备一处落脚点。'},
+  {id:'camp-4',chain:'camp',level:4,title:'增加一处营位',description:'再搭一顶帐篷，把小营位扩成三格。'},
+  {id:'camp-5',chain:'camp',level:5,title:'点亮营地篝火',description:'补齐营位，让大家围着篝火坐下来。'},
+  {id:'bridge',chain:'bridge',level:0,title:'修通林间木桥',description:'用额外树林素材修桥，连通前方的道路。'},
+  {id:'camp-6',chain:'camp',level:6,title:'迎接更多旅人',description:'扩成七格大营地，完成这一站的建设。'}
+];
+export function projectFor(state,chain){return state.items.find(item=>item.chain===chain&&item.settled)||null;}
+export function stageComplete(state,stage){return stage.chain==='bridge'?state.bridge>=8:(projectFor(state,stage.chain)?.level||0)>=stage.level;}
+export function completedStages(state){return CONSTRUCTION_STAGES.filter(stage=>stageComplete(state,stage)).length;}
+export function currentOrder(state){
+  const index=CONSTRUCTION_STAGES.findIndex(stage=>!stageComplete(state,stage));if(index<0)return null;
+  const stage=CONSTRUCTION_STAGES[index];
+  if(stage.chain==='bridge')return {...stage,index,requiredValue:8-state.bridge,requiredLevel:null};
+  const existing=projectFor(state,stage.chain),requiredValue=materialValue(stage.level)-(existing?materialValue(existing.level):0);
+  return {...stage,index,requiredValue,requiredLevel:Math.ceil(Math.log2(requiredValue))+1,oldLevel:existing?.level||0};
+}
+export function canContribute(state,item){const order=currentOrder(state);return !!(order&&order.chain!=='bridge'&&item&&!item.settled&&item.chain===order.chain&&materialValue(item.level)>=order.requiredValue);}
+export function orderItem(state){return state.items.filter(item=>canContribute(state,item)).sort((a,b)=>a.level-b.level||Number(inBag(a))-Number(inBag(b)))[0]||null;}
 export const REWARDS = [
   [['forest',1,4]],
   [['forest',1,4]],
@@ -40,16 +64,26 @@ export function cellsOf(item) {
   if (inBag(item)) return [];
   return shapeFor(item.level,item.rotation).map(([q,r])=>[q+item.q,r+item.r]);
 }
+export function hexBoundary(cells){
+  const edges=new Map(),vertices=new Map();
+  const vertexKey=point=>point.map(number=>Math.round(number*1e6)).join(',');
+  for(const [q,r]of cells){
+    const center=[Math.sqrt(3)*(q+r/2),1.5*r];
+    const points=Array.from({length:6},(_,i)=>{const angle=(60*i-30)*Math.PI/180;return [center[0]+Math.cos(angle),center[1]+Math.sin(angle)];});
+    for(let i=0;i<6;i++){const a=points[i],b=points[(i+1)%6],ak=vertexKey(a),bk=vertexKey(b),key=[ak,bk].sort().join('|');vertices.set(ak,a);vertices.set(bk,b);if(edges.has(key))edges.delete(key);else edges.set(key,[ak,bk]);}
+  }
+  const outgoing=new Map([...edges.values()].map(([a,b])=>[a,b]));const loops=[];
+  while(outgoing.size){const start=outgoing.keys().next().value;let current=start;const loop=[];do{loop.push(vertices.get(current));const next=outgoing.get(current);outgoing.delete(current);current=next;}while(current&&current!==start&&loop.length<1000);if(current!==start)throw Error('Invalid hex boundary');loops.push(loop);}
+  return loops;
+}
 export function newGame() {
   return {version:SAVE_VERSION,wins:0,nextId:1,items:[],chests:[],forestOpened:false,goals:{forest:false,water:false,camp:false},bridge:0,supplies:0,departed:false,route:null,settlement:null,merges:0};
 }
-export function openCells(state) {
-  const cells=INITIAL_CELLS.map(cell=>[...cell]);
-  if(state.forestOpened)cells.push(...WAVES[0]);
-  if(state.goals.water)cells.push(...WAVES[1]);
-  if(state.bridge>=8)cells.push(...WAVES[2]);
-  return cells;
-}
+export function landscapeCells(state){const cells=state.items.filter(item=>item.settled).flatMap(cellsOf);if(state.bridge>=8)cells.push([...BRIDGE_CELL]);return cells;}
+export function workCapacity(state){return state.bridge>=8?23:state.goals.water?19:(state.forestOpened||(projectFor(state,'forest')?.level||0)>=4)?13:7;}
+export function workCells(state){const landscape=new Set(landscapeCells(state).map(keyOf));return [...INITIAL_CELLS,...WAVES.flat()].filter(cell=>!landscape.has(keyOf(cell))).slice(0,workCapacity(state)).map(cell=>[...cell]);}
+export function openCells(state){return [...workCells(state),...landscapeCells(state)];}
+export function spaceSummary(state){const capacity=workCapacity(state),used=state.items.filter(item=>!item.settled).reduce((sum,item)=>sum+cellsOf(item).length,0);return {capacity,used,free:capacity-used,landscape:landscapeCells(state).length};}
 export function occupancy(state, exclude=[]) {
   const skip=new Set(exclude);const result=new Map();
   for(const item of state.items)if(!skip.has(item.id))for(const cell of cellsOf(item))result.set(keyOf(cell),item.id);
@@ -82,7 +116,7 @@ export function previewMerge(state,sourceId,targetId) {
   return {ok:true,placement,level:a.level+1,chain:a.chain,size:FOOTPRINT[a.level+1],cells:shapeFor(a.level+1,placement.rotation).map(([q,r])=>[q+placement.q,r+placement.r])};
 }
 export function isComplete(state){return Object.values(state.goals).every(Boolean)&&state.bridge>=8;}
-export function bridgeReady(state){return state.goals.forest&&state.goals.water&&!state.departed&&state.bridge<8;}
+export function bridgeReady(state){return currentOrder(state)?.chain==='bridge'&&!state.departed&&state.bridge<8;}
 export function bridgeAvailable(state){return state.items.filter(item=>item.chain==='forest'&&!item.settled).reduce((sum,item)=>sum+materialValue(item.level),0);}
 export function settlementPreview(state) {
   const counts=new Map();let value=0;
@@ -118,10 +152,6 @@ export function act(current,action) {
     state.items.push(item);state.merges++;selected=item.id;
     const grown=FOOTPRINT[item.level]>FOOTPRINT[item.level-1];
     events.push({type:grown?'growth':'merge',title:itemName(item),message:grown?`景物展开，占地变为 ${FOOTPRINT[item.level]} 格！`:`合成成功 · L${item.level}`,itemId:item.id});
-    if(item.chain==='forest'&&item.level>=4&&!state.forestOpened){
-      state.forestOpened=true;
-      events.push({type:'unlock',title:'发现林间小路',message:'新的 12 格林地开放了。拖动空地，可以继续探索。',wave:0});
-    }
   } else if(action.type==='MOVE') {
     const item=get(action.id);
     if(!item||item.settled)return fail(current,'已落成的景物会留在原地。');
@@ -141,23 +171,37 @@ export function act(current,action) {
     events.push({type:'store',title:'已暂存',message:'点背包里的素材，再点地图空地即可放回。'});
   } else if(action.type==='SETTLE') {
     const item=get(action.id);
-    if(!item||item.settled||item.level!==CHAINS[item.chain].target)return fail(current,'合成到这条链的终点，就能落成景物。');
-    if(state.goals[item.chain])return fail(current,'这里的景物已经建好了。');
-    const [q,r]=CHAINS[item.chain].anchor;
-    const targetCells=shapeFor(item.level).map(([dq,dr])=>`${q+dq},${r+dr}`);
-    const used=occupancy(state,[item.id]);let stored=0;
-    for(const key of targetCells){
-      const otherId=used.get(key);if(!otherId)continue;
-      const other=get(otherId);
-      if(!other||other.settled)return fail(current,'落成位置暂时不可用。');
-      if(!inBag(other)){other.q=null;other.r=null;stored++;}
+    const order=currentOrder(state);
+    if(!canContribute(state,item))return fail(current,order&&order.chain!=='bridge'?`当前建设需要 ${CHAINS[order.chain].names[order.requiredLevel]} L${order.requiredLevel}，更高等级也可交付。`:order?'先完成当前的修桥目标。':'当前区域的建设已经完成。');
+    const previousOpen=new Set(openCells(state).map(keyOf)),previousCapacity=workCapacity(state);
+    let landmark=projectFor(state,item.chain);const previousLevel=landmark?.level||0,previousValue=landmark?materialValue(landmark.level):0,previousSize=landmark?FOOTPRINT[landmark.level]:0;
+    const budget=previousValue+materialValue(item.level);
+    const achieved=CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain&&materialValue(stage.level)<=budget).at(-1);
+    const achievedLevel=achieved.level,requiredValue=materialValue(achievedLevel)-previousValue;
+    const [q,r]=CHAINS[item.chain].anchor;const targetCells=shapeFor(achievedLevel).map(([dq,dr])=>`${q+dq},${r+dr}`);
+    const blocked=state.items.some(other=>other.settled&&other.id!==landmark?.id&&cellsOf(other).some(cell=>targetCells.includes(keyOf(cell))));
+    if(blocked)return fail(current,'这处景观地块暂时不可用。');
+    state.items=state.items.filter(other=>other.id!==item.id);
+    if(landmark)Object.assign(landmark,{level:achievedLevel,q,r,rotation:0});
+    else{landmark={id:`item-${state.nextId++}`,chain:item.chain,level:achievedLevel,q,r,rotation:0,settled:true};state.items.push(landmark);}
+    if(item.chain==='forest'&&achievedLevel>=4)state.forestOpened=true;
+    state.goals[item.chain]=achievedLevel>=CHAINS[item.chain].target;
+    let stored=0;
+    for(const other of state.items)if(!other.settled&&cellsOf(other).some(cell=>targetCells.includes(keyOf(cell)))){other.q=null;other.r=null;stored++;}
+    let refund=materialValue(item.level)-requiredValue;
+    const refundValue=refund;
+    for(let level=CHAINS[item.chain].target;level>=1;level--)while(refund>=materialValue(level)){
+      state.items.push({id:`item-${state.nextId++}`,chain:item.chain,level,q:null,r:null,rotation:0,settled:false});refund-=materialValue(level);
     }
-    if(!canPlace(state,item.level,q,r,0,[item.id]))return fail(current,'目标地块还没有开放。');
-    Object.assign(item,{q,r,rotation:0,settled:true});state.goals[item.chain]=true;selected=item.id;
-    events.push({type:'settle',title:`${itemName(item)}落成`,message:`景物将永久留在这片营地。${stored?`挡住位置的 ${stored} 件素材已放进背包。`:''}`,itemId:item.id});
-    if(item.chain==='water')events.push({type:'unlock',title:'清水流向溪岸',message:'溪岸的 12 格土地开放了，现在可以修桥。',wave:1});
+    selected=landmark.id;
+    const added=FOOTPRINT[achievedLevel]-previousSize,newCells=openCells(state).filter(cell=>!previousOpen.has(keyOf(cell)));
+    const expanded=workCapacity(state)>previousCapacity;
+    const note=expanded?`工作区拓展到 ${workCapacity(state)} 格。`:`工作区仍有 ${workCapacity(state)} 格，新景观占地已补回。`;
+    const stagesBuilt=CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain&&stage.level>previousLevel&&stage.level<=achievedLevel).length;
+    events.push({type:previousSize&&added>0?'growth':'settle',title:achieved.title,message:`${stagesBuilt>1?`连续完成 ${stagesBuilt} 个阶段，`:''}区域建设 ${completedStages(state)} / ${CONSTRUCTION_STAGES.length}。${note}${refundValue?` 多余 ${refundValue} 份素材已退回背包。`:''}${stored?` ${stored} 件挡位素材已暂存。`:''}`,itemId:landmark.id,cells:newCells,construction:true});
   } else if(action.type==='BUILD_BRIDGE') {
-    if(!bridgeReady(state))return fail(current,state.bridge>=8?'木桥已经修好了。':'先落成林荫小径和清澈溪湾，再来修桥。');
+    if(!bridgeReady(state))return fail(current,state.bridge>=8?'木桥已经修好了。':'先完成当前的建设阶段，篝火营位建好后就能修桥。');
+    const previousOpen=new Set(openCells(state).map(keyOf));
     let available=state.items.filter(item=>item.chain==='forest'&&!item.settled);
     if(!available.length)return fail(current,'把额外的树林素材带来，就能推进修桥。');
     const chosen=action.id?available.find(item=>item.id===action.id):null;
@@ -175,7 +219,7 @@ export function act(current,action) {
     if(state.bridge>=8){
       const blockers=state.items.filter(item=>!item.settled&&cellsOf(item).some(cell=>keyOf(cell)===keyOf(BRIDGE_CELL)));
       for(const item of blockers){item.q=null;item.r=null;}
-      events.push({type:'unlock',title:'木桥修好了',message:`桥位和后方共 6 格开放。${refund?`多余材料返还 ${refund} 点旅行补给。`:''}`,wave:2});
+      events.push({type:'unlock',title:'木桥修好了',message:`第 9 / 10 步完成，工作区拓展到 23 格。${refund?`多余材料返还 ${refund} 点旅行补给。`:''}`,cells:openCells(state).filter(cell=>!previousOpen.has(keyOf(cell)))});
     }else events.push({type:'bridge',title:`修桥 ${state.bridge} / 8`,message:`投入 ${contributed} 点建设值，木桥正在一点点恢复。`});
   } else if(action.type==='DEPART') {
     if(!isComplete(state))return fail(current,'先完成三处景物和木桥，再开始下一段旅程。');
@@ -190,8 +234,8 @@ export function act(current,action) {
 export function getHint(state) {
   if(state.departed)return {type:'done',message:'营地已永久保留。你可以回看景色，或重新体验。'};
   if(isComplete(state))return {type:'depart',message:'营地建好了！结算剩余素材，选择下一站。'};
-  const terminal=state.items.find(item=>!item.settled&&!state.goals[item.chain]&&item.level===CHAINS[item.chain].target);
-  if(terminal)return {type:'settle',id:terminal.id,message:`${itemName(terminal)}可以落成了，选中后点「落成」。`};
+  const deliverable=orderItem(state),order=currentOrder(state);
+  if(deliverable)return {type:'settle',id:deliverable.id,message:`交付${itemName(deliverable)}，完成「${order.title}」。已建内容会保留并升级。`};
   if(bridgeReady(state)&&bridgeAvailable(state)>0)return {type:'bridge',message:`有 ${bridgeAvailable(state)} 点树林材料可修桥，点右侧的小桥。`};
   const loose=state.items.filter(item=>!item.settled).sort((a,b)=>a.level-b.level||Number(inBag(a))-Number(inBag(b)));
   let blockedPair=null;
@@ -211,27 +255,27 @@ export function getHint(state) {
   if(state.wins<8)return {type:'win',message:state.wins===0?'先模拟一次三消胜利，领取第一箱树种。':'再赢一局三消，为营地带来新的素材。'};
   const stored=loose.find(inBag);
   if(stored)return {type:'restore',id:stored.id,message:'背包里还有素材，选中后放回地图继续合成。'};
-  return {type:'space',message:'检查尚未落成的景物，或用暂存和撤销调整摆放。'};
+  return {type:'space',message:'查看当前建设需求，或用暂存和撤销调整摆放。'};
 }
 export function validateState(state) {
   if(!state||state.version!==SAVE_VERSION||!Number.isInteger(state.wins)||state.wins<0||state.wins>8||!Array.isArray(state.items)||!Array.isArray(state.chests)||!state.goals) return false;
   if(!Number.isInteger(state.nextId)||state.nextId<1||!Number.isInteger(state.bridge)||state.bridge<0||state.bridge>8||!Number.isInteger(state.supplies)||state.supplies<0)return false;
   if(state.items.length>200||state.chests.length>8)return false;
-  const ids=new Set(),occupied=new Set();const open=new Set(openCells(state).map(keyOf));
+  const ids=new Set(),occupied=new Set();const open=new Set(openCells(state).map(keyOf)),boardKeys=new Set(BOARD.map(keyOf));
   for(const item of state.items){
     if(typeof item.id!=='string'||ids.has(item.id)||!CHAINS[item.chain]||!Number.isInteger(item.level)||item.level<1||item.level>CHAINS[item.chain].target||!Number.isInteger(item.rotation)||item.rotation<0||item.rotation>5)return false;
     ids.add(item.id);
     if((item.q===null)!==(item.r===null)||(!inBag(item)&&(!Number.isInteger(item.q)||!Number.isInteger(item.r))))return false;
-    if(item.settled&&(inBag(item)||item.level!==CHAINS[item.chain].target||!state.goals[item.chain]))return false;
-    for(const cell of cellsOf(item)){const key=keyOf(cell);if(!open.has(key)||occupied.has(key))return false;occupied.add(key);}
+    if(item.settled&&(inBag(item)||!CONSTRUCTION_STAGES.some(stage=>stage.chain===item.chain&&stage.level===item.level)||item.rotation!==0||item.q!==CHAINS[item.chain].anchor[0]||item.r!==CHAINS[item.chain].anchor[1]))return false;
+    for(const cell of cellsOf(item)){const key=keyOf(cell);if(!boardKeys.has(key)||!open.has(key)||occupied.has(key))return false;occupied.add(key);}
   }
   if(state.bridge>=8&&occupied.has(keyOf(BRIDGE_CELL)))return false;
-  for(const chain of Object.keys(CHAINS))if(Boolean(state.goals[chain])!==state.items.some(item=>item.chain===chain&&item.settled))return false;
+  for(const chain of Object.keys(CHAINS)){if(state.items.filter(item=>item.chain===chain&&item.settled).length>1)return false;if(Boolean(state.goals[chain])!==state.items.some(item=>item.chain===chain&&item.settled&&item.level===CHAINS[chain].target))return false;}
   for(const chest of state.chests){if(!Array.isArray(chest.contents)||!Number.isInteger(chest.index)||chest.index<1||chest.index>8)return false;for(const entry of chest.contents){if(!Array.isArray(entry)||entry.length!==3||!CHAINS[entry[0]]||!Number.isInteger(entry[1])||entry[1]<1||entry[1]>CHAINS[entry[0]].target||!Number.isInteger(entry[2])||entry[2]<1||entry[2]>20)return false;}}
   return !state.departed||(isComplete(state)&&['river','mountain'].includes(state.route)&&state.items.every(item=>item.settled)&&state.chests.length===0);
 }
 export function migrateState(input) {
-  if(!input||![1,SAVE_VERSION].includes(input.version))return input;
+  if(!input||![1,2,SAVE_VERSION].includes(input.version))return input;
   if(input.version===SAVE_VERSION)return input;
   const state=structuredClone(input);state.version=SAVE_VERSION;
   const open=new Set(openCells(state).map(keyOf));

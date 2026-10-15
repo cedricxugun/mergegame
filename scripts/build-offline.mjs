@@ -1,0 +1,30 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import vm from 'node:vm';
+import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const dist=path.join(root,'dist');
+const assets={};
+for(const name of await fs.readdir(path.join(dist,'assets')))if(name.endsWith('.svg'))assets[name.slice(0,-4)]='data:image/svg+xml;base64,'+(await fs.readFile(path.join(dist,'assets',name))).toString('base64');
+const game=(await fs.readFile(path.join(dist,'game.mjs'),'utf8')).replace(/^export /gm,'');
+let app=(await fs.readFile(path.join(dist,'app.mjs'),'utf8')).replace(/^import .*?;\r?\n/,'');
+app=app.replace(/^const art=.*;$/m,"const asset=name=>ASSETS[name]; const art=item=>asset(item.chain==='bridge'?'bridge':item.chain+'-'+item.level);");
+const substitutions=[
+  ['src="./assets/${key}-${chain.target}.svg"','src="${asset(key+\'-\'+chain.target)}"'],
+  ['src="./assets/${state.departed?\'camp-6\':\'forest-2\'}.svg"','src="${asset(state.departed?\'camp-6\':\'forest-2\')}"'],
+  ['href="./assets/region-${id}.svg"','href="${asset(\'region-\'+id)}"'],
+  ['src="./assets/region-${id}.svg"','src="${asset(\'region-\'+id)}"'],
+  ['href="./assets/${campArt}.svg"','href="${asset(campArt)}"']
+];
+for(const [from,to]of substitutions)app=app.replaceAll(from,to);
+app=app.replace(/((?:src|href)=")\.\/assets\/([a-z0-9-]+)\.svg"/g,(_,prefix,name)=>prefix+'${asset(\''+name+'\')}"');
+if(app.includes('./assets/'))throw Error('Unbundled asset reference remains');
+const script=`(() => {\nconst ASSETS=${JSON.stringify(assets)};\n${game}\n${app}\n})();`;
+new vm.Script(script);
+const css=await fs.readFile(path.join(dist,'style.css'),'utf8');
+let html=await fs.readFile(path.join(dist,'index.html'),'utf8');
+html=html.replace('<link rel="stylesheet" href="./style.css">',`<style>${css}</style>`).replace('<script type="module" src="./app.mjs"></script>',`<script>${script}</script>`);
+html=html.replace(/\.\/assets\/([a-z0-9-]+)\.svg/g,(_,name)=>{if(!assets[name])throw Error(`Missing asset ${name}`);return assets[name];});
+const out=path.join(root,'offline');await fs.mkdir(out,{recursive:true});
+const output=path.join(out,'forest-camp.html');await fs.writeFile(output,html);
+console.log(JSON.stringify({output,bytes:Buffer.byteLength(html),assets:Object.keys(assets).length,scriptParses:true,externalRequests:false}));

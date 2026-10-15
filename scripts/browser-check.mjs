@@ -68,7 +68,11 @@ try{
     state=await getState();const hint=await evaluate('window.__forestCamp.getHint()');
     if(state.wins===2&&state.forestOpened&&!capturedGrowth&&hint.type==='win'){
       await capture('first-expansion-mobile.png');capturedGrowth=true;
-      const tree=state.items.find(item=>item.chain==='forest'&&item.level===4);await clearSelection();await clickItem(tree.id);
+      console.log('PASS: permanent three-cell scenery and compensated workspace');
+    }
+    const movableThree=state.items.find(item=>!item.settled&&item.level===4&&item.q!==null);
+    if(movableThree&&!rotated){
+      const tree=movableThree;await clearSelection();await clickItem(tree.id);
       await click('button[data-action=store]');assert.equal((await getState()).items.find(i=>i.id===tree.id).q,null);
       await click('button[data-action=rotate]');assert.equal((await getState()).items.find(i=>i.id===tree.id).rotation,(tree.rotation+1)%6);
       await click('button[data-action=restore]');assert.notEqual((await getState()).items.find(i=>i.id===tree.id).q,null);rotated=true;
