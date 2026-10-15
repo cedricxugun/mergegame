@@ -30,6 +30,14 @@ export function currentOrder(state){
 }
 export function canContribute(state,item){const order=currentOrder(state);return !!(order&&order.chain!=='bridge'&&item&&!item.settled&&item.chain===order.chain&&materialValue(item.level)>=order.requiredValue);}
 export function orderItem(state){return state.items.filter(item=>canContribute(state,item)).sort((a,b)=>a.level-b.level||Number(inBag(a))-Number(inBag(b)))[0]||null;}
+export function previewConstruction(state,id){
+  const item=state.items.find(value=>value.id===id),order=currentOrder(state);
+  if(!canContribute(state,item))return {ok:false,message:'这件素材还不能用于当前目标。'};
+  const existing=projectFor(state,item.chain),previousValue=existing?materialValue(existing.level):0,budget=previousValue+materialValue(item.level);
+  const achieved=CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain&&materialValue(stage.level)<=budget).at(-1);
+  const requiredValue=materialValue(achieved.level)-previousValue,[q,r]=CHAINS[item.chain].anchor;
+  return {ok:true,itemId:id,chain:item.chain,level:achieved.level,title:achieved.title,name:CHAINS[item.chain].names[achieved.level],q,r,rotation:0,oldLevel:existing?.level||0,requiredValue,refund:materialValue(item.level)-requiredValue,stagesBuilt:CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain&&stage.level>(existing?.level||0)&&stage.level<=achieved.level).length,cells:shapeFor(achieved.level).map(([dq,dr])=>[q+dq,r+dr])};
+}
 export const REWARDS = [
   [['forest',1,4]],
   [['forest',1,4]],
@@ -103,6 +111,47 @@ export function findPlacement(state,level,preferred=[0,0],exclude=[],rotation=0)
   }
   return null;
 }
+function planRelocations(state,items,reserved=[],extraExclude=[]){
+  if(!items.length)return [];
+  const workspace=workCells(state),workKeys=new Set(workspace.map(keyOf));
+  const ignored=[...extraExclude,...items.map(item=>item.id)],occupied=new Set([...occupancy(state,ignored).keys(),...reserved.map(keyOf)]);
+  if(workspace.filter(cell=>!occupied.has(keyOf(cell))).length<items.reduce((sum,item)=>sum+FOOTPRINT[item.level],0))return null;
+  const candidates=new Map();
+  for(const item of items){
+    const anchors=workspace.slice().sort((a,b)=>hexDistance(a,[item.q,item.r])-hexDistance(b,[item.q,item.r])||a[1]-b[1]||a[0]-b[0]);
+    const options=[],seen=new Set();
+    for(let turn=0;turn<(FOOTPRINT[item.level]===3?6:1);turn++)for(const [q,r]of anchors){
+      const rotation=(item.rotation+turn)%6,cells=shapeFor(item.level,rotation).map(([dq,dr])=>[q+dq,r+dr]),keys=cells.map(keyOf),signature=keys.slice().sort().join('|');
+      if(seen.has(signature)||keys.some(key=>!workKeys.has(key)||occupied.has(key)))continue;
+      seen.add(signature);options.push({id:item.id,q,r,rotation,cells,keys,from:{q:item.q,r:item.r,rotation:item.rotation}});
+    }
+    if(!options.length)return null;candidates.set(item.id,options);
+  }
+  let nodes=0;
+  function search(remaining){
+    if(!remaining.length)return [];
+    if(++nodes>6000)return null;
+    let chosen=null,choices=null;
+    for(const item of remaining){const legal=candidates.get(item.id).filter(option=>option.keys.every(key=>!occupied.has(key)));if(!legal.length)return null;if(!choices||legal.length<choices.length){chosen=item;choices=legal;}}
+    for(const option of choices){option.keys.forEach(key=>occupied.add(key));const rest=search(remaining.filter(item=>item.id!==chosen.id));if(rest)return [option,...rest];option.keys.forEach(key=>occupied.delete(key));}
+    return null;
+  }
+  return search(items);
+}
+export function previewMove(state,id,q,r,rotation){
+  const item=state.items.find(value=>value.id===id);
+  if(!item||item.settled)return {ok:false,message:'绿色景观会留在原地，不能被挤走。'};
+  rotation??=item.rotation;
+  if(!Number.isInteger(q)||!Number.isInteger(r)||!Number.isInteger(rotation)||rotation<0||rotation>5)return {ok:false,message:'请放到六角地格上。'};
+  const cells=shapeFor(item.level,rotation).map(([dq,dr])=>[q+dq,r+dr]),work=new Set(workCells(state).map(keyOf)),scenery=new Set(landscapeCells(state).map(keyOf));
+  if(cells.some(cell=>scenery.has(keyOf(cell))))return {ok:false,cells,message:'这里是已建景观，请放到米色工作地格。'};
+  if(cells.some(cell=>!work.has(keyOf(cell))))return {ok:false,cells,message:`这件素材需要 ${FOOTPRINT[item.level]} 格连续的工作地格。`};
+  const used=occupancy(state,[id]),blockedIds=new Set(cells.map(cell=>used.get(keyOf(cell))).filter(Boolean));
+  const blockers=state.items.filter(other=>blockedIds.has(other.id));
+  const shifted=planRelocations(state,blockers,cells,[id]);
+  if(!shifted)return {ok:false,cells,message:'没有能完整安置挡位素材的空地。先合成腾出空间，原位置不会改变。'};
+  return {ok:true,id,q,r,rotation,cells,shifted:shifted.map(({keys,...rest})=>rest)};
+}
 export function previewMerge(state,sourceId,targetId) {
   const a=state.items.find(item=>item.id===sourceId),b=state.items.find(item=>item.id===targetId);
   if(!a||!b||a.id===b.id)return {ok:false,message:'选另一件相同素材。'};
@@ -112,7 +161,7 @@ export function previewMerge(state,sourceId,targetId) {
   if(inBag(a)&&inBag(b))return {ok:false,message:'先把其中一件放回地图，再合成。'};
   const destination=inBag(b)?a:b;
   const placement=findPlacement(state,a.level+1,[destination.q,destination.r],[a.id,b.id],destination.rotation);
-  if(!placement)return {ok:false,message:`升级需要连续 ${FOOTPRINT[a.level+1]} 格。先把其他素材暂存到背包吧。`};
+  if(!placement)return {ok:false,message:`升级需要连续 ${FOOTPRINT[a.level+1]} 格。先把其他素材暂存到暂放区吧。`};
   return {ok:true,placement,level:a.level+1,chain:a.chain,size:FOOTPRINT[a.level+1],cells:shapeFor(a.level+1,placement.rotation).map(([q,r])=>[q+placement.q,r+placement.r])};
 }
 export function isComplete(state){return Object.values(state.goals).every(Boolean)&&state.bridge>=8;}
@@ -143,7 +192,7 @@ export function act(current,action) {
       const item={id:`item-${state.nextId++}`,chain,level,q:position?.q??null,r:position?.r??null,rotation:position?.rotation??0,settled:false};
       state.items.push(item);count++;if(!position)stored++;
     }
-    events.push({type:'chest',title:'打开物资箱',message:`收到 ${count} 件素材${stored?`，其中 ${stored} 件已放入背包`:''}。`,contents:chest.contents});
+    events.push({type:'chest',title:'打开物资箱',message:`收到 ${count} 件素材${stored?`，其中 ${stored} 件已放入暂放区`:''}。`,contents:chest.contents});
   } else if(action.type==='MERGE') {
     const preview=previewMerge(current,action.source,action.target);
     if(!preview.ok)return fail(current,preview.message);
@@ -154,10 +203,11 @@ export function act(current,action) {
     events.push({type:grown?'growth':'merge',title:itemName(item),message:grown?`景物展开，占地变为 ${FOOTPRINT[item.level]} 格！`:`合成成功 · L${item.level}`,itemId:item.id});
   } else if(action.type==='MOVE') {
     const item=get(action.id);
-    if(!item||item.settled)return fail(current,'已落成的景物会留在原地。');
-    const rotation=action.rotation??item.rotation;
-    if(!canPlace(state,item.level,action.q,action.r,rotation,[item.id]))return fail(current,'这片位置放不下，试试旋转或空地。');
-    Object.assign(item,{q:action.q,r:action.r,rotation});selected=item.id;
+    const plan=previewMove(current,action.id,action.q,action.r,action.rotation);
+    if(!plan.ok)return fail(current,plan.message);
+    for(const shift of plan.shifted)Object.assign(get(shift.id),{q:shift.q,r:shift.r,rotation:shift.rotation});
+    Object.assign(item,{q:plan.q,r:plan.r,rotation:plan.rotation});selected=item.id;
+    if(plan.shifted.length)events.push({type:'move',title:'已自动让出位置',message:`${plan.shifted.length} 件挡位素材已整体移到可用空地。`,shifted:plan.shifted});
   } else if(action.type==='ROTATE') {
     const item=get(action.id);
     if(!item||item.settled||FOOTPRINT[item.level]!==3)return fail(current,'三格景物可以旋转方向。');
@@ -168,7 +218,7 @@ export function act(current,action) {
     const item=get(action.id);
     if(!item||item.settled||inBag(item))return fail(current,'选择一件尚未落成的地图素材。');
     item.q=null;item.r=null;selected=item.id;
-    events.push({type:'store',title:'已暂存',message:'点背包里的素材，再点地图空地即可放回。'});
+    events.push({type:'store',title:'放到下方暂放区了',message:'素材没有消失；点下方缩略图，再点「放回」即可。',storedIds:[item.id]});
   } else if(action.type==='SETTLE') {
     const item=get(action.id);
     const order=currentOrder(state);
@@ -186,8 +236,10 @@ export function act(current,action) {
     else{landmark={id:`item-${state.nextId++}`,chain:item.chain,level:achievedLevel,q,r,rotation:0,settled:true};state.items.push(landmark);}
     if(item.chain==='forest'&&achievedLevel>=4)state.forestOpened=true;
     state.goals[item.chain]=achievedLevel>=CHAINS[item.chain].target;
-    let stored=0;
-    for(const other of state.items)if(!other.settled&&cellsOf(other).some(cell=>targetCells.includes(keyOf(cell)))){other.q=null;other.r=null;stored++;}
+    const blockers=state.items.filter(other=>!other.settled&&cellsOf(other).some(cell=>targetCells.includes(keyOf(cell))));
+    const relocations=planRelocations(state,blockers);let stored=0;
+    if(relocations){for(const move of relocations)Object.assign(get(move.id),{q:move.q,r:move.r,rotation:move.rotation});}
+    else{const old=blockers.map(other=>({...other}));for(const other of blockers){other.q=null;other.r=null;}for(const previous of old.sort((a,b)=>FOOTPRINT[b.level]-FOOTPRINT[a.level])){const other=get(previous.id),place=findPlacement(state,other.level,[previous.q,previous.r],[other.id],other.rotation);if(place)Object.assign(other,place);else stored++;}}
     let refund=materialValue(item.level)-requiredValue;
     const refundValue=refund;
     for(let level=CHAINS[item.chain].target;level>=1;level--)while(refund>=materialValue(level)){
@@ -198,7 +250,7 @@ export function act(current,action) {
     const expanded=workCapacity(state)>previousCapacity;
     const note=expanded?`工作区拓展到 ${workCapacity(state)} 格。`:`工作区仍有 ${workCapacity(state)} 格，新景观占地已补回。`;
     const stagesBuilt=CONSTRUCTION_STAGES.filter(stage=>stage.chain===item.chain&&stage.level>previousLevel&&stage.level<=achievedLevel).length;
-    events.push({type:previousSize&&added>0?'growth':'settle',title:achieved.title,message:`${stagesBuilt>1?`连续完成 ${stagesBuilt} 个阶段，`:''}区域建设 ${completedStages(state)} / ${CONSTRUCTION_STAGES.length}。${note}${refundValue?` 多余 ${refundValue} 份素材已退回背包。`:''}${stored?` ${stored} 件挡位素材已暂存。`:''}`,itemId:landmark.id,cells:newCells,construction:true});
+    events.push({type:previousSize&&added>0?'growth':'settle',title:`${itemName(landmark)}建在这里了`,message:`${stagesBuilt>1?`连续完成 ${stagesBuilt} 个阶段，`:''}区域建设 ${completedStages(state)} / ${CONSTRUCTION_STAGES.length}。${note}${refundValue?` 多余 ${refundValue} 份素材已退回下方暂放区。`:''}${stored?` ${stored} 件挡位素材已放入暂放区。`:''}`,itemId:landmark.id,cells:newCells,construction:true,shifted:relocations||[]});
   } else if(action.type==='BUILD_BRIDGE') {
     if(!bridgeReady(state))return fail(current,state.bridge>=8?'木桥已经修好了。':'先完成当前的建设阶段，篝火营位建好后就能修桥。');
     const previousOpen=new Set(openCells(state).map(keyOf));
@@ -237,7 +289,8 @@ export function getHint(state) {
   const deliverable=orderItem(state),order=currentOrder(state);
   if(deliverable)return {type:'settle',id:deliverable.id,message:`交付${itemName(deliverable)}，完成「${order.title}」。已建内容会保留并升级。`};
   if(bridgeReady(state)&&bridgeAvailable(state)>0)return {type:'bridge',message:`有 ${bridgeAvailable(state)} 点树林材料可修桥，点右侧的小桥。`};
-  const loose=state.items.filter(item=>!item.settled).sort((a,b)=>a.level-b.level||Number(inBag(a))-Number(inBag(b)));
+  const desiredChain=order?.chain==='bridge'?'forest':order?.chain;
+  const loose=state.items.filter(item=>!item.settled&&item.chain===desiredChain).sort((a,b)=>a.level-b.level||Number(inBag(a))-Number(inBag(b)));
   let blockedPair=null;
   for(let i=0;i<loose.length;i++)for(let j=i+1;j<loose.length;j++){
     const a=loose[i],b=loose[j];
@@ -248,13 +301,13 @@ export function getHint(state) {
   }
   if(blockedPair){
     const stored=loose.find(item=>inBag(item)&&findPlacement(state,item.level,CHAINS[item.chain].anchor));
-    if(stored)return {type:'restore',id:stored.id,message:'先把背包里的一件素材放到地图空地，再继续合成。'};
+    if(stored)return {type:'restore',id:stored.id,message:'先把暂放区里的一件素材放到地图空地，再继续合成。'};
     return blockedPair;
   }
   if(state.chests.length)return {type:'chest',message:`物资箱已送达，打开 ${state.chests[0].index} 号箱，看看里面有什么。`};
   if(state.wins<8)return {type:'win',message:state.wins===0?'先模拟一次三消胜利，领取第一箱树种。':'再赢一局三消，为营地带来新的素材。'};
   const stored=loose.find(inBag);
-  if(stored)return {type:'restore',id:stored.id,message:'背包里还有素材，选中后放回地图继续合成。'};
+  if(stored)return {type:'restore',id:stored.id,message:'暂放区里还有素材，选中后放回地图继续合成。'};
   return {type:'space',message:'查看当前建设需求，或用暂存和撤销调整摆放。'};
 }
 export function validateState(state) {

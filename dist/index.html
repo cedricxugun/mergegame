@@ -26,14 +26,15 @@
       <div class="board-tools"><button id="undo-button" class="map-tool" aria-label="撤销上一步"></button><button id="hint-button" class="map-tool" aria-label="提示下一步"></button><button id="zoom-button" class="map-tool" aria-label="查看整个营地">全景</button></div>
       <button id="world-button" class="map-tool world-button" aria-label="查看周围区域的世界地图">世界地图</button>
       <div id="growth-label" class="growth-label" aria-hidden="true"></div>
+      <div id="drag-note" class="drag-note" aria-live="polite"></div>
     </section>
     <section id="inspector" class="inspector" aria-live="polite"></section>
     <section class="supply-dock" aria-label="获得素材">
-      <button id="chest-button" class="chest-button" aria-label="打开素材箱"><img src="./assets/chest.svg" alt=""><span class="chest-copy"><strong>打开物资箱</strong><span id="chest-caption">胜利后获得</span></span><span id="chest-count" class="count-badge">0</span></button>
       <button id="win-button" class="win-button"><span class="win-star" aria-hidden="true">✦</span><span><strong id="win-label">模拟三消胜利</strong><small id="win-counter">第 1 / 8 局</small></span></button>
+      <div class="secondary-actions"><button id="chest-button" class="chest-button" aria-label="打开素材箱"><img src="./assets/chest.svg" alt=""><span class="chest-copy"><strong>物资箱</strong><span id="chest-caption">胜利后获得</span></span><span id="chest-count" class="count-badge">0</span></button><button id="sim-win-button" class="secondary-win">继续模拟三消 <span>＋</span></button><button id="cancel-build-button" class="secondary-win" hidden>先不建造，继续整理</button></div>
     </section>
-    <section class="bag-section" aria-label="暂存背包">
-      <button id="bag-toggle" class="bag-toggle" aria-expanded="false"><span id="bag-icon" aria-hidden="true"></span><span>暂存背包 <b id="bag-count">0</b></span><span class="bag-note">随时放回 · 免费</span><span id="bag-chevron" aria-hidden="true"></span></button>
+    <section class="bag-section" aria-label="暂放区" hidden>
+      <button id="bag-toggle" class="bag-toggle" aria-expanded="false"><span id="bag-icon" aria-hidden="true"></span><span>暂放区 <b id="bag-count">0</b></span><span class="bag-note">素材还在这里 · 点选放回</span><span id="bag-chevron" aria-hidden="true"></span></button>
       <div id="bag-items" class="bag-items" hidden></div>
     </section>
     <footer class="game-footer"><span id="save-status"><i></i>进度自动保存</span><span id="supplies-counter">旅行补给 0</span></footer>

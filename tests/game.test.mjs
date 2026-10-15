@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame,act,CHAINS,FOOTPRINT,openCells,cellsOf,materialValue,occupancy,previewMerge,getHint,isComplete,findPlacement,settlementPreview,validateState,migrateState,completedStages,workCapacity,workCells,landscapeCells,currentOrder,projectFor,hexBoundary,shapeFor} from '../dist/game.mjs';
+import {newGame,act,CHAINS,FOOTPRINT,openCells,cellsOf,materialValue,occupancy,previewMerge,previewMove,previewConstruction,getHint,isComplete,findPlacement,settlementPreview,validateState,migrateState,completedStages,workCapacity,workCells,landscapeCells,currentOrder,projectFor,hexBoundary,shapeFor} from '../dist/game.mjs';
 
 function apply(state,action){const result=act(state,action);assert.equal(result.ok,true,`${action.type}: ${result.message}`);assert.equal(validateState(result.state),true,`Invalid state after ${action.type}`);if(['SETTLE','BUILD_BRIDGE'].includes(action.type)){assert.ok(workCapacity(result.state)>=workCapacity(state),'Construction shrank the workspace');const after=new Set(openCells(result.state).map(c=>c.join(',')));assert.ok(openCells(state).every(c=>after.has(c.join(','))),'Construction closed an existing tile');}return result.state;}
 function totalValue(state){return state.items.reduce((sum,item)=>sum+materialValue(item.level),0)+state.chests.reduce((sum,chest)=>sum+chest.contents.reduce((value,[,level,count])=>value+materialValue(level)*count,0),0)+state.bridge+state.supplies;}
@@ -62,11 +62,11 @@ test('storage, rotation and restoration preserve multi-cell objects',()=>{
   const position=findPlacement(state,rotated.level,[0,0],[item.id],rotated.rotation);assert.ok(position);
   state=apply(state,{type:'MOVE',id:item.id,...position});assert.equal(cellsOf(state.items.find(i=>i.id===item.id)).length,3);assert.equal(totalValue(state),value);
 });
-test('settling a landmark safely stashes blockers and protects completed scenery',()=>{
+test('settling a landmark keeps blockers on visible free ground and protects completed scenery',()=>{
   let state=newGame();state.forestOpened=true;
   state.items=[{id:'item-1',chain:'forest',level:5,q:-1,r:0,rotation:0,settled:false},{id:'item-2',chain:'water',level:1,q:-2,r:0,rotation:0,settled:false}];state.nextId=3;
   assert.ok(validateState(state));state=apply(state,{type:'SETTLE',id:'item-1'});
-  assert.equal(state.items.find(i=>i.id==='item-2').q,null);assert.ok(state.goals.forest);
+  assert.notEqual(state.items.find(i=>i.id==='item-2').q,null);assert.notDeepEqual(cellsOf(state.items.find(i=>i.id==='item-2')),[[-2,0]]);assert.ok(state.goals.forest);
   const landmark=projectFor(state,'forest');for(const type of ['STORE','ROTATE','MOVE'])assert.equal(act(state,{type,id:landmark.id,q:1,r:1}).ok,false);
 });
 test('bridge accepts upgraded or stored materials and refunds overpayment',()=>{
@@ -126,4 +126,34 @@ test('an already completed high-level camp can be delivered without losing the p
   state.items=[{id:'item-1',chain:'forest',level:5,q:-2,r:0,rotation:0,settled:true},{id:'item-2',chain:'water',level:4,q:0,r:-2,rotation:0,settled:true},{id:'item-3',chain:'camp',level:6,q:null,r:null,rotation:0,settled:false}];state.nextId=4;
   assert.ok(validateState(state));const value=totalValue(state);state=apply(state,{type:'SETTLE',id:'item-3'});
   assert.equal(projectFor(state,'camp').level,6);assert.equal(currentOrder(state).chain,'bridge');assert.equal(completedStages(state),9);assert.equal(isComplete(state),false);assert.equal(workCapacity(state),19);assert.equal(totalValue(state),value);
+});
+test('a full single-cell board supports smart swapping using the vacated source cell',()=>{
+  let state=newGame();state.items=workCells(state).map(([q,r],i)=>({id:`item-${i+1}`,chain:i%2?'forest':'water',level:1,q,r,rotation:0,settled:false}));state.nextId=8;
+  const source=state.items[0],target=state.items[1],before=totalValue(state),preview=previewMove(state,source.id,target.q,target.r);
+  assert.ok(preview.ok);assert.equal(preview.shifted.length,1);state=apply(state,{type:'MOVE',id:source.id,q:target.q,r:target.r});
+  assert.deepEqual([state.items.find(i=>i.id===target.id).q,state.items.find(i=>i.id===target.id).r],[source.q,source.r]);assert.equal(state.items.filter(i=>i.q===null).length,0);assert.equal(totalValue(state),before);
+});
+test('a three-cell drop relocates every covered loose item as a whole',()=>{
+  let state=newGame();const source={id:'item-1',chain:'forest',level:4,q:-2,r:0,rotation:0,settled:false};state.items=[source];
+  const sourceKeys=new Set(cellsOf(source).map(c=>c.join(',')));
+  for(const [q,r]of workCells(state))if(!sourceKeys.has([q,r].join(',')))state.items.push({id:`item-${state.items.length+1}`,chain:'water',level:1,q,r,rotation:0,settled:false});state.nextId=6;
+  assert.ok(validateState(state));const preview=previewMove(state,source.id,-1,-1);assert.ok(preview.ok);assert.equal(preview.shifted.length,2);
+  state=apply(state,{type:'MOVE',id:source.id,q:-1,r:-1});assert.equal(occupancy(state).size,7);assert.equal(state.items.filter(i=>i.q===null).length,0);
+  for(const moved of preview.shifted){const item=state.items.find(i=>i.id===moved.id);assert.deepEqual([item.q,item.r,item.rotation],[moved.q,moved.r,moved.rotation]);}
+});
+test('a one-cell drop can relocate a whole three-cell item without splitting it',()=>{
+  let state=newGame();state.items=[{id:'item-1',chain:'water',level:1,q:-1,r:-1,rotation:0,settled:false},{id:'item-2',chain:'forest',level:4,q:-2,r:0,rotation:0,settled:false}];state.nextId=3;
+  const preview=previewMove(state,'item-1',-2,0);assert.ok(preview.ok);assert.equal(preview.shifted.length,1);assert.equal(preview.shifted[0].cells.length,3);
+  state=apply(state,{type:'MOVE',id:'item-1',q:-2,r:0});assert.equal(state.items.find(i=>i.id==='item-2').level,4);assert.equal(cellsOf(state.items.find(i=>i.id==='item-2')).length,3);
+});
+test('smart moves never push finished scenery or silently put overflow into storage',()=>{
+  let state=newGame();state.items=workCells(state).map(([q,r],i)=>({id:`item-${i+1}`,chain:'water',level:1,q,r,rotation:0,settled:false}));state.items.push({id:'item-8',chain:'forest',level:1,q:null,r:null,rotation:0,settled:false});state.nextId=9;
+  const snapshot=JSON.stringify(state);assert.equal(act(state,{type:'MOVE',id:'item-8',q:-1,r:0}).ok,false);assert.equal(JSON.stringify(state),snapshot);
+  const built=completeRegion().checkpoints[0],source={id:`item-${built.nextId++}`,chain:'water',level:1,q:null,r:null,rotation:0,settled:false};built.items.push(source);
+  const tree=projectFor(built,'forest');assert.equal(previewMove(built,source.id,tree.q,tree.r).ok,false);assert.equal(previewMove(built,source.id,3,3).ok,false);
+});
+test('construction preview identifies the real used item, fixed destination and final result',()=>{
+  let state=newGame();state.items=[{id:'item-1',chain:'forest',level:4,q:null,r:null,rotation:0,settled:false}];state.nextId=2;
+  const preview=previewConstruction(state,'item-1');assert.ok(preview.ok);assert.equal(preview.stagesBuilt,2);assert.equal(preview.level,4);assert.deepEqual([preview.q,preview.r],CHAINS.forest.anchor);
+  state=apply(state,{type:'SETTLE',id:'item-1'});const built=projectFor(state,'forest');assert.equal(built.level,preview.level);assert.deepEqual(cellsOf(built),preview.cells);assert.equal(completedStages(state),2);
 });
