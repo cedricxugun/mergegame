@@ -18,6 +18,7 @@
       <button id="settings" class="icon-button" aria-label="设置与重新体验"></button>
     </header>
     <section class="journey-card" aria-label="这一站的目标"><div class="journey-top"><strong id="journey-title">一箱素材，搭好小营地</strong><span id="win-count">三消 0 / 1</span></div><div id="milestones" class="milestones"></div></section>
+    <nav id="station-nav" class="station-nav" aria-label="两站旅程"></nav>
     <section class="map-wrap" aria-label="林间营地地图">
       <div class="map-caption"><span id="space-count"></span><span id="map-status">蓝色虚线是建造位置</span></div>
       <svg id="map" role="group" aria-label="七格合成空地与地图任务蓝图"></svg>
@@ -25,7 +26,7 @@
       <div class="map-controls"><button id="undo" aria-label="撤销上一步"></button><button id="hint" aria-label="提示下一步"></button></div><button id="world" class="world-button" aria-label="看看周围的区域"></button>
     </section>
     <section id="inspector" class="inspector" aria-live="polite"></section>
-    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label"></strong><small id="primary-detail"></small></span></button><button id="cancel" class="text-button" hidden>先不建造，继续整理</button></div>
+    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label"></strong><small id="primary-detail"></small></span></button><button id="cancel" class="text-button" hidden>先不建造，继续整理</button><button id="extra-win" class="text-button" hidden>再模拟一次三消胜利</button></div>
     <section id="tray" class="tray" aria-label="暂放区" hidden><button id="tray-toggle" aria-expanded="true">暂放区 <b id="tray-count"></b><span>点素材取回 · 也可直接交付</span></button><div id="tray-items" class="tray-items"></div></section>
     <footer><span id="save-status">进度自动保存</span><span id="supply-count">旅行补给 0</span></footer>
   </main>

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/serve.mjs",
-    "test": "node --test tests/game.test.mjs tests/first-stop.test.mjs",
+    "test": "node --test tests/game.test.mjs tests/first-stop.test.mjs tests/river-bend.test.mjs",
     "build:offline": "node scripts/build-offline.mjs"
   }
 }

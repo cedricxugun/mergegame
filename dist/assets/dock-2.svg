@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" fill="none">
+<defs><linearGradient id="wood" x1="0" y1="0" x2=".5" y2="1"><stop stop-color="#efcc93"/><stop offset=".5" stop-color="#dfb276"/><stop offset="1" stop-color="#bd8957"/></linearGradient></defs>
+<ellipse cx="80" cy="132" rx="55" ry="8" fill="#2c5e4c" opacity=".13"/>
+<path d="M28 111 89 80 135 104 135 119 73 146 28 126Z" fill="#b07e52" stroke="#946b49" stroke-width="1.6" stroke-linejoin="round"/><path d="M28 111 89 80 135 104 73 132Z" fill="url(#wood)" stroke="#a77d51" stroke-width="1.6" stroke-linejoin="round"/><path d="M73 132 135 104 135 119 73 146Z" fill="#a97850"/><path d="M35 115 73 132M46 104 89 125M65 94 107 116M85 84 126 107" stroke="#f4d79f" stroke-width="2"/>
+<path d="M29 91 90 60 132 82 132 98 71 126 29 106Z" fill="#b07e52" stroke="#946b49" stroke-width="1.6" stroke-linejoin="round"/><path d="M29 91 90 60 132 82 71 111Z" fill="url(#wood)" stroke="#a77d51" stroke-width="1.6" stroke-linejoin="round"/><path d="M71 111 132 82 132 98 71 126Z" fill="#ac7a51"/>
+<path d="M48 81 89 102M69 71 110 92" stroke="#ad8154" stroke-width="2.2"/><path d="M36 90 71 106M55 80 91 97M76 70 112 87" stroke="#f8dfa8" stroke-width="2.2" stroke-linecap="round"/><path d="M48 97 58 103M92 82 100 85" stroke="#ba8c58" stroke-width="1.5" stroke-linecap="round"/>
+<path d="M46 82 88 103 88 119 88 139M104 67 43 98 43 113 43 132" stroke="#789d88" stroke-width="5" stroke-linejoin="round"/><path d="M48 82 88 102M104 67 45 97" stroke="#b2c5a3" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
