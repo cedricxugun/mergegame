@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5e9">
+  <meta name="description" content="一箱素材，两次合成。让树荫、帐篷和小路连成你的第一座林间营地。">
+  <title>林间营地 · 一箱筑起第一站</title>
+  <link rel="icon" href="./assets/forest-3.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./first-stop.css">
+</head>
+<body>
+  <main id="first-stop" class="phone-shell">
+    <header class="camp-header">
+      <span class="brand-leaf" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M25 5C14 3 5 10 7 21c10 6 21-4 18-16Z"/><path d="m7 27 13-16"/></svg></span>
+      <div class="brand-text"><span>森林之旅 · 第一站</span><h1>林间营地</h1></div>
+      <button id="sound" class="icon-button" aria-label="开启音效"></button>
+      <button id="settings" class="icon-button" aria-label="设置与重新体验"></button>
+    </header>
+    <section class="journey-card" aria-label="这一站的目标"><div class="journey-top"><strong id="journey-title">一箱素材，搭好小营地</strong><span id="win-count">三消 0 / 1</span></div><div id="milestones" class="milestones"></div></section>
+    <section class="map-wrap" aria-label="林间营地地图">
+      <div class="map-caption"><span id="space-count"></span><span id="map-status">蓝色虚线是建造位置</span></div>
+      <svg id="map" role="group" aria-label="七格合成空地与地图任务蓝图"></svg>
+      <div id="map-notice" class="map-notice" role="status" aria-live="polite"></div><div id="drag-note" class="drag-note" aria-live="polite"></div>
+      <div class="map-controls"><button id="undo" aria-label="撤销上一步"></button><button id="hint" aria-label="提示下一步"></button></div><button id="world" class="world-button" aria-label="看看周围的区域"></button>
+    </section>
+    <section id="inspector" class="inspector" aria-live="polite"></section>
+    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label"></strong><small id="primary-detail"></small></span></button><button id="cancel" class="text-button" hidden>先不建造，继续整理</button></div>
+    <section id="tray" class="tray" aria-label="暂放区" hidden><button id="tray-toggle" aria-expanded="true">暂放区 <b id="tray-count"></b><span>点素材取回 · 也可直接交付</span></button><div id="tray-items" class="tray-items"></div></section>
+    <footer><span id="save-status">进度自动保存</span><span id="supply-count">旅行补给 0</span></footer>
+  </main>
+  <dialog id="dialog"><div id="dialog-body"></div></dialog>
+  <script type="module" src="./first-stop-app.mjs"></script>
+</body>
+</html>

@@ -2,44 +2,34 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#edf2df">
-  <meta name="description" content="一片空地，一点暖意。亲手合成六边形景物，建起属于你的林间营地。">
-  <title>林间营地 · 六边形合成</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5e9">
+  <meta name="description" content="一箱素材，两次合成。让树荫、帐篷和小路连成你的第一座林间营地。">
+  <title>林间营地 · 一箱筑起第一站</title>
   <link rel="icon" href="./assets/forest-3.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./first-stop.css">
 </head>
 <body>
-  <div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
-  <main id="app" class="game-shell">
-    <header class="game-header">
-      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M25 5C14 3 5 10 7 21c10 6 21-4 18-16Z"/><path d="m7 27 13-16"/></svg></div>
-      <div class="brand-copy"><span class="eyebrow">第一站 · 森林之旅</span><h1>林间营地</h1></div>
-      <div class="header-actions"><button id="sound-button" class="icon-button" aria-label="开启音效" aria-pressed="false"></button><button id="settings-button" class="icon-button" aria-label="设置与重新开始"></button></div>
+  <main id="first-stop" class="phone-shell">
+    <header class="camp-header">
+      <span class="brand-leaf" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M25 5C14 3 5 10 7 21c10 6 21-4 18-16Z"/><path d="m7 27 13-16"/></svg></span>
+      <div class="brand-text"><span>森林之旅 · 第一站</span><h1>林间营地</h1></div>
+      <button id="sound" class="icon-button" aria-label="开启音效"></button>
+      <button id="settings" class="icon-button" aria-label="设置与重新体验"></button>
     </header>
-    <section class="goals" aria-label="营地建设目标" id="goals"></section>
-    <section class="board-wrap" aria-label="六边形合成地图">
-      <div class="map-caption"><span id="land-counter">7 / 37 地块</span><span id="chapter-status">拖动空地，探索四周</span></div>
-      <svg id="board" class="board" role="group" aria-label="拖动或点选相同素材进行合成"></svg>
-      <nav id="region-edges" class="region-edges" aria-label="周围的区域"><button class="region-edge north" data-action="region-peek" data-region="mountain">山坡 <span>↑</span></button><button class="region-edge east" data-action="region-peek" data-region="river">河湾 <span>→</span></button><button class="region-edge south" data-action="region-peek" data-region="village">村庄 <span>↓</span></button><button class="region-edge west" data-action="region-peek" data-region="forest"><span>←</span> 密林</button></nav>
-      <div id="toast" class="toast" role="status" aria-live="polite"></div>
-      <div class="board-tools"><button id="undo-button" class="map-tool" aria-label="撤销上一步"></button><button id="hint-button" class="map-tool" aria-label="提示下一步"></button><button id="zoom-button" class="map-tool" aria-label="查看整个营地">全景</button></div>
-      <button id="world-button" class="map-tool world-button" aria-label="查看周围区域的世界地图">世界地图</button>
-      <div id="growth-label" class="growth-label" aria-hidden="true"></div>
-      <div id="drag-note" class="drag-note" aria-live="polite"></div>
+    <section class="journey-card" aria-label="这一站的目标"><div class="journey-top"><strong id="journey-title">一箱素材，搭好小营地</strong><span id="win-count">三消 0 / 1</span></div><div id="milestones" class="milestones"></div></section>
+    <section class="map-wrap" aria-label="林间营地地图">
+      <div class="map-caption"><span id="space-count"></span><span id="map-status">蓝色虚线是建造位置</span></div>
+      <svg id="map" role="group" aria-label="七格合成空地与地图任务蓝图"></svg>
+      <div id="map-notice" class="map-notice" role="status" aria-live="polite"></div><div id="drag-note" class="drag-note" aria-live="polite"></div>
+      <div class="map-controls"><button id="undo" aria-label="撤销上一步"></button><button id="hint" aria-label="提示下一步"></button></div><button id="world" class="world-button" aria-label="看看周围的区域"></button>
     </section>
     <section id="inspector" class="inspector" aria-live="polite"></section>
-    <section class="supply-dock" aria-label="获得素材">
-      <button id="win-button" class="win-button"><span class="win-star" aria-hidden="true">✦</span><span><strong id="win-label">模拟三消胜利</strong><small id="win-counter">第 1 / 8 局</small></span></button>
-      <div class="secondary-actions"><button id="chest-button" class="chest-button" aria-label="打开素材箱"><img src="./assets/chest.svg" alt=""><span class="chest-copy"><strong>物资箱</strong><span id="chest-caption">胜利后获得</span></span><span id="chest-count" class="count-badge">0</span></button><button id="sim-win-button" class="secondary-win">继续模拟三消 <span>＋</span></button><button id="cancel-build-button" class="secondary-win" hidden>先不建造，继续整理</button></div>
-    </section>
-    <section class="bag-section" aria-label="暂放区" hidden>
-      <button id="bag-toggle" class="bag-toggle" aria-expanded="false"><span id="bag-icon" aria-hidden="true"></span><span>暂放区 <b id="bag-count">0</b></span><span class="bag-note">素材还在这里 · 点选放回</span><span id="bag-chevron" aria-hidden="true"></span></button>
-      <div id="bag-items" class="bag-items" hidden></div>
-    </section>
-    <footer class="game-footer"><span id="save-status"><i></i>进度自动保存</span><span id="supplies-counter">旅行补给 0</span></footer>
+    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label"></strong><small id="primary-detail"></small></span></button><button id="cancel" class="text-button" hidden>先不建造，继续整理</button></div>
+    <section id="tray" class="tray" aria-label="暂放区" hidden><button id="tray-toggle" aria-expanded="true">暂放区 <b id="tray-count"></b><span>点素材取回 · 也可直接交付</span></button><div id="tray-items" class="tray-items"></div></section>
+    <footer><span id="save-status">进度自动保存</span><span id="supply-count">旅行补给 0</span></footer>
   </main>
-  <dialog id="modal" class="modal"><div id="modal-body"></div></dialog>
-  <script type="module" src="./app.mjs"></script>
+  <dialog id="dialog"><div id="dialog-body"></div></dialog>
+  <script type="module" src="./first-stop-app.mjs"></script>
 </body>
 </html>
