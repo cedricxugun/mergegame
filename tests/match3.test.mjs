@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as m from '../dist/match3.mjs';
+import * as legacy from '../dist/match3.mjs';
+import * as premium from '../dist/match3-premium.mjs';
+const m={...legacy,m3Move:premium.m3Move,m3Hint:premium.m3Hint,m3Valid:premium.m3Valid};
 import * as j from '../dist/journey-match.mjs';
 import * as g from '../dist/homecoming.mjs';
 const at=(r,c)=>r*m.M3_WIDTH+c;
