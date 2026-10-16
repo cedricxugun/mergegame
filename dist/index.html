@@ -8,6 +8,7 @@
   <title>风暴之后 · 归乡手记</title>
   <link rel="icon" href="./assets/storm-roof.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./homecoming.css">
+  <link rel="stylesheet" href="./match3.css">
 </head>
 <body>
   <main id="homecoming" class="phone-shell">
@@ -17,10 +18,11 @@
     <button id="task-card" class="task-card" aria-label="查看当前修复任务"><div class="task-content"><img id="task-art" alt=""><div class="task-copy"><div class="task-top"><strong id="task-title">先补好漏雨的棚顶</strong><span id="task-stage">0 / 4</span></div><div class="task-bottom"><span id="task-need"></span><small id="task-value"></small></div><div class="task-track"><span id="task-meter"></span></div></div></div><div id="workflow" class="workflow" aria-label="当前操作步骤"></div></button>
     <section class="map-wrap" aria-label="共用六边形地图"><div class="map-caption"><span id="space-count"></span><span id="map-status"></span></div><svg id="map" role="group" aria-label="林间营地六边形合成地图"></svg><button id="supply-crate" class="supply-crate" hidden aria-label="打开待领物资箱"><img src="./assets/chest.svg" alt=""><span>打开物资 <b id="supply-pending"></b></span></button><div id="repair-result" class="repair-result" role="status" aria-live="polite" hidden></div><div id="notice" class="notice" role="status" aria-live="polite" hidden></div><div id="drag-note" class="drag-note" aria-live="polite"></div><div class="map-controls"><button id="undo" aria-label="撤销上一步"></button><button id="hint" aria-label="提示下一步"></button><button id="recenter" aria-label="视角回到当前区域中心"></button></div><button id="world" class="world-button" aria-label="切换故乡全景"></button></section>
     <section id="inspector" class="inspector" aria-live="polite"></section>
-    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label">模拟三消胜利</strong><small id="primary-detail">林间营地 · 第 1 / 8 局物资</small></span></button><button id="cancel" class="text-button" hidden>取消预览，素材留在原位</button><button id="extra-win" class="text-button" hidden>先玩下一局三消，继续攒物资</button></div>
+    <div class="action-area"><button id="primary" class="primary"><span class="primary-symbol" aria-hidden="true">✦</span><span><strong id="primary-label">开始第 1 关</strong><small id="primary-detail">三消通关得素材箱 · 林间营地 1 / 8</small></span></button><button id="cancel" class="text-button" hidden>取消预览，素材留在原位</button><button id="extra-win" class="text-button" hidden>先玩下一关三消，继续攒物资</button></div>
     <section id="tray" class="tray" aria-label="素材暂放区" hidden><button id="tray-toggle" aria-expanded="true">暂放区 <b id="tray-count"></b><span>点素材取回 · 可直接合成和交付</span></button><div id="tray-items" class="tray-items"></div></section>
     <footer><span id="save-status">进度自动保存</span><span id="supply-count">旅途补给 0</span></footer>
   </main>
+  <section id="match-screen" class="match-screen" aria-label="三消关卡" hidden></section>
   <dialog id="dialog"><div id="dialog-body"></div></dialog>
   <script type="module" src="./homecoming-app.mjs"></script>
 </body>

@@ -18,11 +18,14 @@ if(lessonHtml.includes('./assets/')||lessonHtml.includes('src="./first-stop-app.
 const lessonOutput=path.join(out,'forest-camp-first-stop.html');await fs.writeFile(lessonOutput,lessonHtml);
 const homeGame=(await fs.readFile(path.join(dist,'homecoming.mjs'),'utf8')).replace(/^export /gm,'');
 const homeView=(await fs.readFile(path.join(dist,'homecoming-view.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
+const matchGame=(await fs.readFile(path.join(dist,'match3.mjs'),'utf8')).replace(/^export /gm,'');
+const matchBridge=(await fs.readFile(path.join(dist,'journey-match.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
+const matchUI=(await fs.readFile(path.join(dist,'match3-ui.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
 const homeApp=(await fs.readFile(path.join(dist,'homecoming-app.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^const asset=.*;$/m,'const asset=name=>ASSETS[name];');
-const homeScript=`(() => {\nconst ASSETS=${JSON.stringify(assets)};\n${homeGame}\n${homeView}\n${homeApp}\n})();`;
+const homeScript=`(() => {\nconst ASSETS=${JSON.stringify(assets)};\n${homeGame}\n${homeView}\n${matchGame}\n${matchBridge}\n${matchUI}\n${homeApp}\n})();`;
 new vm.Script(homeScript);
 let homeHtml=await fs.readFile(path.join(dist,'index.html'),'utf8');
-homeHtml=homeHtml.replace('<link rel="stylesheet" href="./homecoming.css">',`<style>${await fs.readFile(path.join(dist,'homecoming.css'),'utf8')}</style>`).replace('<script type="module" src="./homecoming-app.mjs"></script>',`<script>${homeScript}</script>`).replaceAll('./first-stop.html','./forest-camp-first-stop.html');
+homeHtml=homeHtml.replace('<link rel="stylesheet" href="./homecoming.css">',`<style>${await fs.readFile(path.join(dist,'homecoming.css'),'utf8')}</style>`).replace('<link rel="stylesheet" href="./match3.css">',`<style>${await fs.readFile(path.join(dist,'match3.css'),'utf8')}</style>`).replace('<script type="module" src="./homecoming-app.mjs"></script>',`<script>${homeScript}</script>`).replaceAll('./first-stop.html','./forest-camp-first-stop.html');
 homeHtml=homeHtml.replace(/\.\/assets\/([a-z0-9-]+)\.svg/g,(_,name)=>{if(!assets[name])throw Error(`Missing asset ${name}`);return assets[name];});
 if(homeHtml.includes('./assets/')||homeHtml.includes('src="./homecoming-app.mjs"'))throw Error('Incomplete homecoming offline bundle');
 const output=path.join(out,'forest-camp.html');await fs.writeFile(output,homeHtml);
