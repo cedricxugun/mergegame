@@ -1,0 +1,1338 @@
+{
+  "date": "2026-10-16",
+  "method": "Built-in image_gen; original transparent atlases and portraits. No CLI generation.",
+  "groups": [
+    {
+      "group": "camp",
+      "data": {
+        "version": "v11",
+        "generationMode": "built-in image_gen",
+        "cliUsed": false,
+        "transparentBackgroundRequested": true,
+        "generationCallsPerAtlas": 1,
+        "rawGeneratedPngsPreserved": true,
+        "inspectionMethod": "PIL metadata and alpha statistics; individual view_image; transparent-alpha compositing preview in memory",
+        "notes": [
+          "No visible object crosses an equal-grid cell boundary.",
+          "Generated spacing does not satisfy the requested minimum 15 percent margin in every cell.",
+          "Wood cell 8 has only invisible alpha=1 residual pixels; it is not mathematically all-zero alpha.",
+          "Ruins RGB stores blurred colors under fully transparent pixels; compositing by the actual alpha produces a transparent background.",
+          "No additional variants, CLI calls, code edits, git operations, or publication."
+        ],
+        "assets": [
+          {
+            "file": "craft-wood-atlas.png",
+            "columns": 4,
+            "rows": 2,
+            "intendedEmptyCells": [
+              8
+            ],
+            "prompt": "Use case: stylized-concept\nAsset type: one complete production game sprite ATLAS PNG, not a poster or a scene.\nPrimary request: generate ONE precisely aligned wooden crafting progression atlas on a genuinely transparent alpha canvas.\n\nCANVAS AND GRID ARE CRITICAL: use a wide 2:1 canvas, ideally exactly 2048 by 1024 pixels. Divide it invisibly into exactly FOUR equal columns and TWO equal rows, making eight equal SQUARE cells. Each cell is 512 by 512 in the ideal canvas. Invisible cell centers are (256,256), (768,256), (1280,256), (1792,256), then (256,768), (768,768), (1280,768), (1792,768). Scale these positions proportionally if necessary. Never draw the grid. Each object must be centered on its own cell center and fit completely within the central 70 percent of its cell width and height: at least 15 percent perfectly empty transparent padding on ALL FOUR SIDES of EVERY cell. No object, rope, grain, grass, or shadow may cross a cell boundary. Do not enlarge high-level items beyond their cell. Eighth cell is completely EMPTY and TRANSPARENT, no object or shadow.\n\nExact reading order, left to right across the top row, then across the bottom row:\nTOP LEFT: a single small thick wooden chip or short plank, one piece only.\nTOP SECOND: exactly three short rounded timber beams tightly tied together with a pale rope.\nTOP THIRD: a rainproof roof REPAIR PATCH made from exactly four short fitted wooden boards, a compact loose patch panel, not an installed roof and not a building.\nTOP FOURTH: an uninstalled sturdy wooden support component reinforced by clearly visible metal corner brackets.\nBOTTOM LEFT: a triangular A-shaped wooden construction support stand with a crossbrace, clearly recognizable as an open A frame.\nBOTTOM SECOND: a half-finished wooden cabin frame MODULE: bare upright posts, a horizontal beam, and a simple gable truss, no walls, no finished roof, no house.\nBOTTOM THIRD: a complete but UNINSTALLED construction component bundle: one bare wooden frame module together with stacked boards and one rolled canvas tarp. Compact connected material bundle, no installed walls, no finished roof, no house.\nBOTTOM RIGHT: perfectly empty transparent cell.\n\nUnified art direction: original high-budget casual mobile game pre-rendered 3D assets, solid thick rounded bevels, warm honey-colored wood with restrained real wood grain, soft chunky metal brackets and canvas, tactile high-quality materials and convincing self-shadow. All seven objects use the EXACT SAME orthographic isometric camera looking down at 35 degrees, the same right-facing orientation, the same upper-left soft studio key, warm highlights and darker lower volume. Clear distinct silhouettes readable at small game size; level progression must be obvious.\nBackground: real transparent alpha everywhere between objects, no color fill and no checkerboard drawn into the image. Tiny self-contact shading is allowed only inside each object's bounds.\nConstraints: no text, no labels, no numbers, no grid lines, no UI, no frames, no plates, no floorboards under the object, no platforms, no hexagonal base, no terrain tile, no ground plane, no background scenery, no logos or watermarks. Higher-level items remain loose uninstalled MATERIALS; never depict a complete cabin or a finished house.",
+            "inspection": {
+              "width": 1774,
+              "height": 887,
+              "mode": "RGBA",
+              "fileBytes": 1100818,
+              "alphaExtrema": [
+                0,
+                255
+              ],
+              "fullyTransparentPercent": 72.475,
+              "logicalCellWidth": 443.5,
+              "logicalCellHeight": 443.5,
+              "visibleThreshold": 128,
+              "cells": [
+                {
+                  "index": 1,
+                  "rasterCropRect": [
+                    0,
+                    0,
+                    444,
+                    444
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    110,
+                    170,
+                    363,
+                    364
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    24.775,
+                    38.288,
+                    18.243,
+                    18.018
+                  ],
+                  "centerOffsetPercentXY": [
+                    3.266,
+                    10.135
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": true,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 30665,
+                  "pixelsAboveAlpha16": 24914
+                },
+                {
+                  "index": 2,
+                  "rasterCropRect": [
+                    444,
+                    0,
+                    887,
+                    444
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    64,
+                    114,
+                    396,
+                    384
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    14.447,
+                    25.676,
+                    10.609,
+                    13.514
+                  ],
+                  "centerOffsetPercentXY": [
+                    1.919,
+                    6.081
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 62596,
+                  "pixelsAboveAlpha16": 52686
+                },
+                {
+                  "index": 3,
+                  "rasterCropRect": [
+                    887,
+                    0,
+                    1330,
+                    444
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    42,
+                    116,
+                    399,
+                    386
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    9.481,
+                    26.126,
+                    9.932,
+                    13.063
+                  ],
+                  "centerOffsetPercentXY": [
+                    -0.226,
+                    6.532
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 63111,
+                  "pixelsAboveAlpha16": 54017
+                },
+                {
+                  "index": 4,
+                  "rasterCropRect": [
+                    1330,
+                    0,
+                    1774,
+                    444
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    78,
+                    71,
+                    351,
+                    382
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    17.568,
+                    15.991,
+                    20.946,
+                    13.964
+                  ],
+                  "centerOffsetPercentXY": [
+                    -1.689,
+                    1.014
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 57667,
+                  "pixelsAboveAlpha16": 50361
+                },
+                {
+                  "index": 5,
+                  "rasterCropRect": [
+                    0,
+                    444,
+                    444,
+                    887
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    82,
+                    46,
+                    392,
+                    364
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    18.468,
+                    10.384,
+                    11.712,
+                    17.833
+                  ],
+                  "centerOffsetPercentXY": [
+                    3.378,
+                    -3.725
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 50770,
+                  "pixelsAboveAlpha16": 43747
+                },
+                {
+                  "index": 6,
+                  "rasterCropRect": [
+                    444,
+                    444,
+                    887,
+                    887
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    55,
+                    35,
+                    388,
+                    373
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    12.415,
+                    7.901,
+                    12.415,
+                    15.801
+                  ],
+                  "centerOffsetPercentXY": [
+                    0,
+                    -3.95
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 77662,
+                  "pixelsAboveAlpha16": 62169
+                },
+                {
+                  "index": 7,
+                  "rasterCropRect": [
+                    887,
+                    444,
+                    1330,
+                    887
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    46,
+                    46,
+                    412,
+                    364
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    10.384,
+                    10.384,
+                    6.998,
+                    17.833
+                  ],
+                  "centerOffsetPercentXY": [
+                    1.693,
+                    -3.725
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 89712,
+                  "pixelsAboveAlpha16": 82553
+                },
+                {
+                  "index": 8,
+                  "rasterCropRect": [
+                    1330,
+                    444,
+                    1774,
+                    887
+                  ],
+                  "opaqueSubjectBoundsAlpha128": null,
+                  "marginPercentLeftTopRightBottom": null,
+                  "centerOffsetPercentXY": null,
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": true,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    1
+                  ],
+                  "nonzeroAlphaPixels": 926,
+                  "pixelsAboveAlpha16": 0
+                }
+              ],
+              "visibleCrossCellDetected": false,
+              "passesAllRequestedMargins": false,
+              "individualViewImageInspected": true
+            }
+          },
+          {
+            "file": "craft-camp-scenes.png",
+            "columns": 2,
+            "rows": 2,
+            "intendedEmptyCells": [],
+            "prompt": "Use case: stylized-concept\nAsset type: ONE complete production game sprite ATLAS PNG containing four isolated installed camp objects, not an illustrated scene or poster.\nPrimary request: generate a precisely aligned four-cell atlas of restored woodland camp structures on a genuinely transparent alpha canvas.\n\nCANVAS AND GRID ARE CRITICAL: a SQUARE canvas, ideally exactly 1536 by 1536 pixels, invisibly divided into exactly TWO columns and TWO rows of equal SQUARE cells. Each cell has a centered independent vignette. Relative cell centers: (25%,25%), (75%,25%), (25%,75%), (75%,75%). Do not draw any grid. Keep each complete vignette inside the central 60–65 percent of its own cell width and height, with at least 15 percent EMPTY TRANSPARENT padding on all four sides. Center the whole silhouette including its small accessories in the cell. Absolutely no part of a roof, fire, branch, stone, grass tuft or shadow may cross a cell boundary. This exact atlas layout is required for programmatic equal-cell cropping.\n\nExact cells:\nTOP LEFT: a repaired small SINGLE-SLOPE wooden rain shelter. One simple slanted patchwork wood-plank roof, sturdy warm timber posts, a soft cream fabric curtain tied at one side, and one rolled bed mat beneath it. Small open-sided shelter, cozy and visibly fixed; not a complete house. No big deck or ground tile.\nTOP RIGHT: a small STONE-RING CAMPFIRE with a sturdy simple wooden cooking frame supporting a small dark pot over the warm fire. Clear rounded stones, restrained golden flame. No large smoke cloud and no background scenery. Everything is a compact coherent object.\nBOTTOM LEFT: a cleaned-up wooden roadside FENCE SECTION and one SHORT CUT SECTION OF A FALLEN LOG neatly beside it. The fence is intact and tidy. Only the wooden fence, the short log, and at most two tiny natural grass tufts or stones. DO NOT draw the road itself, any broad soil patch, floor, or platform.\nBOTTOM RIGHT: a warm COMPLETE SMALL WOODEN CABIN with a BLUE-GREEN TEAL roof, a front-door lantern with warm amber light, and a small flower box. Rounded plump wooden walls and roof, refined charming cozy game architecture. Only a tiny threshold step; no large surrounding platform or terrain base.\n\nUnified art direction: original high-budget casual mobile game pre-rendered 3D miniature assets with thick rounded bevels, warm honey wood and subtle believable wood grain, cream canvas, soft gray rounded stone, rich teal roof and warm amber lights. All four use exactly the same orthographic isometric camera looking down at 35 degrees and the same right-facing orientation. Same large upper-left soft studio key, warm highlights, convincing self-shadow and darker lower volume. Visually polished solid materials, not flat illustration, not low-poly.\nBackground: actual transparent alpha everywhere around the independent structures and between the four cells. Very few small natural stones or grass tufts are allowed immediately at an object's feet, all within its bounds.\nConstraints: no people, no text, no labels, no numbers, no grid lines, no UI, no frames, no checkerboard painted into the image, no hexagonal bases, no tiles, no islands, no ground plane, no broad floors or base plates, no environment, no logos or watermarks. No object may leak across cells.",
+            "inspection": {
+              "width": 1254,
+              "height": 1254,
+              "mode": "RGBA",
+              "fileBytes": 1592605,
+              "alphaExtrema": [
+                0,
+                255
+              ],
+              "fullyTransparentPercent": 58.189,
+              "logicalCellWidth": 627,
+              "logicalCellHeight": 627,
+              "visibleThreshold": 128,
+              "cells": [
+                {
+                  "index": 1,
+                  "rasterCropRect": [
+                    0,
+                    0,
+                    627,
+                    627
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    92,
+                    53,
+                    607,
+                    561
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    14.673,
+                    8.453,
+                    3.19,
+                    10.526
+                  ],
+                  "centerOffsetPercentXY": [
+                    5.742,
+                    -1.037
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 164458,
+                  "pixelsAboveAlpha16": 150422
+                },
+                {
+                  "index": 2,
+                  "rasterCropRect": [
+                    627,
+                    0,
+                    1254,
+                    627
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    95,
+                    111,
+                    546,
+                    556
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    15.152,
+                    17.703,
+                    12.919,
+                    11.324
+                  ],
+                  "centerOffsetPercentXY": [
+                    1.116,
+                    3.19
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 130582,
+                  "pixelsAboveAlpha16": 115335
+                },
+                {
+                  "index": 3,
+                  "rasterCropRect": [
+                    0,
+                    627,
+                    627,
+                    1254
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    72,
+                    104,
+                    579,
+                    529
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    11.483,
+                    16.587,
+                    7.656,
+                    15.63
+                  ],
+                  "centerOffsetPercentXY": [
+                    1.914,
+                    0.478
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 151107,
+                  "pixelsAboveAlpha16": 129470
+                },
+                {
+                  "index": 4,
+                  "rasterCropRect": [
+                    627,
+                    627,
+                    1254,
+                    1254
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    41,
+                    14,
+                    574,
+                    545
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    6.539,
+                    2.233,
+                    8.453,
+                    13.078
+                  ],
+                  "centerOffsetPercentXY": [
+                    -0.957,
+                    -5.423
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    255
+                  ],
+                  "nonzeroAlphaPixels": 211339,
+                  "pixelsAboveAlpha16": 198581
+                }
+              ],
+              "visibleCrossCellDetected": false,
+              "passesAllRequestedMargins": false,
+              "individualViewImageInspected": true
+            }
+          },
+          {
+            "file": "craft-ruins-atlas.png",
+            "columns": 3,
+            "rows": 2,
+            "intendedEmptyCells": [],
+            "prompt": "Use case: stylized-concept\nAsset type: ONE complete production game sprite ATLAS PNG containing six isolated damaged woodland objects, not a poster, collage, or continuous scene.\nPrimary request: a precisely aligned six-cell storm-ruins atlas on a genuinely transparent alpha canvas. Every object is still BROKEN and awaits repair; never show repaired versions.\n\nCANVAS AND GRID ARE CRITICAL: use a landscape 3:2 canvas, ideally exactly 1536 by 1024 pixels, invisibly divided into exactly THREE equal columns and TWO equal rows of equal SQUARE cells. Relative cell centers: (16.6667%,25%), (50%,25%), (83.3333%,25%), then (16.6667%,75%), (50%,75%), (83.3333%,75%). Do not draw the grid. Center each complete independent object at its cell center. Keep its full silhouette inside the central 60–65 percent of its own cell width and height, leaving at least 15 percent empty transparent margin on all four sides. No piece of timber, reed, loose stone, dirt fleck, or shadow may enter another cell. The grid is for exact programmatic equal-cell cropping.\n\nExact reading order:\nTOP LEFT: a leaking BROKEN WOODEN SHELTER. Sagging snapped timber posts, a slanted partly collapsed roof with obvious holes and missing boards, a few broken pieces at its feet. Clearly unusable and storm damaged. No intact tidy shelter, no completed repair, no finished bed or warm light.\nTOP MIDDLE: a COLLAPSED STONE COOKING FRAME. Tumbled rounded gray stones, snapped dark wooden cooking supports and a cold small pot lying tipped on its side. No flame, no glowing ember, no smoke, no intact working stove.\nTOP RIGHT: one FALLEN TREE TRUNK BLOCKING A PATH, with broken branch stubs and one small splintered limb beside it. Only the obstruction itself, not the path or road. The log is not neatly cut, stacked, or cleared.\nBOTTOM LEFT: a SMALL SPRING BLOCKED BY RUBBLE. A compact cluster of rocks and rubble stuffed tightly into a small spring opening, with almost no visible water: at most a tiny dull damp glint deep between stones. No flowing stream, no fountain, no restored pond.\nBOTTOM MIDDLE: an UNSTABLE BARE SOIL RIVERBANK FRAGMENT with a crumbling eroded edge and several knocked-over reeds lying flat across it. Keep the natural ragged dirt fragment very compact, no rectangular terrain tile, no island, no water plane and no restored reinforced bank.\nBOTTOM RIGHT: a BROKEN WOODEN DOCK section, snapped leaning support posts, missing and dangling planks, a jagged gap through the middle. No water under it, no intact walkway, no completed bridge.\n\nUnified art direction: original high-budget casual mobile game pre-rendered 3D miniatures with thick rounded bevels, soft rich tactile materials, warm weathered wood grain, subdued gray rounded stone and ochre earth, a small amount of muted reed green. Stylized damage remains charming and clearly readable. All six have EXACTLY the same orthographic isometric camera looking down at 35 degrees, the same right-facing orientation, and the same upper-left large soft studio key. Convincing object volume, warm highlights, darker lower forms and self-shadow. High quality 3D render, not flat vector art and not low-poly.\nBackground: real transparent alpha everywhere around all objects and between all six cells. No continuous background or ground surface. Small debris must remain attached visually to its own object and inside the safe cell region.\nConstraints: no text, no labels, no numbers, no UI, no frames, no grid lines, no hexagonal bases, no display plinths, no base plates, no islands, no broad ground floor, no background scenery, no people, no painted checkerboard, no logos or watermarks. No repaired results. Six separate isolated ruins in six exact atlas cells, all with generous transparent padding.",
+            "inspection": {
+              "width": 1536,
+              "height": 1024,
+              "mode": "RGBA",
+              "fileBytes": 2421269,
+              "alphaExtrema": [
+                0,
+                254
+              ],
+              "fullyTransparentPercent": 55.926,
+              "logicalCellWidth": 512,
+              "logicalCellHeight": 512,
+              "visibleThreshold": 128,
+              "cells": [
+                {
+                  "index": 1,
+                  "rasterCropRect": [
+                    0,
+                    0,
+                    512,
+                    512
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    40,
+                    49,
+                    467,
+                    468
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    7.812,
+                    9.57,
+                    8.789,
+                    8.594
+                  ],
+                  "centerOffsetPercentXY": [
+                    -0.488,
+                    0.488
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 125991,
+                  "pixelsAboveAlpha16": 103529
+                },
+                {
+                  "index": 2,
+                  "rasterCropRect": [
+                    512,
+                    0,
+                    1024,
+                    512
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    42,
+                    102,
+                    475,
+                    447
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    8.203,
+                    19.922,
+                    7.227,
+                    12.695
+                  ],
+                  "centerOffsetPercentXY": [
+                    0.488,
+                    3.613
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 105586,
+                  "pixelsAboveAlpha16": 82494
+                },
+                {
+                  "index": 3,
+                  "rasterCropRect": [
+                    1024,
+                    0,
+                    1536,
+                    512
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    31,
+                    108,
+                    477,
+                    458
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    6.055,
+                    21.094,
+                    6.836,
+                    10.547
+                  ],
+                  "centerOffsetPercentXY": [
+                    -0.391,
+                    5.273
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 111555,
+                  "pixelsAboveAlpha16": 79524
+                },
+                {
+                  "index": 4,
+                  "rasterCropRect": [
+                    0,
+                    512,
+                    512,
+                    1024
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    33,
+                    65,
+                    485,
+                    431
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    6.445,
+                    12.695,
+                    5.273,
+                    15.82
+                  ],
+                  "centerOffsetPercentXY": [
+                    0.586,
+                    -1.562
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 123204,
+                  "pixelsAboveAlpha16": 109665
+                },
+                {
+                  "index": 5,
+                  "rasterCropRect": [
+                    512,
+                    512,
+                    1024,
+                    1024
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    35,
+                    75,
+                    476,
+                    424
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    6.836,
+                    14.648,
+                    7.031,
+                    17.188
+                  ],
+                  "centerOffsetPercentXY": [
+                    -0.098,
+                    -1.27
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 120060,
+                  "pixelsAboveAlpha16": 91520
+                },
+                {
+                  "index": 6,
+                  "rasterCropRect": [
+                    1024,
+                    512,
+                    1536,
+                    1024
+                  ],
+                  "opaqueSubjectBoundsAlpha128": [
+                    31,
+                    77,
+                    469,
+                    448
+                  ],
+                  "marginPercentLeftTopRightBottom": [
+                    6.055,
+                    15.039,
+                    8.398,
+                    12.5
+                  ],
+                  "centerOffsetPercentXY": [
+                    -1.172,
+                    1.27
+                  ],
+                  "alphaAtCellBoundaryMax": 1,
+                  "visibleObjectTouchesBoundary": false,
+                  "passes15PercentMargin": false,
+                  "allAlphaZero": false,
+                  "alphaExtrema": [
+                    0,
+                    254
+                  ],
+                  "nonzeroAlphaPixels": 106822,
+                  "pixelsAboveAlpha16": 82740
+                }
+              ],
+              "visibleCrossCellDetected": false,
+              "passesAllRequestedMargins": false,
+              "individualViewImageInspected": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "group": "river",
+      "data": {
+        "mode": "built-in image_gen",
+        "transparent_background": true,
+        "note": "Original PNG alpha preserved. No CLI/API fallback or script pixel editing. Original and corrected output paths retained here for traceability.",
+        "assets": [
+          {
+            "filename": "craft-water-atlas.png",
+            "grid": {
+              "columns": 4,
+              "rows": 2
+            },
+            "passes": [
+              {
+                "intent": "generate",
+                "prompt": "Use case: stylized-concept. Asset type: a single production-ready merge-game water-material sprite atlas.\nCanvas: wide 2:1 aspect ratio. Invisible exact four-column by two-row grid, eight equally sized SQUARE cells. Cell centers are at x 12.5%, 37.5%, 62.5%, 87.5% and y 25%, 75%. The grid itself must NOT be drawn.\nExactly seven separate sprites arranged in reading order, one centered sprite or compact component set per cell. Every sprite fits inside the central 65–70% of its cell width and height, leaving at least 15% truly transparent padding on all four sides. Keep equal comfortable spacing. Bottom-right cell is completely empty and transparent.\nTop row left to right: a single clean plump blue water droplet; a small warm wooden collection bowl filled with clear turquoise water; a rounded ceramic clean-water jug with a small handle and lid; an uninstalled bamboo-and-wood water-intake trough component.\nBottom row left to right: a compact water-storage assembly with a rounded small tank on a wooden support; two assembled short wood-and-stone channel modules placed beside one another, visibly uninstalled; a complete uninstalled stream-construction kit with a curved trough section, a few rounded stones, and a short pipe arranged as one neat compact set; fully empty transparent cell.\nThe levels must have distinctly different silhouettes and clear progression. High-level pieces are portable construction components, not finished landscape or a river already built into the map. No large terrain slabs, grass islands, river scenery, continuous flow between cells, scenery background or large floor plates. Style: original high-budget casual mobile game pre-rendered 3D art, chunky rounded sculpted shapes, warm natural wood/stone/ceramic/plant materials, rich but harmonious colors, soft upper-left studio sunlight, soft contact occlusion, consistent isometric camera looking down at 35 degrees. All objects use the same camera and light direction. Beautiful polished miniature models, not flat vector art, watercolor or sketches. Actual transparent alpha, no overall background or floor. No text, labels, numbers, letters, grid lines, frames, borders, UI, logo, watermark, hexagonal tile or hexagonal base. No shared ground platform. Keep every object inside its assigned cell; no object, reflection, shadow or decoration may cross a cell boundary.",
+                "output": "exec-fef9ed8d-6ee5-4b87-bae6-ba46ef594b60.png"
+              },
+              {
+                "intent": "edit-spacing",
+                "prompt": "Use case: precise-object-edit. Edit this complete water-material sprite atlas only for production-safe spacing. Preserve all seven existing object designs, their reading order, warm pre-rendered 3D materials, colors, isometric camera and upper-left lighting. Keep the output canvas exactly 2:1 and the same invisible 4-column by 2-row arrangement of equal square cells. IMPORTANT: every object is currently too large and slightly off-center. Make each complete sprite noticeably smaller, about 55% of its cell width or height at maximum, centered in both x and y in its own square. This means at least 22% completely transparent empty margin on all four sides of every cell, and broad transparent gutters between sprites. The exact cell centers are x=12.5%,37.5%,62.5%,87.5% and y=25%,75%. Keep the bottom-right eighth cell completely empty and transparent. Each multi-part kit must stay entirely together within its own cell. Do not crop any object or move any object into another cell. Remove any stray colored fringe or halo outside the clean object silhouettes. Keep a genuinely transparent alpha background, not a painted checkerboard, black background or colored background. No text, labels, numbers, grid lines, frames, floor, backdrop, new objects, shadows extending into the gaps, or hexagonal bases. Change only scale/centering and exterior cleanup; preserve the actual artwork.",
+                "input": "exec-fef9ed8d-6ee5-4b87-bae6-ba46ef594b60.png",
+                "output": "exec-661f6f7a-295f-4554-94a1-524239729ecb.png"
+              }
+            ],
+            "checks": {
+              "name": "craft-water-atlas",
+              "width": 1774,
+              "height": 887,
+              "hasAlpha": true,
+              "transparentFraction": 0.849517456839301,
+              "bytes": 591615,
+              "cells": [
+                {
+                  "index": 1,
+                  "pixels": 18940,
+                  "edge": 0,
+                  "minPadding": 0.16891891891891891,
+                  "bounds": [
+                    150,
+                    174,
+                    295,
+                    368
+                  ]
+                },
+                {
+                  "index": 2,
+                  "pixels": 32938,
+                  "edge": 0,
+                  "minPadding": 0.18018018018018017,
+                  "bounds": [
+                    551,
+                    177,
+                    777,
+                    363
+                  ]
+                },
+                {
+                  "index": 3,
+                  "pixels": 27684,
+                  "edge": 0,
+                  "minPadding": 0.15765765765765766,
+                  "bounds": [
+                    1025,
+                    155,
+                    1207,
+                    373
+                  ]
+                },
+                {
+                  "index": 4,
+                  "pixels": 24360,
+                  "edge": 0,
+                  "minPadding": 0.15090090090090091,
+                  "bounds": [
+                    1424,
+                    166,
+                    1659,
+                    376
+                  ]
+                },
+                {
+                  "index": 5,
+                  "pixels": 37145,
+                  "edge": 0,
+                  "minPadding": 0.18510158013544017,
+                  "bounds": [
+                    120,
+                    526,
+                    321,
+                    796
+                  ]
+                },
+                {
+                  "index": 6,
+                  "pixels": 33038,
+                  "edge": 0,
+                  "minPadding": 0.18510158013544017,
+                  "bounds": [
+                    528,
+                    563,
+                    804,
+                    774
+                  ]
+                },
+                {
+                  "index": 7,
+                  "pixels": 33225,
+                  "edge": 0,
+                  "minPadding": 0.18693693693693694,
+                  "bounds": [
+                    977,
+                    557,
+                    1247,
+                    773
+                  ]
+                },
+                {
+                  "index": 8,
+                  "pixels": 0,
+                  "edge": 0,
+                  "minPadding": 1,
+                  "bounds": null
+                }
+              ]
+            }
+          },
+          {
+            "filename": "craft-reed-atlas.png",
+            "grid": {
+              "columns": 4,
+              "rows": 2
+            },
+            "passes": [
+              {
+                "intent": "generate",
+                "prompt": "Use case: stylized-concept. Asset type: a single production-ready merge-game reed-material sprite atlas.\nCanvas: wide 2:1 aspect ratio. Invisible exact four-column by two-row grid, eight equally sized SQUARE cells. Cell centers are at x 12.5%, 37.5%, 62.5%, 87.5% and y 25%, 75%. The grid itself must NOT be drawn.\nExactly seven separate sprites arranged in reading order, one centered sprite or compact component set per cell. Every sprite fits inside the central 65–70% of its cell width and height, leaving at least 15% truly transparent padding on all four sides. Keep equal comfortable spacing. Bottom-right cell is completely empty and transparent.\nTop row left to right: a single tender reed sprout with a tiny root plug; a young reed seedling with a clearly visible wrapped root ball; a neatly tied bundle of several cut reeds with warm golden seed heads; a rollable riverbank grass mat, partly unrolled with a thick visible root-fiber underside.\nBottom row left to right: a dense healthy root cluster with several leafy shoots and visible bundled roots; a rolled-up long riverbank green strip with lush turf on top and a clean spiral profile; a complete wetland nursery kit containing a root ball, a small grass mat and a bundled reed plant neatly arranged as one compact set; fully empty transparent cell.\nThe levels must have distinctly different silhouettes and clear progression. These are portable nursery and construction materials, not an already installed wetland landscape. No continuous terrain, riverbank island, broad flat ground slab, flowers or extra environment. Style: original high-budget casual mobile game pre-rendered 3D art, chunky rounded sculpted shapes, warm natural wood/stone/ceramic/plant materials, rich but harmonious colors, soft upper-left studio sunlight, soft contact occlusion, consistent isometric camera looking down at 35 degrees. All objects use the same camera and light direction. Beautiful polished miniature models, not flat vector art, watercolor or sketches. Actual transparent alpha, no overall background or floor. No text, labels, numbers, letters, grid lines, frames, borders, UI, logo, watermark, hexagonal tile or hexagonal base. No shared ground platform. Keep every object inside its assigned cell; no object, reflection, shadow or decoration may cross a cell boundary.",
+                "output": "exec-f49cde32-a3aa-4f13-b4e5-47fbdece1887.png"
+              },
+              {
+                "intent": "edit-spacing",
+                "prompt": "Use case: precise-object-edit. Edit this complete reed-material sprite atlas only for production-safe spacing. Preserve all seven existing plant/material designs, their reading order, warm pre-rendered 3D materials, colors, isometric camera and upper-left lighting. Keep the output canvas exactly 2:1 and the same invisible 4-column by 2-row arrangement of equal square cells. IMPORTANT: the sprites currently almost fill their cells. Shrink each entire sprite substantially so its longest dimension occupies only about 55% of one cell, and precisely center the complete sprite in both x and y. Maintain at least 22% completely transparent margin on all four sides of each cell. Exact centers: x=12.5%,37.5%,62.5%,87.5% and y=25%,75%. The seventh cell remains a compact nursery kit and the bottom-right eighth cell remains completely empty and transparent. Keep clear broad transparent gutters. No leaf, root, rope, mat or seed head may enter another cell. Preserve each complete object without cropping. Remove all stray colored halos/fringing outside the silhouettes. Use genuine transparent alpha; do not paint a checkerboard, solid-color background or environment. Do not draw text, labels, numbering, grid lines, borders, frames, floors, base plates, hexagons, background shadows or additional objects. Change only scale/centering and exterior cleanup; preserve the actual artwork.",
+                "input": "exec-f49cde32-a3aa-4f13-b4e5-47fbdece1887.png",
+                "output": "exec-490700b0-4e0d-45a3-aee4-7083a6fdf9de.png"
+              }
+            ],
+            "checks": {
+              "name": "craft-reed-atlas",
+              "width": 1774,
+              "height": 887,
+              "hasAlpha": true,
+              "transparentFraction": 0.8377503434934523,
+              "bytes": 776552,
+              "cells": [
+                {
+                  "index": 1,
+                  "pixels": 10719,
+                  "edge": 0,
+                  "minPadding": 0.15090090090090091,
+                  "bounds": [
+                    171,
+                    110,
+                    311,
+                    376
+                  ]
+                },
+                {
+                  "index": 2,
+                  "pixels": 20190,
+                  "edge": 0,
+                  "minPadding": 0.14864864864864866,
+                  "bounds": [
+                    591,
+                    100,
+                    759,
+                    377
+                  ]
+                },
+                {
+                  "index": 3,
+                  "pixels": 30706,
+                  "edge": 0,
+                  "minPadding": 0.1554054054054054,
+                  "bounds": [
+                    973,
+                    117,
+                    1225,
+                    374
+                  ]
+                },
+                {
+                  "index": 4,
+                  "pixels": 35508,
+                  "edge": 0,
+                  "minPadding": 0.16441441441441443,
+                  "bounds": [
+                    1415,
+                    158,
+                    1693,
+                    370
+                  ]
+                },
+                {
+                  "index": 5,
+                  "pixels": 30274,
+                  "edge": 0,
+                  "minPadding": 0.18243243243243243,
+                  "bounds": [
+                    137,
+                    526,
+                    362,
+                    784
+                  ]
+                },
+                {
+                  "index": 6,
+                  "pixels": 34366,
+                  "edge": 0,
+                  "minPadding": 0.1963882618510158,
+                  "bounds": [
+                    545,
+                    560,
+                    799,
+                    773
+                  ]
+                },
+                {
+                  "index": 7,
+                  "pixels": 38639,
+                  "edge": 0,
+                  "minPadding": 0.20090293453724606,
+                  "bounds": [
+                    995,
+                    542,
+                    1231,
+                    797
+                  ]
+                },
+                {
+                  "index": 8,
+                  "pixels": 0,
+                  "edge": 0,
+                  "minPadding": 1,
+                  "bounds": null
+                }
+              ]
+            }
+          },
+          {
+            "filename": "craft-river-scenes.png",
+            "grid": {
+              "columns": 3,
+              "rows": 2
+            },
+            "passes": [
+              {
+                "intent": "generate",
+                "prompt": "Use case: stylized-concept. Asset type: a single production-ready atlas of six riverbank construction-result sprites for a merge game.\nCanvas: wide 3:2 aspect ratio. Invisible exact three-column by two-row grid, six equally sized SQUARE cells. Cell centers are at x 16.6667%, 50%, 83.3333% and y 25%, 75%. The grid itself must NOT be drawn.\nExactly six isolated miniature construction scenes in reading order, one centered finished scene per cell. Every scene fits entirely inside the central 65–70% of its cell width and height, leaving at least 15% truly transparent padding on all four sides. The six scenes must be separated by clear alpha gaps. No scene may overlap any neighboring cell.\nTop row left to right: a freshly cleared small natural stone spring with a little turquoise water between rounded stones; a lively small stone spring with a short curved wooden water channel extending from it, the outlet remaining open for a stream connection that will be drawn later by game code; a small patch of newly planted riverbank reeds with a few young green shoots.\nBottom row left to right: a complete flourishing reed bank with golden reed heads and one elegant small white egret standing beside the reeds; the first short wooden pier section, solid honey-colored boards and simple supporting posts, visibly unfinished at its outer end; a complete charming wooden landing with a small teal-blue covered boat moored alongside, rope posts and one warm glowing lantern.\nSparse natural stones and tiny grass tufts may surround each scene, but do not add a large terrain island, rigid diorama pedestal, common ground base, continuous river, or large floor slab. Avoid any extra characters; the white egret belongs only in the bottom-left cell and the boat only in the bottom-right cell. Style: original high-budget casual mobile game pre-rendered 3D art, chunky rounded sculpted shapes, warm natural wood/stone/ceramic/plant materials, rich but harmonious colors, soft upper-left studio sunlight, soft contact occlusion, consistent isometric camera looking down at 35 degrees. All objects use the same camera and light direction. Beautiful polished miniature models, not flat vector art, watercolor or sketches. Actual transparent alpha, no overall background or floor. No text, labels, numbers, letters, grid lines, frames, borders, UI, logo, watermark, hexagonal tile or hexagonal base. No shared ground platform. Keep every object inside its assigned cell; no object, reflection, shadow or decoration may cross a cell boundary.",
+                "output": "exec-c9c923f0-8284-43e4-a8b4-5f373b4e0b41.png"
+              },
+              {
+                "intent": "edit-spacing",
+                "prompt": "Use case: background-extraction and precise-object-edit. Convert this complete six-scene atlas into clean isolated transparent game sprites. Preserve all six actual scene designs, stones, plants, spring water, wood, egret, lantern and teal covered boat, with the same style, perspective and reading order. REMOVE ALL green/brown blurred environment, haze, soft ambient background, outer glows and broad background shadows. All pixels outside the actual object silhouettes must be genuinely transparent alpha. Do not leave smoky colored halos. Do not replace the removed background with any color or a checkerboard. Keep a 3:2 canvas with an invisible strict 3-column by 2-row grid of six equal square cells. Shrink and recenter each entire scene inside its own square: each scene's longest dimension occupies only about 55% of the cell, with at least 22% totally transparent padding on every side. Cell centers are x=16.6667%,50%,83.3333% and y=25%,75%. All six sprites must be cleanly separated by broad empty alpha gutters; no twig, lantern glow, plant, stone, boat or post may cross a cell edge. Keep every scene intact without cropping and do not move any scene into a different cell. No text, numbers, labels, grid lines, borders, UI, hexagonal bases, shared ground platform, new objects or additional scenery. Preserve original sprite art and perform only clean background removal, per-cell scaling and centering.",
+                "input": "exec-c9c923f0-8284-43e4-a8b4-5f373b4e0b41.png",
+                "output": "exec-d7d34891-9c69-44b9-8975-9d1a5d56fc62.png"
+              },
+              {
+                "intent": "generate-compact-cutouts",
+                "prompt": "Use case: stylized-concept.\nAsset type: ONE transparent PNG game-prop sprite atlas, NOT an environment illustration.\nMake a wide 3:2 canvas containing exactly SIX SMALL ISOLATED CUTOUT PROPS in an invisible 3-column by 2-row grid. All six cells are equal squares. Put one prop centered at each cell center. Each prop must occupy only 55% of its cell width/height, with at least 20% empty alpha padding on every side. Generous fully transparent empty space surrounds and separates every prop.\nTop-left: a small open ring of rounded stones with a tiny clear turquoise spring between the stones.\nTop-middle: a compact stone spring feeding a SHORT CURVED wooden channel.\nTop-right: a small group of freshly planted green reeds with two or three rounded stones.\nBottom-left: a lush golden-headed reed cluster and one small white egret, with a few stones.\nBottom-middle: a short unfinished wooden pier section with thick warm boards and supporting posts.\nBottom-right: a wooden landing with rope posts, one warm lantern, and a little teal-blue covered boat alongside.\nArt direction: original premium casual mobile game PRE-RENDERED 3D miniature props, soft chunky rounded forms, cozy honey wood, rounded natural stones, lush green leaves, consistent 35-degree isometric view, soft upper-left light. Same camera for every prop. Objects have clear silhouettes. Small natural details only, no big pedestal or ground slab.\nCRITICAL BACKGROUND: use actual clean transparent alpha everywhere outside the six prop silhouettes. ZERO environmental background. ZERO blurred green/brown backdrop. ZERO atmospheric haze. ZERO outer glow. ZERO broad cast shadow. ZERO scenery behind the props. Do not paint black, gray, a checkerboard or any color where transparency belongs. No glow around the lantern outside the object silhouette. No connecting floor or water between cells.\nNo text, lettering, numbering, labels, UI, grid lines, borders, hexagons, base tiles, logo or watermark. Every prop must remain completely inside its own cell, with ample transparent separation. Deliver the sprite sheet cutouts only.",
+                "output": "exec-5808cb5f-c0c4-4723-a284-e03f9dd0efd5.png"
+              },
+              {
+                "intent": "edit-spacing",
+                "prompt": "Use case: precise-object-edit. This is a transparent game sprite atlas. Perform ONE layout change: make EACH of the six existing cutout objects HALF OF ITS CURRENT SIZE, then center each smaller complete object precisely within its existing cell. Do not change any object design, colors, pose, lighting or style. Do not add any background. Preserve the transparent alpha. Keep exactly the same 3:2 canvas, invisible three columns by two rows of equal square cells, and unchanged reading order. Exact centers: top row at (16.6667%,25%), (50%,25%), (83.3333%,25%); bottom row at (16.6667%,75%), (50%,75%), (83.3333%,75%). All six entire objects must become conspicuously smaller, surrounded by very generous transparent empty space on every side. No object should occupy more than 50% of its cell's width or height. Keep each object intact, including all stones, plants, bird, pier and boat, while reducing its whole size together. Do not crop. No text, labels, borders, grid lines, new objects, environmental backdrop or floor. Only scale down and center the six objects; everything outside them remains truly transparent.",
+                "input": "exec-5808cb5f-c0c4-4723-a284-e03f9dd0efd5.png",
+                "output": "exec-a5774e84-5ca9-4bae-9188-dd7f0aa5156e.png"
+              }
+            ],
+            "checks": {
+              "name": "craft-river-scenes",
+              "width": 1536,
+              "height": 1024,
+              "hasAlpha": true,
+              "transparentFraction": 0.8934993743896484,
+              "bytes": 1423058,
+              "cells": [
+                {
+                  "index": 1,
+                  "pixels": 23058,
+                  "edge": 0,
+                  "minPadding": 0.28515625,
+                  "bounds": [
+                    162,
+                    188,
+                    365,
+                    356
+                  ]
+                },
+                {
+                  "index": 2,
+                  "pixels": 22205,
+                  "edge": 0,
+                  "minPadding": 0.255859375,
+                  "bounds": [
+                    658,
+                    175,
+                    892,
+                    368
+                  ]
+                },
+                {
+                  "index": 3,
+                  "pixels": 16241,
+                  "edge": 0,
+                  "minPadding": 0.279296875,
+                  "bounds": [
+                    1169,
+                    168,
+                    1340,
+                    368
+                  ]
+                },
+                {
+                  "index": 4,
+                  "pixels": 22367,
+                  "edge": 0,
+                  "minPadding": 0.263671875,
+                  "bounds": [
+                    156,
+                    647,
+                    365,
+                    857
+                  ]
+                },
+                {
+                  "index": 5,
+                  "pixels": 17160,
+                  "edge": 0,
+                  "minPadding": 0.306640625,
+                  "bounds": [
+                    672,
+                    675,
+                    866,
+                    845
+                  ]
+                },
+                {
+                  "index": 6,
+                  "pixels": 26423,
+                  "edge": 0,
+                  "minPadding": 0.2578125,
+                  "bounds": [
+                    1156,
+                    651,
+                    1399,
+                    858
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "validation": {
+          "alphaVisibleThreshold": 100,
+          "viewImageInspected": true,
+          "alphaCompositeInspected": true,
+          "noTextOrGridLines": true,
+          "issues": [
+            "The 4x2 atlases are 1774x887, so equal square cells are 443.5 pixels. Use proportional atlas slicing or independently rounded boundaries.",
+            "Reed cell 2 visible-art padding is 14.865%, approximately one pixel below the requested 15%. No visible cell-boundary overlap.",
+            "Some sprites are optically offset within their cells. Per-cell visible bounds are recorded for optional centering at render time.",
+            "Transparent pixels retain RGB values from generation. Alpha compositing yields clean transparent gaps; an image preview that ignores alpha may show the latent RGB backdrop."
+          ]
+        }
+      }
+    },
+    {
+      "group": "support",
+      "data": {
+        "workflow": "Built-in image_gen only; no CLI or postprocessing. PNG source copies preserved. Pillow used only for read-only alpha/dimension validation.",
+        "assets": [
+          {
+            "file": "dist\\assets\\craft-dock-atlas.png",
+            "width": 1774,
+            "height": 887,
+            "mode": "RGBA",
+            "bytes": 678496,
+            "alpha_extrema": [
+              0,
+              255
+            ],
+            "transparent_fraction": 0.8157,
+            "visible_bounds": [
+              96,
+              113,
+              1680,
+              774
+            ],
+            "cells": [
+              {
+                "slot": 1,
+                "rect": [
+                  0,
+                  0,
+                  444,
+                  444
+                ],
+                "visible_bounds": [
+                  111,
+                  162,
+                  328,
+                  322
+                ],
+                "minimum_margin_fraction": 0.25
+              },
+              {
+                "slot": 2,
+                "rect": [
+                  444,
+                  0,
+                  887,
+                  444
+                ],
+                "visible_bounds": [
+                  106,
+                  149,
+                  342,
+                  325
+                ],
+                "minimum_margin_fraction": 0.228
+              },
+              {
+                "slot": 3,
+                "rect": [
+                  887,
+                  0,
+                  1330,
+                  444
+                ],
+                "visible_bounds": [
+                  112,
+                  143,
+                  350,
+                  336
+                ],
+                "minimum_margin_fraction": 0.21
+              },
+              {
+                "slot": 4,
+                "rect": [
+                  1330,
+                  0,
+                  1774,
+                  444
+                ],
+                "visible_bounds": [
+                  112,
+                  113,
+                  350,
+                  348
+                ],
+                "minimum_margin_fraction": 0.212
+              },
+              {
+                "slot": 5,
+                "rect": [
+                  0,
+                  444,
+                  444,
+                  887
+                ],
+                "visible_bounds": [
+                  96,
+                  105,
+                  351,
+                  325
+                ],
+                "minimum_margin_fraction": 0.209
+              },
+              {
+                "slot": 6,
+                "rect": [
+                  444,
+                  444,
+                  887,
+                  887
+                ],
+                "visible_bounds": [
+                  90,
+                  103,
+                  364,
+                  330
+                ],
+                "minimum_margin_fraction": 0.178
+              },
+              {
+                "slot": 7,
+                "rect": [
+                  887,
+                  444,
+                  1330,
+                  887
+                ],
+                "visible_bounds": [
+                  96,
+                  105,
+                  363,
+                  329
+                ],
+                "minimum_margin_fraction": 0.181
+              },
+              {
+                "slot": 8,
+                "rect": [
+                  1330,
+                  444,
+                  1774,
+                  887
+                ],
+                "visible_bounds": null,
+                "minimum_margin_fraction": null
+              }
+            ],
+            "prompt": "Use case: stylized-concept. Asset type: a production sprite atlas for an original premium casual mobile merge game. Create ONE wide image with exact 2:1 aspect ratio, arranged as exactly FOUR equal square columns by TWO equal square rows (8 cells). Transparent alpha background across the whole image, with no visible gridlines. In reading order from top-left, the first seven cells contain these SEVEN distinct stages of a timber ferry-dock crafting chain: 1 one short timber stick; 2 one sturdy cut plank; 3 a bound stack of walkway planks; 4 timber foundation posts with metal braces; 5 a partly assembled pier section; 6 a larger berth frame ready to install; 7 a complete UNINSTALLED ferry-terminal construction kit, consisting of a timber platform frame, rope, posts and folded canopy. The eighth (bottom-right) cell is COMPLETELY EMPTY transparent. Every object centered at the center of its own equal-sized cell, at least 15 percent transparent margin on every cell edge, no part crossing any cell boundary. These are loose crafting objects/assemblies, NOT finished scenery. Isometric 35-degree topdown viewpoint, consistent orientation and scale progression, rich honey-gold timber, warm rope, desaturated blue iron. Premium pre-rendered 3D toy-like rounded forms, readable silhouettes at tiny mobile sizes, subtle sculpted grain, visible thickness, broad soft upper-left lighting and neat contact shadows limited to each object. NO hex bases, pedestals, ground patches, water, background, people, labels, text, numbers, logos, UI, or outlines of cells. The first four objects occupy row one, the next three occupy row two; row two rightmost cell stays empty.",
+            "framing_edit_prompt": "Use case: precise-object-edit. The input image is the exact 4-column by 2-row transparent sprite atlas to edit. Make ONLY this layout correction: shrink EACH of the seven existing objects uniformly by 22 percent around the center of its own cell. Keep the wide exact 2:1 image, FOUR equal square columns and TWO equal square rows. Keep every object at its original row-major slot, centered exactly at its cell's center. Preserve the exact object's shape, materials, details, colors, angle, visual style, and transparency. Every object including its shadow must fit within the central 70 percent of its cell width and cell height, leaving at least 15 percent fully transparent margin on all four sides of each cell. Keep the eighth cell completely empty and transparent. Do not add, remove, replace, redraw, combine or duplicate any object. Keep no background, no visible grid, no cell outlines, no text, no labels. The only requested change is smaller object sizing and strict equal-cell-centered alignment with larger transparent margins.",
+            "inspected_with": "view_image",
+            "notes": "4 x 2 exact 2:1 atlas. Seven slots verified, last slot fully transparent. Targeted built-in framing edit corrected oversize initial objects. Minimum visible cell margin is 17.8% at alpha>8; no cross-cell artwork."
+          },
+          {
+            "file": "dist\\assets\\craft-lina.png",
+            "width": 1254,
+            "height": 1254,
+            "mode": "RGBA",
+            "bytes": 1730632,
+            "alpha_extrema": [
+              0,
+              255
+            ],
+            "transparent_fraction": 0.4802,
+            "visible_bounds": [
+              147,
+              58,
+              1120,
+              1226
+            ],
+            "prompt": "Use case: stylized-concept. Asset type: original character portrait cutout for a premium casual mobile adventure game. Create Lina, daughter of an auburn-haired mother, about seven years old. Single shoulders-up portrait, face centered, warm curious smile, clear sparkling gentle hazel-green eyes, small freckles, short auburn hair in two short pigtails, wearing a bright yellow raincoat with a soft green inner shirt. Premium rounded pre-rendered 3D animated family-film casual game style, appealing sculpted face, soft natural skin shading, broad upper-left soft light, warm welcoming optimistic mood. Closely match the visual language of a polished 3D bust of an auburn-haired mother in a green scarf: soft dimensional hair locks, gentle realistic cloth texture, attractive warm face. Child should read unmistakably as a child, with natural child proportions. Square image, chest and full shoulders included, whole silhouette contained, at least 8 percent transparent margin above and on both sides, simple curved lower crop. Genuinely transparent alpha background. No scene, no props, no border, no text, logos, watermark, UI, name labels, or other people. Original character, not copied from any existing franchise.",
+            "inspected_with": "view_image",
+            "notes": "Original child portrait visually matches Mira. Hair and shoulders fully contained. Upper transparent margin is 4.6%, so use contain for any circular crop."
+          },
+          {
+            "file": "dist\\assets\\craft-rowan.png",
+            "width": 1254,
+            "height": 1254,
+            "mode": "RGBA",
+            "bytes": 1797701,
+            "alpha_extrema": [
+              0,
+              255
+            ],
+            "transparent_fraction": 0.4954,
+            "visible_bounds": [
+              23,
+              62,
+              1232,
+              1221
+            ],
+            "prompt": "Use case: stylized-concept. Asset type: original character portrait cutout for a premium casual mobile homecoming adventure game. Create Rowan, a kind reliable boatwright about 45 years old, male, shoulders-up portrait, dark gently wavy hair with a little grey at the temples, a short salt-and-pepper beard, warm brown eyes and a reassuring slightly smiling expression. Wearing a navy work jacket and an ochre yellow scarf, visibly a practical craftsman. Premium rounded pre-rendered 3D animated family-film casual game style matching the original auburn-haired mother Mira and auburn-haired child Lina: soft dimensional hair locks, gently stylized friendly face, soft natural skin shading, subtle fabric texture, broad upper-left soft light. Square image, face centered, full shoulders and chest included, whole silhouette fully contained, at least 8 percent transparent margin at top and sides, a gentle curved lower crop. Genuinely transparent alpha background. No boat, tools, scene, hat, props, border, name labels, text, logos, watermark, UI, or extra characters. Original character, not copied from any existing franchise.",
+            "inspected_with": "view_image",
+            "notes": "Original boatwright portrait visually matches Mira. Full shoulder silhouette is contained but broad (96.4% of width); use contain or generous circular crop padding."
+          },
+          {
+            "file": "dist\\assets\\craft-world-bg.png",
+            "width": 941,
+            "height": 1672,
+            "mode": "RGB",
+            "bytes": 2176434,
+            "alpha_extrema": null,
+            "transparent_fraction": 0,
+            "visible_bounds": [
+              0,
+              0,
+              941,
+              1672
+            ],
+            "prompt": "Use case: stylized-concept. Asset type: opaque portrait 9:16 background illustration behind an interactive hex map in an original premium casual mobile rebuilding game. A forest clearing shortly after rain. Composition is deliberately quiet: the central 75 percent of the image is a very broad uninterrupted simple moss-green open clearing, softly blurred and with very little detail, to receive gameplay pieces. Frame only the far edges with appealing rounded pre-rendered 3D trees, soft ferns and a few smooth stones; distant soft green hills at the very top. Warm sunlight gently breaks through clouds at upper-left; a hopeful fresh-after-rain mood with gentle atmospheric depth. High-quality original 3D casual game environment, polished rounded organic forms, soft painted textures, lush deep green edge foliage, warm sunlight, muted moss-green center so bright UI pieces will stand out. Portrait 9:16, full bleed opaque. No buildings, no tents, no campfire, no boats, no pier, no characters, no animals, no stream or pond, no completed scenery, no paths crossing the center, no hex grid, no cells, no map lines, no UI, text, logos or watermark. No central focal object. The image must not reveal anything the player will later rebuild.",
+            "inspected_with": "view_image",
+            "notes": "Opaque portrait background. Center is a low-detail open clearing. Edge trees, distant hills and light only; no rebuilt buildings/boats or hex grid."
+          },
+          {
+            "file": "dist\\assets\\craft-supply-box.png",
+            "width": 1254,
+            "height": 1254,
+            "mode": "RGBA",
+            "bytes": 1349978,
+            "alpha_extrema": [
+              0,
+              255
+            ],
+            "transparent_fraction": 0.5796,
+            "visible_bounds": [
+              116,
+              250,
+              1153,
+              1012
+            ],
+            "prompt": "Use case: stylized-concept. Asset type: original reward supply chest sprite for a premium casual mobile rebuilding game. One wooden rescue-supplies chest, viewed from the front and slightly above so the lid and front are both visible. Thick rounded honey-warm wooden sides with simple warm-gold metal corner fittings and rope clasps. The top is covered by rich blue-teal waterproof canvas, clearly different from a plain obstacle wood crate. A small neatly rolled cream canvas and a short timber piece peek out from one upper corner. Main silhouette is a compact charming chest with chunky approachable proportions. Premium polished pre-rendered 3D casual-game asset, sculpted rounded wood, pleasantly thick metal, tactile but simplified canvas, clear readable silhouette at 48 pixels. Broad soft upper-left light, visible soft underside volume, small object-local contact shadow only. Square image, single centered object occupying around 80 percent of image width/height with comfortable transparent margins, genuinely transparent alpha background. No scene, no ground patch, no pedestal, no hex base, no people, no coins, no gems, no text, no label, no drawn icon or symbols, no UI, no logos, no watermark. Original design.",
+            "framing_edit_prompt": "Use case: precise-object-edit. This supplied transparent rescue supply chest sprite is the edit target. Make ONLY a framing correction: shrink the entire unchanged chest and its exact complete silhouette uniformly so its width occupies exactly 80 percent of the square canvas, horizontally centered, and vertically center the whole chest. Preserve the exact blue-teal canvas, gold corner fittings, rope latches, rolled cloth and timber, all details and materials, original front/slightly-above camera, lighting, colors and 3D rendering. Do not change or redesign the object. Leave genuine fully transparent alpha background with at least 10 percent empty margin on left and right, more transparent margin above and below. No text, icons, additional props, backdrop, base, outlines or shadow panel. Keep the same square aspect ratio. Only resize and center this exact single existing sprite.",
+            "inspected_with": "view_image",
+            "notes": "Distinct blue-canvas rescue chest. Built-in framing correction centers the object with 82.7% subject width and transparent margins. No text or labels."
+          }
+        ]
+      }
+    }
+  ]
+}

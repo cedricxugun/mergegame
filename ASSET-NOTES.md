@@ -1,5 +1,9 @@
 # 三消素材与规则参考
 
+2026-10-16 第二轮增加合成端正式美术：`craft-wood-atlas.png`、`craft-water-atlas.png`、`craft-reed-atlas.png`、`craft-dock-atlas.png` 是 4×2 材料图集（前七格对应 L1–L7）；`craft-camp-scenes.png` 是 2×2 营地阶段图集；`craft-river-scenes.png` 与 `craft-ruins-atlas.png` 是 3×2 图集；另有 `craft-lina.png`、`craft-rowan.png`、`craft-world-bg.png` 与 `craft-supply-box.png`。全部在 `dist/assets`，沿用内置 image_gen。完整实际 prompts、调整记录和 alpha 检查保存在 [ASSET-PROMPTS-v11.json](ASSET-PROMPTS-v11.json)。
+
+图集用比例 viewBox 和 SVG pattern 显示，未将原图编辑拼接成占位素材。材质统一为暖木、绳索、石材、蓝绿帆布和自然植被；未建造前使用独立遗址帧。生成器没有完全满足所有格子的留白目标，已逐格检查没有可见跨格，并在实际 iPhone 画面确认裁切、可读性和操作边界。透明像素中的隐藏 RGB 不影响正常 alpha 合成。
+
 2026-10-16：本版素材由内置 image_gen 生成，为原创 PNG。没有使用 Royal Match 的角色、截图、商标或游戏资源。参考图只保存在忽略的 `.preview` 中，不随原型分发。
 
 输出位于 `dist/assets`：`premium-leaf.png`、`premium-book.png`、`premium-crown.png`、`premium-shield.png`、`premium-gem.png`、`premium-rocket.png`、`premium-tnt.png`、`premium-propeller.png`、`premium-orb.png`、`premium-crate.png`、`premium-mira.png` 和 `match-garden-bg.png`。

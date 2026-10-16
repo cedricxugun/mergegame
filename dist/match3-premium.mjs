@@ -81,19 +81,20 @@ export function m3Create(level,{seed=1,runId=`level-${level}-${seed}`}={}){
 }
 function snapshot(s){return{board:structuredClone(s.board),mask:[...s.mask],crates:[...s.crates],mud:[...s.mud],collected:[...s.collected],cratesCleared:s.cratesCleared,mudCleared:s.mudCleared,score:s.score,moves:s.moves,hammer:s.hammer,tools:{...s.tools}};}
 function clearWave(s,seeds,groups,preferred,wave,frames,options={}){
-  const clear=new Set(seeds.filter(i=>s.mask[i])),pending=[...clear],triggered=new Set(options.skip||[]),activated=[...(options.activated||[])],flights=[],made=[],conversions=[];
-  const add=indices=>{for(const i of indices)if(s.mask[i]&&!clear.has(i)){clear.add(i);pending.push(i);}};
-  const fly=(from,payload,count=1)=>{const used=new Set(clear);for(let n=0;n<count;n++){const to=target(s,used,payload);used.add(to);flights.push({from,to,payload});add(payload?footprint(s,to,payload):[to]);if(payload)activated.push({index:to,power:payload,delivered:true});}};
-  if(options.convert){const color=mostColor(s.board);s.board.forEach((p,i)=>{if(p?.color!==color)return;const power=options.convert==='row'||options.convert==='col'?(random(s)<.5?'row':'col'):options.convert;s.collected[color]++;s.board[i]=piece(s,null,power);conversions.push({index:i,power});add([i]);});}
+  const clear=new Set(seeds.filter(i=>s.mask[i])),pending=[...clear],triggered=new Set(options.skip||[]),activated=[...(options.activated||[])],flights=[],made=[],conversions=[],causes={};
+  const add=(indices,cause)=>{for(const i of indices)if(s.mask[i]&&!clear.has(i)){clear.add(i);pending.push(i);if(cause)causes[i]=cause;}};
+  const fly=(from,payload,count=1)=>{const used=new Set(clear);for(let n=0;n<count;n++){const to=target(s,used,payload);used.add(to);const flight=flights.length;flights.push({from,to,payload});add(payload?footprint(s,to,payload):[to],{kind:'flight',flight});if(payload)activated.push({index:to,power:payload,delivered:true});}};
+  if(options.convert){const color=mostColor(s.board);s.board.forEach((p,i)=>{if(p?.color!==color)return;const power=options.convert==='row'||options.convert==='col'?(random(s)<.5?'row':'col'):options.convert;s.collected[color]++;s.board[i]=piece(s,null,power);conversions.push({index:i,power});add([i],{kind:'conversion'});});}
   if(options.flight)fly(options.flight.from,options.flight.payload,options.flight.count);
   for(const g of groups){const power=powerFor(g);if(power)made.push({index:preferred.find(i=>g.cells.includes(i))??g.cells[Math.floor(g.cells.length/2)],power});}
-  for(let n=0;n<pending.length;n++){const i=pending[n],p=s.board[i];if(!p?.power||triggered.has(i))continue;triggered.add(i);activated.push({index:i,power:p.power});if(p.power==='propeller'){add([i,...neighbors(i)]);fly(i,null);}else add(footprint(s,i,p.power,options.orbColor));}
+  for(let n=0;n<pending.length;n++){const i=pending[n],p=s.board[i];if(!p?.power||triggered.has(i))continue;triggered.add(i);activated.push({index:i,power:p.power});if(p.power==='propeller'){add([i,...neighbors(i)],{kind:'power',index:i,power:p.power});fly(i,null);}else add(footprint(s,i,p.power,options.orbColor),{kind:'power',index:i,power:p.power});}
   const damage=new Set([...clear,...groups.flatMap(g=>g.cells.flatMap(neighbors))]),hits=[];
   for(const i of damage){if(!s.crates[i])continue;s.crates[i]--;hits.push({index:i,remaining:s.crates[i]});if(!s.crates[i])s.cratesCleared++;}
   for(const i of clear){const p=s.board[i];if(Number.isInteger(p?.color))s.collected[p.color]++;if(s.mud[i]){s.mud[i]=0;s.mudCleared++;}s.board[i]=null;}
   for(const p of made)s.board[p.index]=piece(s,null,p.power);
   s.score+=clear.size*50*wave+made.length*150+hits.length*100;
-  frames.push({type:'clear',indices:[...clear],activated,flights,conversions,hits,made,wave,consumed:options.skip||[],combo:options.combo||null,...snapshot(s)});
+  const hitCauses={};for(const h of hits){if(causes[h.index])hitCauses[h.index]=causes[h.index];else{const source=groups.flatMap(g=>g.cells).find(i=>neighbors(i).includes(h.index));if(source!==undefined)hitCauses[h.index]=causes[source]||null;}}
+  frames.push({type:'clear',indices:[...clear],activated,flights,conversions,hits,made,wave,causes,hitCauses,consumed:options.skip||[],combo:options.combo||null,...snapshot(s)});
 }
 function drop(s,frames){
   const falls=[];

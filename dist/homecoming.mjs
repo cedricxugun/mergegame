@@ -24,17 +24,17 @@ export const EXPANSIONS={camp:[ [[-2,3],[-1,3]], [[0,3],[1,2]], [[3,-1],[3,-2],[
 export const STREAM_CELLS=[[2,-2],[3,-2],[4,-2],[5,-2],[6,-2],[7,-2],[6,-1],[7,-1]];
 export const SITES={shelter:[0,-2],hearth:[-1,0],path:[2,-1],spring:[6,-2],reeds:[5,1],dock:[7,0]};
 export const TASKS={camp:[
-  {id:'roof',site:'shelter',chain:'wood',level:3,title:'先补好漏雨的棚顶',short:'补好棚顶',problem:'棚顶被风掀开了。先让莉娜有个避雨的地方。',result:'雨水被挡在外面了',speaker:'莉娜',portrait:'lina',line:'妈妈，这里不漏雨了！我们今晚可以留下来吗？',reward:'清出 2 格空地'},
-  {id:'fire',site:'hearth',chain:'wood',level:4,title:'搭起炉架，生一堆火',short:'搭起炉架',problem:'衣服还是湿的。加固炉架，让大家暖和起来。',result:'第一盏暖光亮起来了',speaker:'米拉',portrait:'mira',line:'先把衣服烘干。等天亮，我们一起清出回家的路。',reward:'再清出 2 格空地'},
-  {id:'path',site:'path',chain:'wood',level:5,title:'撑起倒木，接通旧路',short:'清出旧路',problem:'倒木压住了通往河湾的路，需要更结实的施工支架。',result:'通往河湾的旧路露出来了',speaker:'米拉',portrait:'mira',line:'这里曾经有条小溪。奇怪，雨下了这么久，水渠里却没有水。',reward:'旧路可放素材 · 清出新的空地'},
-  {id:'home',site:'shelter',chain:'wood',level:7,title:'把临时棚修成安稳的家',short:'修好营地木屋',problem:'临时棚挡得住小雨，还需要完整的营建组件才能住得安心。',result:'我们有一个能回来的家了',speaker:'莉娜',portrait:'lina',line:'门前可以种花了！可水壶空了……妈妈，我们去找小溪吧。',reward:'主体扩成 3 格 · 新开 4 格，空地净增 2 格'}
+  {id:'roof',site:'shelter',chain:'wood',level:3,title:'先补好漏雨的棚顶',short:'补好棚顶',problem:'棚顶被风掀开了。先让莉娜有个避雨的地方。',result:'雨水被挡在外面了',speaker:"米拉",portrait:"mira",line:"你保管得真好。下一页画着炉架——先让湿衣服和晚饭一起暖起来。",reward:'清出 2 格空地'},
+  {id:'fire',site:'hearth',chain:'wood',level:4,title:'搭起炉架，生一堆火',short:'搭起炉架',problem:'衣服还是湿的。加固炉架，让大家暖和起来。',result:'第一盏暖光亮起来了',speaker:"莉娜",portrait:"lina",line:"我把灯朝着河的方向摆。这样，罗恩叔叔也能看见。",reward:'再清出 2 格空地'},
+  {id:'path',site:'path',chain:'wood',level:5,title:'撑起倒木，接通旧路',short:'清出旧路',problem:'倒木压住了通往河湾的路，需要更结实的施工支架。',result:'通往河湾的旧路露出来了',speaker:"莉娜",portrait:"lina",line:"手记上画着上游的石泉！先把小屋修结实，我们就去找它。",reward:'旧路可放素材 · 清出新的空地'},
+  {id:'home',site:'shelter',chain:'wood',level:7,title:'把临时棚修成安稳的家',short:'修好营地木屋',problem:'临时棚挡得住小雨，还需要完整的营建组件才能住得安心。',result:'我们有一个能回来的家了',speaker:"莉娜",portrait:"lina",line:"那现在去找水吧。外婆的花箱也在等喝水呢。",reward:'主体扩成 3 格 · 新开 4 格，空地净增 2 格'}
 ],river:[
-  {id:'spring',site:'spring',chain:'water',level:4,title:'找回石缝里的泉眼',short:'疏通泉眼',problem:'泉眼被碎石堵住了，先接起一段引水装置。',result:'石缝里有水声了',speaker:'米拉',portrait:'mira',line:'泉眼还活着。把旧渠接起来，水就能一直流回营地。',reward:'清出 2 格河边空地'},
-  {id:'stream',site:'spring',chain:'water',level:7,title:'让小溪流回营地',short:'接通整段水渠',problem:'泉水还困在上游。慢慢合出完整溪流组件，接通这段旧渠。',result:'小溪终于流回了营地',speaker:'莉娜',portrait:'lina',line:'我听到了！家门前也有水声了。那些干掉的花还能活过来吗？',reward:'水路连到渡口与营地 · 新开 5 格，空地净增 2 格'},
-  {id:'reeds',site:'reeds',chain:'reed',level:4,title:'给松动的河岸种上芦苇',short:'种下护岸草垫',problem:'水回来了，但泥土在往下滑。先种下一小片护岸草。',result:'第一片芦苇在水边站稳了',speaker:'米拉',portrait:'mira',line:'先让根抓住泥土。这样，下次大雨也冲不走这条小路。',reward:'河岸开始恢复生机'},
-  {id:'shore',site:'reeds',chain:'reed',level:6,title:'让根系连成护岸绿带',short:'修复整片河岸',problem:'继续培育芦苇，让根系覆盖这片松散的岸边。',result:'白鹭回到河湾了',speaker:'莉娜',portrait:'lina',line:'快看，白鹭回来了！它是不是也在找自己的家？',reward:'河岸扩成 3 格 · 新开 4 格，空地净增 2 格'},
-  {id:'pier',site:'dock',chain:'dock',level:5,title:'接上断开的第一段栈桥',short:'铺好第一段栈桥',problem:'河对岸有人在招手。先修好能靠近岸边的栈桥。',result:'我们听到了对岸的回应',speaker:'罗恩',portrait:'rowan',line:'米拉？真的是你！修好泊位，我就能把船和其他人带回来。',reward:'旧路从营地一直延伸到栈桥'},
-  {id:'ferry',site:'dock',chain:'dock',level:7,title:'让旧渡口重新迎接归人',short:'修好归乡渡口',problem:'完整的渡口模块就快备齐了，让小船重新靠岸。',result:'第一艘归乡的小船靠岸了',speaker:'罗恩',portrait:'rowan',line:'你母亲留下的灯还在山坡上。风暴前的最后一晚，我看见那里有人……',reward:'渡口扩成 3 格 · 新开 4 格，空地净增 2 格'}
+  {id:'spring',site:'spring',chain:'water',level:4,title:'找回石缝里的泉眼',short:'疏通泉眼',problem:'泉眼被碎石堵住了，先接起一段引水装置。',result:'石缝里有水声了',speaker:"米拉",portrait:"mira",line:"没关系，先把这一段接稳。等水渠组件齐了，我们就把每段连起来。",reward:'清出 2 格河边空地'},
+  {id:'stream',site:'spring',chain:'water',level:7,title:'让小溪流回营地',short:'接通整段水渠',problem:'泉水还困在上游。慢慢合出完整溪流组件，接通这段旧渠。',result:'小溪终于流回了营地',speaker:"米拉",portrait:"mira",line:"这条水路把两处连起来了。不过岸边的土还松，我们得先让根系抓住它。",reward:'水路连到渡口与营地 · 新开 5 格，空地净增 2 格'},
+  {id:'reeds',site:'reeds',chain:'reed',level:4,title:'给松动的河岸种上芦苇',short:'种下护岸草垫',problem:'水回来了，但泥土在往下滑。先种下一小片护岸草。',result:'第一片芦苇在水边站稳了',speaker:"莉娜",portrait:"lina",line:"我把小石头摆在外圈，提醒大家别踩到刚种下的芦苇。",reward:'河岸开始恢复生机'},
+  {id:'shore',site:'reeds',chain:'reed',level:6,title:'让根系连成护岸绿带',short:'修复整片河岸',problem:'继续培育芦苇，让根系覆盖这片松散的岸边。',result:'白鹭回到河湾了',speaker:"米拉",portrait:"mira",line:"说明这段河岸安稳了。看，对岸有人在挥手——是罗恩！",reward:'河岸扩成 3 格 · 新开 4 格，空地净增 2 格'},
+  {id:'pier',site:'dock',chain:'dock',level:5,title:'接上断开的第一段栈桥',short:'铺好第一段栈桥',problem:'河对岸有人在招手。先修好能靠近岸边的栈桥。',result:'我们听到了对岸的回应',speaker:"罗恩",portrait:"rowan",line:"船上有种子、工具，还有你母亲寄回来的信。我都替你收好了。",reward:'旧路从营地一直延伸到栈桥'},
+  {id:'ferry',site:'dock',chain:'dock',level:7,title:'让旧渡口重新迎接归人',short:'修好归乡渡口',problem:'完整的渡口模块就快备齐了，让小船重新靠岸。',result:'第一艘归乡的小船靠岸了',speaker:"米拉",portrait:"mira",line:"这封信上说，山坡的信号灯也坏了。先把这里收拾好，再给更多归来的人照亮路。",reward:'渡口扩成 3 格 · 新开 4 格，空地净增 2 格'}
 ]};
 const box=(chain,level,count=4,extra=[])=>[...Array.from({length:count},()=>({chain,level})),...extra];
 export const REWARDS={camp:[box('wood',1),box('wood',2),box('wood',2),box('wood',2),box('wood',3),box('wood',3),box('wood',3),box('wood',3,4,[{chain:'wood',level:1}])],river:[box('water',2),box('water',3),box('water',3),box('water',3),box('water',3,4,[{chain:'water',level:1}]),box('reed',2),box('reed',3),box('reed',3,4,[{chain:'reed',level:1}]),box('dock',3),box('dock',3),box('dock',3),box('dock',4,4,[{chain:'dock',level:1}])]};
