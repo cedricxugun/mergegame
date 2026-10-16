@@ -17,8 +17,9 @@ lessonHtml=lessonHtml.replace(/\.\/assets\/([a-z0-9-]+)\.svg/g,(_,name)=>{if(!as
 if(lessonHtml.includes('./assets/')||lessonHtml.includes('src="./first-stop-app.mjs"'))throw Error('Incomplete first-stop offline bundle');
 const lessonOutput=path.join(out,'forest-camp-first-stop.html');await fs.writeFile(lessonOutput,lessonHtml);
 const homeGame=(await fs.readFile(path.join(dist,'homecoming.mjs'),'utf8')).replace(/^export /gm,'');
-const homeApp=(await fs.readFile(path.join(dist,'homecoming-app.mjs'),'utf8')).replace(/^import .*?;\r?\n/,'').replace(/^const asset=.*;$/m,'const asset=name=>ASSETS[name];');
-const homeScript=`(() => {\nconst ASSETS=${JSON.stringify(assets)};\n${homeGame}\n${homeApp}\n})();`;
+const homeView=(await fs.readFile(path.join(dist,'homecoming-view.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
+const homeApp=(await fs.readFile(path.join(dist,'homecoming-app.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^const asset=.*;$/m,'const asset=name=>ASSETS[name];');
+const homeScript=`(() => {\nconst ASSETS=${JSON.stringify(assets)};\n${homeGame}\n${homeView}\n${homeApp}\n})();`;
 new vm.Script(homeScript);
 let homeHtml=await fs.readFile(path.join(dist,'index.html'),'utf8');
 homeHtml=homeHtml.replace('<link rel="stylesheet" href="./homecoming.css">',`<style>${await fs.readFile(path.join(dist,'homecoming.css'),'utf8')}</style>`).replace('<script type="module" src="./homecoming-app.mjs"></script>',`<script>${homeScript}</script>`).replaceAll('./first-stop.html','./forest-camp-first-stop.html');

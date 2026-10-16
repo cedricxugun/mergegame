@@ -97,7 +97,7 @@ export function nextStep(state){
 }
 export const settlement=state=>({items:state.items.map(i=>({id:i.id,chain:i.chain,level:i.level,name:nameOf(i),value:valueOf(i)})),value:state.items.reduce((n,i)=>n+valueOf(i),0)});
 const shift=(state,moves)=>{for(const m of moves)Object.assign(state.items.find(i=>i.id===m.id),{q:m.q,r:m.r,rotation:m.rotation});};
-function addItem(state,chain,level,region=state.region){const used=occupancy(state),available=workCells(state,region).concat(workCells(state).filter(c=>!workCells(state,region).some(x=>key(x)===key(c)))),pos=available.find(c=>!used.has(key(c)));const item={id:`h-${state.nextId++}`,chain,level,q:pos?.[0]??null,r:pos?.[1]??null,rotation:0};state.items.push(item);return item;}
+function addItem(state,chain,level,region=state.region){const used=occupancy(state),target=[OFFSETS[region][0],OFFSETS[region][1]+1],nearby=workCells(state,region).sort((a,b)=>distance(a,target)-distance(b,target)),localKeys=new Set(nearby.map(key)),available=nearby.concat(workCells(state).filter(c=>!localKeys.has(key(c)))),pos=available.find(c=>!used.has(key(c)));const item={id:`h-${state.nextId++}`,chain,level,q:pos?.[0]??null,r:pos?.[1]??null,rotation:0};state.items.push(item);return item;}
 function changeBack(state,chain,value){for(let level=6;level>=1;level--)while(value>=2**(level-1)){addItem(state,chain,level);value-=2**(level-1);}}
 const fail=(state,message)=>({ok:false,state,message,events:[]});
 export function act(state,action){
