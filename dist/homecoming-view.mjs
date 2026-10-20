@@ -1,4 +1,4 @@
-import {NAMES,CAPS,TASKS,key,inTray,valueOf,landCells,progress,currentTask,taskItem,nextStep,previewMerge} from './homecoming.mjs';
+import {NAMES,CAPS,TASKS,key,inTray,valueOf,landCells,progress,currentTask,taskItem,nextStep,previewMerge,completedTasks} from './homecoming-play.mjs';
 
 // Presentation uses the same inventory and geography as the game rules.
 export function boardRegion(state,item){
@@ -14,7 +14,7 @@ export function materialProgress(state){
 export function discoveredLevels(state,previous={}){
   const found=Object.fromEntries(Object.keys(NAMES).map(chain=>[chain,Number.isInteger(previous[chain])?Math.max(0,Math.min(CAPS[chain],previous[chain])):0]));
   for(const i of state.items)found[i.chain]=Math.max(found[i.chain],i.level);
-  for(const region of ['camp','river'])for(const t of TASKS[region].slice(0,progress(state,region)?.stage||0))found[t.chain]=Math.max(found[t.chain],t.level);
+  for(const region of ['camp','river'])for(const t of completedTasks(state,region))found[t.chain]=Math.max(found[t.chain],t.level);
   return found;
 }
 export function guidedStep(state,selectedId,base=nextStep(state)){

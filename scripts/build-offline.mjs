@@ -17,7 +17,11 @@ lessonHtml=lessonHtml.replace('<link rel="stylesheet" href="./first-stop.css">',
 lessonHtml=lessonHtml.replace(/\.\/assets\/([a-z0-9-]+)\.svg/g,(_,name)=>{if(!assets[name])throw Error(`Missing asset ${name}`);return assets[name];});
 if(lessonHtml.includes('./assets/')||lessonHtml.includes('src="./first-stop-app.mjs"'))throw Error('Incomplete first-stop offline bundle');
 const lessonOutput=path.join(out,'forest-camp-first-stop.html');await fs.writeFile(lessonOutput,lessonHtml);
-const homeGame=(await fs.readFile(path.join(dist,'homecoming.mjs'),'utf8')).replace(/^export /gm,'');
+const classicModule=await import('../dist/homecoming.mjs'),playModule=await import('../dist/homecoming-play.mjs');
+const classicExports=Object.keys(classicModule).join(','),playExports=Object.keys(playModule).join(',');
+const classicCode=(await fs.readFile(path.join(dist,'homecoming.mjs'),'utf8')).replace(/^export /gm,'');
+const playCode=(await fs.readFile(path.join(dist,'homecoming-play.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
+const homeGame=`const HomeClassic=(()=>{${classicCode}\nreturn {${classicExports}};})();\nconst {${playExports}}=(()=>{const Classic=HomeClassic;\n${playCode}\nreturn {${playExports}};})();`;
 const homeView=(await fs.readFile(path.join(dist,'homecoming-view.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');
 const homeArt=(await fs.readFile(path.join(dist,'homecoming-art.mjs'),'utf8')).replace(/^export /gm,'');
 const homeStory=(await fs.readFile(path.join(dist,'homecoming-story.mjs'),'utf8')).replace(/^import .*?;\r?\n/gm,'').replace(/^export /gm,'');

@@ -1,4 +1,4 @@
-import {progress,regionComplete,maxWins,act} from './homecoming.mjs';
+import {progress,regionComplete,maxWins,act} from './homecoming-play.mjs';
 import {m3Create,m3Valid,m3Won} from './match3-premium.mjs';
 
 export function journeyMatchLevel(journey){return journey.region==='camp'?progress(journey).wins+1:8+progress(journey).wins+1;}
