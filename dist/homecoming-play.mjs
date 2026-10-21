@@ -128,6 +128,7 @@ function changeBack(state,chain,value){for(let level=6;level>=1;level--)while(va
 const fail=(state,message)=>({ok:false,state,message,events:[]});
 export function act(state,action){
   if(state.version===7)return Classic.act(state,action);
+  if(action.type==='COLLECT')return collectBox(state,action);
   const next=structuredClone(state),p=progress(next),events=[];let selected=null;
   if(action.type==='FOCUS'){
     const task=availableTasks(state).find(t=>t.id===action.id);if(!task)return fail(state,'先完成前面的修复，才能开始这里。');p.focusId=task.id;
@@ -168,6 +169,19 @@ export function act(state,action){
     if(next.region==='camp'){next.regions.river=freshRegion();next.region='river';}events.push({type:'finish',title:state.region==='camp'?'沿着旧路，去找水源':'第一段归乡手记完成',message:action.recycle===true?`余料换成 ${report.value} 点旅途补给。空地仍然可以使用。`:`${report.items.length} 件余料留在原位。空地与素材继续共用。`});
   }else return fail(state,'未知操作。');
   return{ok:true,state:next,selected,events};
+}
+// One user action opens at most one earned box and puts a batch in one region.
+// A partial batch keeps the remainder pending; no overflow is hidden in storage.
+export function collectBox(state,{chain,view=state.region}={}){
+  if(!state.regions[view])view=state.region;
+  const destination=freeCount(state,view)>0?view:['camp','river'].find(r=>state.regions[r]&&freeCount(state,r)>0);
+  if(!destination)return fail(state,'空地满了。先合成或暂存一件，箱中的材料会保留。');
+  let next=structuredClone(state);
+  if(!next.pending.length){const opened=act(next,{type:'OPEN',chain});if(!opened.ok)return fail(state,opened.message);next=opened.state;}
+  const total=next.pending.length,limit=Math.min(total,freeCount(next,destination)),ids=[];
+  for(let n=0;n<limit;n++){const piece=next.pending.shift(),item=addItem(next,piece.chain,piece.level,destination);ids.push(item.id);}
+  const away=destination!==view,remaining=next.pending.length;
+  return{ok:true,state:next,selected:away?ids[0]:null,events:[{type:'collect',itemIds:ids,away,destination,remaining,title:remaining?`已取出 ${ids.length} 件，箱中留 ${remaining} 件`:`${ids.length} 件素材已到齐`,message:away?`已放到${REGION_NAMES[destination]}的空地，带你过去看看。`:remaining?'这里的空地放满了。先合成，剩下的材料随时再取。':'把相同素材合起来，看看这箱能合出什么。'}]};
 }
 export function accounting(state){const supplied={},spent={},converted={};for(const region of ['camp','river']){const p=state.regions[region];if(!p)continue;for(const i of (p.openedPacks?p.openedPacks.map(i=>REWARDS[region][i]):REWARDS[region].slice(0,p.opened)).flat())supplied[i.chain]=(supplied[i.chain]||0)+valueOf(i);for(const t of completedTasks(state,region))spent[t.chain]=(spent[t.chain]||0)+valueOf(t);for(const i of p.settlement?.converted||[])converted[i.chain]=(converted[i.chain]||0)+i.value;}const inventory={};for(const i of [...state.items,...(state.pending||[])])inventory[i.chain]=(inventory[i.chain]||0)+valueOf(i);return{supplied,spent,converted,inventory};}
 export function validState(state){
