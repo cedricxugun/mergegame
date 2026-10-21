@@ -1,0 +1,103 @@
+{
+  "version": 16,
+  "asset": "dist/assets/craft-ground-contact-v16.png",
+  "createdClientDate": "2026-10-21",
+  "generationMode": "Built-in image_gen; no CLI/API fallback",
+  "useCase": "stylized-concept",
+  "purpose": "Original hex grass surface tones and organic per-chain ground contact patches for our forest/river world",
+  "referencePolicy": "Only original project artwork used for generation. No Merge Gardens image or extracted asset was used as an image-generation reference or copied into this deliverable.",
+  "initialReferences": [
+    "dist/assets/craft-homeland-v15b.png",
+    "dist/assets/craft-wood-atlas.png",
+    "dist/assets/craft-water-atlas.png",
+    "dist/assets/craft-reed-atlas.png"
+  ],
+  "attempts": [
+    {
+      "kind": "original generation",
+      "prompt": "Use case: stylized-concept.\nAsset type: original production sprite atlas for a painterly meadow merge game, six ground textures only, on TRUE transparent background.\nInput images: Image 1 is our original meadow/river world, use ONLY its palette, painterly grass texture, camera and warm light as style reference. Images 2, 3, 4 are our original wood, water and reed item atlases; use ONLY their friendly warm toy-art rendering as supporting style reference. Do not reproduce their items.\nPrimary request: ONE landscape PNG atlas, exactly 3 equal columns by 2 equal rows (six frames), ideally 1536x1024. Order is left-to-right then top-to-bottom. Center every sprite in its own 512x512 conceptual cell with large completely transparent gutters on every side. No visible divider or frame.\nFrame 0 (top left): a FLAT pointy-top HEXAGON of softly painted grass turf, fresh light yellow-meadow green.\nFrame 1 (top center): the SAME FLAT pointy-top HEXAGON shape, noticeably darker medium olive-meadow green. Difference in turf brightness must remain legible at small game scale, but both belong to the same meadow. Both grass tops should be about 360 pixels wide by 306 pixels tall (width:height approximately 1.17). SIX edges, with one point at top and one at bottom, vertical-ish left and right side edges. Only the top grass surface, no visible side wall, no extrusion, no raised base. Fine soft brush grass texture, a few tiny perimeter blades, calm homogeneous surface, no objects. These images will be clipped to exact analytical hex shapes by the renderer.\nFrame 2 (top right): a low horizontal ORGANIC ground-contact texture for wood resting on a meadow: a little compressed grass, warm brown soil and just a few tiny wood chips. NO log, plank, timber, object or tool.\nFrame 3 (bottom left): a low horizontal ORGANIC ground-contact texture for water equipment: damp dark olive soil with 3-4 very small pale pebbles, gently wet center, NO puddle blob, water drop, container or equipment.\nFrame 4 (bottom center): a low horizontal ORGANIC ground-contact texture for reeds: subtle root/earth mound with only 2-3 very small shoots at the outer sides. NO main reed clump, plant pot, stalk bundle or large foliage.\nFrame 5 (bottom right): a low horizontal ORGANIC ground-contact texture for dock parts: pressed pale warm gravel mixed with a little compressed meadow grass. NO dock, plank, post or object.\nFrames 2-5 each have width:height about 3:1, around 380 by 125 pixels, with irregular natural edges fading softly to full transparency. Darker tight central contact zone and soft peripheral soil/grass. Their shapes must be asymmetric organic horizontal smudges, never a coin, circular disc, square pedestal, round plinth, hexagonal base or solid platform. Keep them small and quiet so they can sit under objects.\nStyle/medium: polished hand-painted mobile casual game grass and soil, softly modelled, cohesive with original world art. Camera ground plane is foreshortened but NOT raised. Gentle upper-left sunlight, moderate warm saturation, darker olive contact centers. Do not add a cast shadow for a nonexistent object.\nConstraints: actual RGBA transparency around all six isolated frames, no opaque backdrop or checkerboard simulation. Absolutely no text, UI, letters, numbers, captions, borders, dividers, grid, big stones, flowers, trees, bushes, black heavy shadows or platforms. Do not let pixels touch the conceptual cell boundaries or bleed into other frames.",
+      "output": "C:/Users/user/.codex/generated_images/01a15ddf-32ca-7781-b124-ce6479d15975/exec-b83eff76-94fb-43b5-95a0-bdf5c9b5a3ed.png",
+      "selection": "Not selected: minor alpha above threshold crossed a conceptual frame boundary."
+    },
+    {
+      "kind": "one targeted layout/alpha correction",
+      "input": ".preview/v16-reference/ground-contact-draft.png",
+      "prompt": "Use case: precise-object-edit.\nAsset type: RGBA 3 by 2 ground sprite atlas.\nInput image is an ORIGINAL newly generated game atlas, edit target. Fix ONLY the sprite placement/transparent separation and remove unwanted halo. Preserve the exact six-frame order, overall art style, colors and content.\nCRITICAL layout: image remains 1536x1024, 3 equal columns and 2 equal rows. Each conceptual frame is 512x512. Each of the six sprites must be centered in its own 512x512 frame, with fully empty transparent pixels around it and no sprite entering any other frame.\nFrame 0 light hex turf must occupy approximately x95..417, y111..401 inside its frame. Frame 1 darker hex turf same extent. Frame 2 wood soil patch and frames 3 damp soil, 4 reed roots, 5 dock gravel each occupy approximately x75..437, y201..311 inside its own frame, shallow and horizontal.\nRemove ALL of the very broad glowing green/yellow/black aura around sprites. Outside the actual painted grass or soil edge, alpha must fall rapidly to exactly ZERO. Full transparent gutters at least 55 px on all four sides of every conceptual cell. No low opacity color wash filling the backgrounds.\nPreserve only tiny irregular grass blades immediately at turf/soil edges; remove tall grass sprouts from the two hex turf cells. Both hex turf sprites remain flat TOP surfaces with SIX edges, point at top and bottom, no extrusion/wall/shadow/platform. Keep dark turf noticeably darker than light turf.\nThe four contact patches remain low organic asymmetric soil/grass textures with small peripheral shoots/chips/pebbles. No objects, no pedestal/disc/base shape, no drop-shadow, no glow.\nDo not add text, borders, UI, dividers, labels or numbers. Actual transparent background. Do not paint a fake checkerboard. The fully transparent gutters and six separated centered sprites are the ONLY changes.",
+      "output": "C:/Users/user/.codex/generated_images/01a15ddf-32ca-7781-b124-ce6479d15975/exec-16afc595-be18-454f-86e6-6b76c5686c17.png",
+      "selection": "Selected, copied byte-for-byte to project asset; no pixel editing."
+    }
+  ],
+  "validation": {
+    "width": 1536,
+    "height": 1024,
+    "mode": "RGBA",
+    "alphaExtrema": [
+      0,
+      254
+    ],
+    "layout": "3 columns x 2 rows",
+    "frameOrder": [
+      "grass-light",
+      "grass-dark",
+      "contact-wood",
+      "contact-water",
+      "contact-reed",
+      "contact-dock"
+    ],
+    "alphaBoundsThreshold": 8,
+    "guard": 2,
+    "cropsXYWH": [
+      [
+        65,
+        121,
+        394,
+        374
+      ],
+      [
+        574,
+        120,
+        391,
+        375
+      ],
+      [
+        1036,
+        275,
+        469,
+        187
+      ],
+      [
+        40,
+        716,
+        459,
+        178
+      ],
+      [
+        545,
+        680,
+        446,
+        215
+      ],
+      [
+        1036,
+        707,
+        469,
+        188
+      ]
+    ],
+    "notes": "All six alpha>8 bounds are separated and fit within their theoretical 512x512 cell. Very faint colored RGB in alpha-zero pixels is not background opacity. Renderer should clip turf to exact analytical hex; generated perimeters are irregular and almost square in native bounds. Contact patches are organic and intentionally shallow; renderer controls their final on-ground aspect."
+  },
+  "integration": {
+    "activeUse": [
+      "light/dark grass projected and clipped to exact hex cells",
+      "small wet patch only for water L1",
+      "small root soil only for reed L1/L2/L5"
+    ],
+    "unusedFrames": [
+      "wood chips",
+      "dock gravel"
+    ],
+    "contactPolicy": "Other materials and scenery use visually calibrated per-frame pivots and per-foot/bottom contact shadows; no generic soil pad",
+    "sourcePixels": "Unmodified; alpha-crop metadata and SVG presentation only",
+    "calibration": "All 28 material levels reviewed in a temporary component calibration page, retained under ignored .preview"
+  }
+}

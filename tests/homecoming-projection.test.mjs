@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {GROUND_TILT,gardenBasis,gardenCell,materialScale} from '../dist/homecoming-projection.mjs';
 import {boundary,shape} from '../dist/homecoming-play.mjs';
 import {WORLD_PLATE,worldPlateRect,boundedWorldOrigin,cameraDelta} from '../dist/homecoming-world.mjs';
+import {artGroundPose,groundPivot,turfTone,contactProfile} from '../dist/homecoming-ground.mjs';
+import {craftFrame} from '../dist/homecoming-art.mjs';
+import {ART_FRAMES} from '../dist/homecoming-art-frames.mjs';
 
 test('garden perspective preserves axial hit testing at all cells, viewport scales and pans',()=>{
   for(const size of [23,30,36,44])for(const origin of [[195,250],[160,310],[-130,55]])for(let q=-5;q<=12;q++)for(let r=-5;r<=6;r++){
@@ -38,4 +41,34 @@ test('camera bounds prevent panning past the finite illustration and center the 
       else assert.ok(Math.abs(start-(viewport-extent)/2)<1e-8);
     }
   }
+});
+
+test('every original material and repair keeps its true foot on the target across camera scales',()=>{
+  const names=['roof','fire','path','home','spring','stream','reeds','shore','pier','ferry'].map(n=>'scene-'+n);
+  for(const chain of ['wood','water','reed','dock'])for(let level=1;level<=7;level++)names.push(`mat-${chain}-${level}`);
+  for(const name of names)for(const extent of [28,42,100])for(const foot of [[195,250],[-72,315],[380,81]]){
+    const p=artGroundPose(name,foot,extent),pivot=groundPivot(name),f=craftFrame(name),c=ART_FRAMES[f.file].frames[f.index];
+    assert.ok(Math.abs(p.x+p.width*pivot[0]-foot[0])<1e-9);assert.ok(Math.abs(p.y+p.height*pivot[1]-foot[1])<1e-9);
+    assert.ok(Math.abs(p.width/p.height-c[2]/c[3])<1e-9);assert.ok(Math.abs(Math.max(p.width,p.height)-extent)<1e-9);
+    assert.ok(pivot[0]>.2&&pivot[0]<.8&&pivot[1]>.6&&pivot[1]<1);
+    assert.ok(p.y+p.height>foot[1],'front soil/roots must be allowed in front of the foot anchor');
+  }
+});
+
+test('resting hex turf has different tones on every shared edge, including negative coordinates',()=>{
+  const neighbors=[[1,0],[0,1],[-1,1],[-1,0],[0,-1],[1,-1]];
+  for(let q=-8;q<=12;q++)for(let r=-7;r<=7;r++)for(const[dq,dr]of neighbors){
+    const tone=turfTone([q,r]);assert.ok([0,1,2].includes(tone));assert.notEqual(tone,turfTone([q+dq,r+dr]));
+  }
+});
+
+test('contact footprints follow real bottom diameters and individual feet without a generic soil pad',()=>{
+  for(const chain of ['wood','water','reed','dock'])for(let level=1;level<=7;level++){
+    const p=contactProfile(`mat-${chain}-${level}`);
+    for(const[u,v,rx,ry,angle]of p.shadow){assert.ok(u>=0&&u<=1&&v>=0&&v<=1);assert.ok(rx>0&&rx<=.45&&ry>0&&ry<=.2);assert.ok(Number.isFinite(angle));}
+    if(p.apron){assert.ok(p.apron.width<=.7&&p.apron.height<=.2);assert.ok(chain==='reed'||chain==='water'&&level===1);}
+    if(['wood','dock'].includes(chain)||chain==='water'&&level>1)assert.equal(p.apron,undefined);
+  }
+  for(const name of ['mat-wood-4','mat-wood-5','mat-wood-6','mat-water-4','mat-water-5','mat-dock-4','mat-dock-5','mat-dock-6'])assert.ok(contactProfile(name).shadow.length>=2);
+  assert.ok(contactProfile('mat-water-2').shadow[0][2]<.3,'a bowl bears on its base, not the wide rim');
 });

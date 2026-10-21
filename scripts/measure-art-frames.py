@@ -6,11 +6,14 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parent.parent
 CONFIG = {**{f'craft-{c}-atlas': (4, 2, 7) for c in ('wood', 'water', 'reed', 'dock')},
           'craft-ruins-atlas': (3, 2, 6), 'craft-camp-scenes-v14': (2, 2, 4),
-          'craft-river-scenes-v14': (3, 2, 6), 'craft-forest-props-v14': (2, 2, 4)}
+          'craft-river-scenes-v14': (3, 2, 6), 'craft-forest-props-v14': (2, 2, 4),
+          'craft-ground-contact-v16': (3, 2, 6)}
 # The source artwork has six independent silhouettes, with a few intentional
 # overhangs beyond the nominal grid. These measured rectangles exclude neighbors.
 OVERRIDES = {'craft-river-scenes-v14': [[16,64,504,488],[510,40,1060,504],[1084,68,1516,472],
-                                      [22,512,514,966],[544,576,976,945],[1020,508,1528,970]]}
+                                      [22,512,514,966],[544,576,976,945],[1020,508,1528,970]],
+             'craft-ground-contact-v16': [[65,121,459,495],[574,120,965,495],[1036,275,1505,462],
+                                           [40,716,499,894],[545,680,991,895],[1036,707,1505,895]]}
 result = {}
 for name, (cols, rows, count) in CONFIG.items():
     image = Image.open(ROOT / 'dist' / 'assets' / (name + '.png')).convert('RGBA')

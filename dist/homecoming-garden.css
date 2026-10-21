@@ -51,3 +51,33 @@
 .region-pin rect{fill:#f4f5dce8;stroke:#bdc897;stroke-width:1}
 .region-pin text{fill:#47663e;font-size:10px}
 @media(prefers-reduced-motion:reduce){.brook-glint,.creek-reveal{animation:none}.scenery,.overview .scenery,.piece-art,.carry-art,.trial-component{filter:none}}
+
+/* v16: readable turf at rest and contact shadows on the ground plane. */
+.turf-underpaint{fill:#b3c76f;fill-opacity:.94;stroke:none}
+.turf-tone-1 .turf-underpaint{fill:#9fb567}
+.turf-tone-2 .turf-underpaint{fill:#adc16b}
+.turf-paint{opacity:.52;filter:saturate(.65) contrast(.9);pointer-events:none}
+.turf-tone-2 .turf-paint{filter:brightness(.96) saturate(.65) contrast(.9)}
+.turf-seam{fill:none;stroke:#6d873e;stroke-opacity:.24;stroke-width:.75;pointer-events:none}
+.scenery-ground .turf-paint{opacity:.42}
+.scenery-ground .ground-top{pointer-events:none}
+.ground-cell .ground-top,.ground-cell.occupied .ground-top{fill:transparent;fill-opacity:0;stroke:#edf2c9;stroke-opacity:.16;stroke-width:.8}
+.has-selection .ground-top{stroke-opacity:.35}
+.drag-active .ground-top{fill:#fff1a5;fill-opacity:.09;stroke-opacity:.86;stroke-width:1.5}
+.ground-cell:hover .ground-top{fill:#fff4bc;fill-opacity:.12;stroke-opacity:.65}
+.working-outline{stroke:#6b823e;stroke-opacity:.66;stroke-width:1.6;stroke-dasharray:none}
+.overview .turf-paint{opacity:.46}
+.overview .turf-seam{stroke-opacity:.22}
+.overview .ground-top,.overview .working-outline{stroke-opacity:0;fill-opacity:0}
+.piece-art,.drop-art,.trial-component{filter:saturate(.88)}
+.piece-art,.trial-component{pointer-events:visiblePainted}
+.piece.dragging .piece-art{pointer-events:none}
+.scenery,.overview .scenery{filter:saturate(.83) brightness(.98)}
+.ruin-art{filter:saturate(.72)}
+.contact-apron{opacity:.9}
+.contact-paint,.ground-contact,.contact-core,.contact-soft{pointer-events:none}
+.piece-top{fill:transparent;fill-opacity:0;stroke:#8d9c55;stroke-opacity:.18;filter:none}
+.piece.selected .piece-top{fill:#f6e4a0;fill-opacity:.16;stroke:#ffec93;stroke-opacity:1;stroke-width:2.5}
+.piece.multi .piece-top{fill:#e5d997;fill-opacity:.12;stroke:#e8c468;stroke-opacity:.95;stroke-width:2.5}
+.drag-active .piece.dragging .ground-contact,.drag-active .piece.dragging .contact-apron{opacity:.35}
+@media(prefers-reduced-motion:reduce){.piece-art,.scenery,.overview .scenery,.trial-component,.drop-art{filter:none}}
