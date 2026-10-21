@@ -1,0 +1,587 @@
+{
+  "version": "v14",
+  "generationMode": "built-in image_gen",
+  "scope": "New camp scenery, river scenery and forest props; native alpha-bounds rendering for all 28 existing material sprites and ruins.",
+  "artApproval": "Original generated assets reviewed for this playable build. Not a commercial art-signoff or a purchased licensed asset library.",
+  "camp": {
+    "version": "v14",
+    "date": "2026-10-21",
+    "generationMode": "built-in image_gen",
+    "cliOrExternalApiUsed": false,
+    "transparentBackgroundRequested": true,
+    "grid": {
+      "columns": 2,
+      "rows": 2
+    },
+    "generationCallsPerAtlas": 1,
+    "targetedCorrectionCallsPerAtlas": 1,
+    "oldAssetsRetained": true,
+    "sourceReferencesInspected": [
+      "H:/codex/merge/forest-camp-prototype/dist/assets/craft-water-atlas.png",
+      "H:/codex/merge/forest-camp-prototype/dist/assets/craft-camp-scenes.png"
+    ],
+    "knownLimitations": [
+      "The single targeted framing correction separated the sprites safely, but the generator undershot the requested 75–85 percent fill in several frames.",
+      "Bounding-box centering is approximate rather than mathematically exact.",
+      "Some nominally transparent background pixels retain alpha=1; no visible object touches a frame boundary.",
+      "These assets have been visually inspected for prototype integration, not commercially art-approved."
+    ],
+    "assets": [
+      {
+        "file": "craft-camp-scenes-v14.png",
+        "outputPath": "H:/codex/merge/forest-camp-prototype/dist/assets/craft-camp-scenes-v14.png",
+        "initialSourcePath": "C:/Users/user/.codex/generated_images/01a13e4a-dd6e-7820-80bc-8571fa9da1c0/exec-d025f7b4-cbb0-405c-8189-1c7e96af62dd.png",
+        "sourcePath": "C:/Users/user/.codex/generated_images/01a13e4a-dd6e-7820-80bc-8571fa9da1c0/exec-0f58ed09-b408-4a51-97bb-e06966d468e4.png",
+        "initialPrompt": "Use case: stylized-concept\nAsset type: ONE production-ready transparent game sprite atlas, four separate camp scenery objects in a precise 2 by 2 layout.\n\nCreate a square PNG atlas, ideally 1536 by 1536 pixels, divided INVISIBLY into two equal columns and two equal rows. Each quarter is an independent square frame. The four object centers are exactly at (25%,25%), (75%,25%), (25%,75%), (75%,75%) of the full canvas. Within every frame, center the entire silhouette and make its longest dimension occupy 75–85 percent of that frame. Keep clean transparent padding on all sides, never touching the frame edges or crossing into another frame. No printed grid.\n\nTOP LEFT FRAME: a beautifully repaired small woodland rain shelter. A simple single-slope roof made of four or five thick warm wooden planks, sturdy rounded timber posts, one soft cream side curtain, and a rolled teal bed mat. Open-sided, compact, inviting, and functional; distinctly smaller and simpler than a house. Full structure visible.\n\nTOP RIGHT FRAME: a warm camp cooking hearth. A compact ring of smooth gray stones, a restrained golden fire, two stout wooden uprights and a crossbeam holding one small dark cooking pot filled with warm soup. The pot and cooking frame read clearly even at small scale. No large smoke cloud; no clutter or unrelated utensils.\n\nBOTTOM LEFT FRAME: a short cleaned-up old woodland walking route formed by FOUR BROAD WOODEN TREADS OR LOW STEPS. The wood is gently weathered but now aligned, safe, and neatly repaired. A small visible rise and a clean continuous stepping rhythm. At most two small grass tufts beside the treads. This is the wooden steps themselves, not a fenced area, not a platform, not an island, not a broad ground tile, and not a pile of debris.\n\nBOTTOM RIGHT FRAME: a small refined completed FOREST RANGER'S CABIN. Plump warm wooden walls, a compact blue-green teal pitched roof made of large readable pieces, a clearly readable front door and one window, a small warm glowing lantern beside the door, and one small threshold step. Charming professional architectural silhouette with clean proportions. Do not clutter the tiny cabin with miniature accessories.\n\nUnified art direction: mature original Western casual mobile-game 3D cartoon art at a polished premium production level. Beautiful sculpted solid volume, thick softened bevels, warm honey wood, broad controlled wood-grain accents, teal and cream details, tactile satin materials. Rich readable forms with intentional shape hierarchy, cleaner and more refined than generic clipart; avoid noisy microtexture. All four objects use EXACTLY the same orthographic isometric camera looking down at 35 degrees and the same right-facing orientation. Large upper-left soft studio/daylight key, gentle warm highlights, subtle cool fill, dimensional lower shadows and controlled ambient occlusion. This must look like expertly art-directed pre-rendered 3D game scenery, not flat vector art or a photoreal photograph.\n\nReal transparency: genuinely transparent alpha everywhere outside each isolated object. No scene background, no colored backdrop, no white fill, no painted checkerboard. Small object self-shading only; no broad cast shadow plate.\nConstraints: no characters, no text, no letters, no labels, no numbers, no frame lines, no grid, no UI, no hexagonal base, no tile border, no circular display stand, no base plate, no terrain island, no broad floor or backdrop, no logos or watermark. Four complete separate objects stay strictly within their own equal frames.",
+        "actualFinalPrompt": "Use case: precise-object-edit\nInput image 1 is the edit target: a square 1254 by 1254 PNG sprite atlas with four separate objects in a 2 by 2 grid.\nChange ONLY each sprite's scale and placement within its existing quarter. Preserve all existing object designs, details, colors, warm wood and teal palette, materials, exact 35-degree orthographic isometric view, lighting and rendering quality. Do not redraw, add, remove, or replace any object.\n\nThe image must remain exactly square and keep the exact 2 by 2 arrangement. Each quarter is 627 by 627 pixels. Resize each of the four COMPLETE object silhouettes INDIVIDUALLY, uniformly, so its longest dimension is 80 percent of its own quarter, with at least 10 percent truly empty transparent margin on all four sides. Center its silhouette bounding box on the quarter's exact center. Do not just shrink the whole atlas: each object's center must stay at its own quarter center.\n\nTarget allowed boxes in this 1254-pixel square are: TOP LEFT x=63..564, y=63..564; TOP RIGHT x=690..1191, y=63..564; BOTTOM LEFT x=63..564, y=690..1191; BOTTOM RIGHT x=690..1191, y=690..1191. The entire silhouette including small leaves, flames, grass, or protruding wood must fit inside the appropriate box. All pixels between these objects are genuinely transparent alpha; remove any stray low-alpha fragments outside the objects. No object may touch or cross the middle row or column boundaries. Never print these coordinates or box outlines.\nKeep the exact original order: repaired rain shelter at top left, soup pot and warm cooking fire at top right, four repaired wooden steps at bottom left, teal-roof ranger cabin at bottom right. No new objects and no changes to their designs.\nKeep real transparency; do not add a background, checkerboard, base, text, labels, numbers, UI, border or shadow plate.",
+        "frames": [
+          "repaired rain shelter",
+          "warm cooking hearth",
+          "four cleaned wooden steps",
+          "teal-roof forest ranger cabin"
+        ],
+        "inspection": {
+          "width": 1254,
+          "height": 1254,
+          "mode": "RGBA",
+          "fileBytes": 1097494,
+          "alphaRange": [
+            0,
+            255
+          ],
+          "fullyTransparentPercent": 68.555,
+          "cellWidth": 627,
+          "cellHeight": 627,
+          "viewImageInspected": true,
+          "cells": [
+            {
+              "index": 1,
+              "name": "repaired rain shelter",
+              "cropRect": [
+                0,
+                0,
+                627,
+                627
+              ],
+              "subjectBoundsAlpha128": [
+                144,
+                123,
+                572,
+                541
+              ],
+              "marginPercentLeftTopRightBottom": [
+                22.967,
+                19.617,
+                8.772,
+                13.716
+              ],
+              "longestDimensionPercent": 68.262,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                7.097,
+                2.951
+              ],
+              "frameBoundaryMaxAlpha": 1
+            },
+            {
+              "index": 2,
+              "name": "warm cooking hearth",
+              "cropRect": [
+                627,
+                0,
+                1254,
+                627
+              ],
+              "subjectBoundsAlpha128": [
+                120,
+                151,
+                504,
+                536
+              ],
+              "marginPercentLeftTopRightBottom": [
+                19.139,
+                24.083,
+                19.617,
+                14.514
+              ],
+              "longestDimensionPercent": 61.404,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                -0.239,
+                4.785
+              ],
+              "frameBoundaryMaxAlpha": 1
+            },
+            {
+              "index": 3,
+              "name": "four cleaned wooden steps",
+              "cropRect": [
+                0,
+                627,
+                627,
+                1254
+              ],
+              "subjectBoundsAlpha128": [
+                134,
+                70,
+                576,
+                495
+              ],
+              "marginPercentLeftTopRightBottom": [
+                21.372,
+                11.164,
+                8.134,
+                21.053
+              ],
+              "longestDimensionPercent": 70.494,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                6.619,
+                -4.944
+              ],
+              "frameBoundaryMaxAlpha": 1
+            },
+            {
+              "index": 4,
+              "name": "teal-roof forest ranger cabin",
+              "cropRect": [
+                627,
+                627,
+                1254,
+                1254
+              ],
+              "subjectBoundsAlpha128": [
+                92,
+                74,
+                555,
+                504
+              ],
+              "marginPercentLeftTopRightBottom": [
+                14.673,
+                11.802,
+                11.483,
+                19.617
+              ],
+              "longestDimensionPercent": 73.844,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                1.595,
+                -3.907
+              ],
+              "frameBoundaryMaxAlpha": 1
+            }
+          ],
+          "visibleFrameCrossing": false,
+          "smallScaleReview": {
+            "sizesPx": [
+              80,
+              60,
+              40
+            ],
+            "background": "#e4ebdd",
+            "originalPngUnchanged": true,
+            "result": "Distinct silhouettes remain readable; fine wood grain and moss texture naturally collapse at 40 px. Soup detail and cabin lamp are clearest at 60–80 px."
+          }
+        }
+      },
+      {
+        "file": "craft-forest-props-v14.png",
+        "outputPath": "H:/codex/merge/forest-camp-prototype/dist/assets/craft-forest-props-v14.png",
+        "initialSourcePath": "C:/Users/user/.codex/generated_images/01a13e4a-dd6e-7820-80bc-8571fa9da1c0/exec-a65d93db-18ee-478b-bb1a-a4ce7b51ae2b.png",
+        "sourcePath": "C:/Users/user/.codex/generated_images/01a13e4a-dd6e-7820-80bc-8571fa9da1c0/exec-8b456532-80b3-4aa4-a322-fb86cf28456d.png",
+        "initialPrompt": "Use case: stylized-concept\nAsset type: ONE transparent 2 by 2 game environment-prop atlas for a premium woodland casual mobile game.\n\nCreate one square PNG atlas, ideally 1536 by 1536 pixels, divided INVISIBLY into two equal columns and two equal rows. Four independent equal square frames, each with one compact coherent environmental prop. The exact object centers are (25%,25%), (75%,25%), (25%,75%), (75%,75%) of the full canvas. Each prop is centered in its own quarter; the longest silhouette dimension occupies 75–85 percent of that quarter. Leave clean real transparent padding around the complete prop, including every twig and leaf. Nothing touches or crosses the frame boundaries. No visible grid or labels.\n\nTOP LEFT: a small PINE TREE CLUMP, with one medium-height pine and two smaller pines close beside it. Full tree silhouettes and short warm-brown trunks visible. Thick softly rounded tiers of emerald and sage needles, broad clean masses of foliage, elegant natural variation, not faceted low-poly cones. Three trees form one compact readable group. No terrain base or island.\n\nTOP RIGHT: a lush WILDFLOWER BUSH, a rounded rich green shrub with a few large cream-white and warm pink blossoms with golden centers. Dense but clean leaf clusters, clear overall rounded silhouette, flowers large enough to remain recognizable when this prop is shown at 40–80 pixels. A few very short stems, no tiny scattered confetti flowers, no flowerpot.\n\nBOTTOM LEFT: a compact MOSS-COVERED BOULDER GROUP, one generous warm gray rounded rock and two small supporting stones, covered in beautiful soft sage and emerald moss patches. Simple sculpted stone volume and readable moss shapes; a few broad restrained stone facets, no noisy microcracks. No pedestal, no floor or terrain tile.\n\nBOTTOM RIGHT: a short MUSHROOM-COVERED DEAD LOG, a warm weathered fallen piece of wood with a clear rounded cut end, three plump coral-and-cream mushrooms growing beside and on it, and small deep-green moss patches. Chunky attractive shapes, carefully chosen detail, fully visible log and mushroom caps. One coherent compact horizontal prop, no broad dirt patch.\n\nUnified art direction: mature original Western casual mobile-game 3D cartoon art at a polished premium production level. Beautiful sculpted solid volume, thick softened bevels, broad clear forms, rich emerald/sage foliage, warm honey-brown wood, soft gray stone, teal-green moss and cream/coral accents. Tactile satin surfaces, restrained natural texture, clear shape hierarchy suitable at 40–80 pixels. Not flat vector art, not photoreal photography, not low-poly, not babyish clipart. All four props use EXACTLY the same orthographic isometric camera looking down at 35 degrees and the same right-facing orientation. Same large upper-left soft studio/daylight key, gentle warm highlights, subtle cool fill, dimensional lower shadows and controlled ambient occlusion. Match a refined pre-rendered woodland camp built from honey-colored rounded timber with teal roofs and cream fabric.\n\nReal transparency: genuinely transparent alpha outside every object and between frames. No scene background, no sky, no colored backdrop, no white fill, no painted checkerboard. Only object self-shading; no wide cast shadow patch.\nConstraints: no text, no lettering, no labels, no numbers, no grid lines, no frames, no people, no UI, no hexagonal bases, no base plates, no ground tiles, no terrain islands, no pots, no logos, no watermarks. Four separate isolated props remain strictly inside four equal frames.",
+        "actualFinalPrompt": "Use case: precise-object-edit\nInput image 1 is the edit target: a square 1254 by 1254 PNG sprite atlas with four separate objects in a 2 by 2 grid.\nChange ONLY each sprite's scale and placement within its existing quarter. Preserve all existing object designs, details, colors, warm wood and teal palette, materials, exact 35-degree orthographic isometric view, lighting and rendering quality. Do not redraw, add, remove, or replace any object.\n\nThe image must remain exactly square and keep the exact 2 by 2 arrangement. Each quarter is 627 by 627 pixels. Resize each of the four COMPLETE object silhouettes INDIVIDUALLY, uniformly, so its longest dimension is 80 percent of its own quarter, with at least 10 percent truly empty transparent margin on all four sides. Center its silhouette bounding box on the quarter's exact center. Do not just shrink the whole atlas: each object's center must stay at its own quarter center.\n\nTarget allowed boxes in this 1254-pixel square are: TOP LEFT x=63..564, y=63..564; TOP RIGHT x=690..1191, y=63..564; BOTTOM LEFT x=63..564, y=690..1191; BOTTOM RIGHT x=690..1191, y=690..1191. The entire silhouette including small leaves, flames, grass, or protruding wood must fit inside the appropriate box. All pixels between these objects are genuinely transparent alpha; remove any stray low-alpha fragments outside the objects. No object may touch or cross the middle row or column boundaries. Never print these coordinates or box outlines.\nKeep the exact original order: three-pine-tree clump at top left, wildflower shrub at top right, mossy rock group at bottom left, mushroom-covered dead log at bottom right. Move the entire top-right bush fully into its top-right frame; no leaf may extend into the bottom-right frame. No new objects and no changes to their designs.\nKeep real transparency; do not add a background, checkerboard, base, text, labels, numbers, UI, border or shadow plate.",
+        "frames": [
+          "three pine tree clump",
+          "wildflower shrub",
+          "mossy rocks",
+          "mushroom dead log"
+        ],
+        "inspection": {
+          "width": 1254,
+          "height": 1254,
+          "mode": "RGBA",
+          "fileBytes": 1281766,
+          "alphaRange": [
+            0,
+            255
+          ],
+          "fullyTransparentPercent": 66.776,
+          "cellWidth": 627,
+          "cellHeight": 627,
+          "viewImageInspected": true,
+          "cells": [
+            {
+              "index": 1,
+              "name": "three pine tree clump",
+              "cropRect": [
+                0,
+                0,
+                627,
+                627
+              ],
+              "subjectBoundsAlpha128": [
+                107,
+                114,
+                569,
+                569
+              ],
+              "marginPercentLeftTopRightBottom": [
+                17.065,
+                18.182,
+                9.25,
+                9.25
+              ],
+              "longestDimensionPercent": 73.684,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                3.907,
+                4.466
+              ],
+              "frameBoundaryMaxAlpha": 1
+            },
+            {
+              "index": 2,
+              "name": "wildflower shrub",
+              "cropRect": [
+                627,
+                0,
+                1254,
+                627
+              ],
+              "subjectBoundsAlpha128": [
+                83,
+                181,
+                542,
+                566
+              ],
+              "marginPercentLeftTopRightBottom": [
+                13.238,
+                28.868,
+                13.557,
+                9.729
+              ],
+              "longestDimensionPercent": 73.206,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                -0.159,
+                9.569
+              ],
+              "frameBoundaryMaxAlpha": 0
+            },
+            {
+              "index": 3,
+              "name": "mossy rocks",
+              "cropRect": [
+                0,
+                627,
+                627,
+                1254
+              ],
+              "subjectBoundsAlpha128": [
+                93,
+                108,
+                557,
+                524
+              ],
+              "marginPercentLeftTopRightBottom": [
+                14.833,
+                17.225,
+                11.164,
+                16.427
+              ],
+              "longestDimensionPercent": 74.003,
+              "meets75To85PercentFill": false,
+              "centerOffsetPercentXY": [
+                1.834,
+                0.399
+              ],
+              "frameBoundaryMaxAlpha": 1
+            },
+            {
+              "index": 4,
+              "name": "mushroom dead log",
+              "cropRect": [
+                627,
+                627,
+                1254,
+                1254
+              ],
+              "subjectBoundsAlpha128": [
+                89,
+                132,
+                585,
+                512
+              ],
+              "marginPercentLeftTopRightBottom": [
+                14.195,
+                21.053,
+                6.699,
+                18.341
+              ],
+              "longestDimensionPercent": 79.107,
+              "meets75To85PercentFill": true,
+              "centerOffsetPercentXY": [
+                3.748,
+                1.356
+              ],
+              "frameBoundaryMaxAlpha": 1
+            }
+          ],
+          "visibleFrameCrossing": false,
+          "smallScaleReview": {
+            "sizesPx": [
+              80,
+              60,
+              40
+            ],
+            "background": "#e4ebdd",
+            "originalPngUnchanged": true,
+            "result": "Distinct silhouettes remain readable; fine wood grain and moss texture naturally collapse at 40 px. Soup detail and cabin lamp are clearest at 60–80 px."
+          }
+        }
+      }
+    ]
+  },
+  "river": {
+    "asset": "craft-river-scenes-v14.png",
+    "destination": "H:/codex/merge/forest-camp-prototype/dist/assets/craft-river-scenes-v14.png",
+    "generationMode": "built-in image_gen",
+    "requestedGrid": {
+      "columns": 3,
+      "rows": 2,
+      "cellWidth": 512,
+      "cellHeight": 512
+    },
+    "transparentBackgroundRequested": true,
+    "inspectedStyleReferences": [
+      "H:/codex/merge/forest-camp-prototype/dist/assets/craft-water-atlas.png",
+      "H:/codex/merge/forest-camp-prototype/dist/assets/craft-river-scenes.png"
+    ],
+    "passes": [
+      {
+        "intent": "generate",
+        "prompt": "Use case: stylized-concept.\nAsset type: ONE original production-oriented game sprite atlas for a cozy riverbank merge game.\nCreate a wide 3:2 PNG with true transparent alpha. The invisible layout is exactly THREE columns by TWO rows of equal SQUARE cells. Exactly six independent miniature 3D cartoon scene sprites, one centered in each cell, in reading order. Cell centers: x=16.6667%,50%,83.3333%; y=25%,75%. Each complete sprite should fill about 75–85% of its own cell's width or height, leaving clearly separated transparent gutters. Every scene stays completely inside its cell. No overlap, cropping, stray decorations crossing cells, grid lines, text, labels or numbers.\nTOP ROW, LEFT TO RIGHT:\n- Newly repaired stone spring: a small rounded stone ring and a clear little spring outlet, turquoise water, a few soft moss and grass accents. Simple and compact but satisfying sculpted volume.\n- Completed winding creek fragment: a genuinely winding clear blue stream in a softly curved stone-lined watercourse, a tiny charming wooden footbridge spanning it, and layered flowers and soft grass along the banks. Both stream ends remain open so this piece can visually connect to adjoining landscape. Fuller and richer than the first spring.\n- Newly planted riverbank mat: a LOW tuft of fresh short green reeds and low grasses growing from a soft irregular root mat, only a few young shoots and small pebbles. Clearly an early planted stage, not a tall mature reed forest.\nBOTTOM ROW, LEFT TO RIGHT:\n- Mature wetland reed bank: lush layered emerald and yellow-green reeds, golden seed heads, varied low foliage, a few round water-edge stones, and ONE graceful small white egret standing in a clear foreground spot. A full thriving habitat with strong readable silhouette.\n- First repaired wooden pier section: one short honey-colored wooden boardwalk section on sturdy rounded posts, a few rope ties and simple side supports, clearly ending unfinished so another section can be added.\n- Complete homecoming landing: a welcoming warm wooden waterside platform with a charming small roofed pavilion, rope posts, a moored little teal-blue wooden boat tied by rope, and a small warm lantern. The pavilion and boat form one complete readable composition, with rich but tidy crafted details.\nShared art direction: high-quality casual mobile game pre-rendered 3D CARTOON miniature assets, softly rounded substantial forms, cozy natural materials, warm honey-brown wood, soft mossy stone, lush teal-green vegetation, clean sparkling blue water. Every cell uses the same orthographic isometric 35-degree downward camera and soft upper-left light. Crisp readable contours, beautiful dimensional shading, restrained fine detail; no black outlines, no flat vector look, no photorealistic gritty texture. The scenery should feel richer and more finished than simple material icons while remaining compatible with warm wood, blue water and cream ceramic merge-item art.\nBackground constraints: actual alpha cutouts, completely transparent gaps and surroundings. No environmental backdrop, sky, haze, blurred landscape, colored rectangles, large rectangular ground slab, rigid island pedestal, hexagonal base, framing tile or common floor. Sparse irregular natural stones/grass/water edges are fine within each object. No UI, lettering, logo, watermark or additional characters. Original art, not copied from any existing game.",
+        "output": "C:\\Users\\user\\.codex\\generated_images\\01a13f61-0845-7422-98d9-a5f815bb361c\\exec-77595396-0f0a-4ca3-a513-ecc2e456ff19.png"
+      },
+      {
+        "intent": "one targeted layout correction",
+        "prompt": "Use case: precise-object-edit. Make ONE precise sprite-atlas layout correction to this image. Preserve all six scene designs, rich details, lighting, materials, colors, camera angle and reading order. Do not redraw or change their content.\nKeep the canvas exactly 1536 by 1024, a strict invisible 3-column by 2-row grid with six 512 by 512 square frames. The current winding creek, mature reed habitat and pavilion landing intrude into neighboring frames. FIX THIS by fitting EACH ENTIRE scene inside its own frame and recentering it.\nTarget centers in pixels: first row (256,256), (768,256), (1280,256); second row (256,768), (768,768), (1280,768). Each complete scene's longest dimension must be approximately 390–410 pixels, never over 410 pixels. This leaves at least 51 pixels of clean transparent padding on EVERY side and about 102 pixels of transparent gutter between neighboring object silhouettes.\nTop-middle creek, bottom-left wetland and bottom-right pavilion landing need to shrink about 20–25%. Preserve the full stream, bird, boat, pavilion, flowers, stones and all six objects, without clipping. Fit the other three to the same frame rule without making them tiny.\nThe corrected output must have six clear independent cutout objects, all completely separated by empty alpha gutters. Nothing may cross frame boundaries, including water ripples, reeds, lantern light or any small decoration. The empty spaces must be genuinely transparent alpha. Do not create a black background, colored rectangle, common ground, soft background glow, grid lines, cell borders, labels, numbering, text or UI. Do not add or remove any object. Only correct per-frame SCALE and CENTERING.",
+        "input": "C:\\Users\\user\\.codex\\generated_images\\01a13f61-0845-7422-98d9-a5f815bb361c\\exec-77595396-0f0a-4ca3-a513-ecc2e456ff19.png",
+        "output": "C:\\Users\\user\\.codex\\generated_images\\01a13f61-0845-7422-98d9-a5f815bb361c\\exec-445bbcd7-9898-4255-86f3-4cadee22c938.png"
+      }
+    ],
+    "selectedSource": "C:\\Users\\user\\.codex\\generated_images\\01a13f61-0845-7422-98d9-a5f815bb361c\\exec-445bbcd7-9898-4255-86f3-4cadee22c938.png",
+    "checks": {
+      "width": 1536,
+      "height": 1024,
+      "hasAlpha": true,
+      "bytes": 2565436,
+      "transparentFraction": 0.4880212148030599,
+      "cells": [
+        {
+          "index": 1,
+          "pixels": 120207,
+          "edge": 0,
+          "bounds": [
+            27,
+            80,
+            488,
+            470
+          ],
+          "minPadding": 0.044921875
+        },
+        {
+          "index": 2,
+          "pixels": 133591,
+          "edge": 106,
+          "bounds": [
+            522,
+            59,
+            1023,
+            488
+          ],
+          "minPadding": 0
+        },
+        {
+          "index": 3,
+          "pixels": 78175,
+          "edge": 106,
+          "bounds": [
+            1024,
+            84,
+            1499,
+            454
+          ],
+          "minPadding": 0
+        },
+        {
+          "index": 4,
+          "pixels": 136844,
+          "edge": 0,
+          "bounds": [
+            38,
+            524,
+            499,
+            946
+          ],
+          "minPadding": 0.0234375
+        },
+        {
+          "index": 5,
+          "pixels": 86300,
+          "edge": 0,
+          "bounds": [
+            560,
+            592,
+            960,
+            929
+          ],
+          "minPadding": 0.09375
+        },
+        {
+          "index": 6,
+          "pixels": 142340,
+          "edge": 0,
+          "bounds": [
+            1035,
+            524,
+            1513,
+            953
+          ],
+          "minPadding": 0.021484375
+        }
+      ],
+      "alphaThresholdForBounds": 100,
+      "viewImageInspected": true,
+      "alphaCompositeOnLightBackgroundInspected": true,
+      "sceneOrderCorrect": true,
+      "trueAlpha": true,
+      "textOrNumberingObserved": false,
+      "originalAtlasPreserved": true
+    },
+    "scenes": [
+      {
+        "id": "spring-start",
+        "order": 1,
+        "sourceRect": [
+          16,
+          64,
+          504,
+          488
+        ],
+        "visibleBoundsInclusive": [
+          27,
+          80,
+          488,
+          470
+        ]
+      },
+      {
+        "id": "stream-complete",
+        "order": 2,
+        "sourceRect": [
+          510,
+          40,
+          1060,
+          504
+        ],
+        "visibleBoundsInclusive": [
+          522,
+          59,
+          1043,
+          488
+        ]
+      },
+      {
+        "id": "reed-start",
+        "order": 3,
+        "sourceRect": [
+          1084,
+          68,
+          1516,
+          472
+        ],
+        "visibleBoundsInclusive": [
+          1100,
+          84,
+          1499,
+          454
+        ]
+      },
+      {
+        "id": "wetland-complete",
+        "order": 4,
+        "sourceRect": [
+          22,
+          512,
+          514,
+          966
+        ],
+        "visibleBoundsInclusive": [
+          38,
+          524,
+          499,
+          946
+        ]
+      },
+      {
+        "id": "pier-start",
+        "order": 5,
+        "sourceRect": [
+          544,
+          576,
+          976,
+          945
+        ],
+        "visibleBoundsInclusive": [
+          560,
+          592,
+          960,
+          929
+        ]
+      },
+      {
+        "id": "homecoming-landing",
+        "order": 6,
+        "sourceRect": [
+          1020,
+          508,
+          1528,
+          970
+        ],
+        "visibleBoundsInclusive": [
+          1035,
+          524,
+          1513,
+          953
+        ]
+      }
+    ],
+    "limitations": [
+      "Only one targeted correction was performed as requested. The winding creek still extends to x=1043, about 20 pixels into the nominal third column; the next sprite begins at x=1100. The independent silhouettes do not overlap. Use the supplied custom source rectangles instead of strict 512px crops.",
+      "Occupancy is not uniformly 75-85%; some silhouettes approach 90-100% of a nominal cell. Centering is optical rather than exact.",
+      "The early reed-bank sprite is a youthful green cluster with stones and water edging, taller than a very low grass mat.",
+      "Transparent PNG pixels retain latent RGB information. Correct alpha compositing gives clean transparent surroundings; RGB-only previews may show a colored backdrop.",
+      "This is generated prototype game art verified for content and alpha, not a commercially accepted production asset."
+    ],
+    "preservedFiles": [
+      "dist/assets/craft-water-atlas.png",
+      "dist/assets/craft-river-scenes.png"
+    ],
+    "editsOutsideAssetAndNotes": false,
+    "noCliOrApiFallback": true,
+    "sourceRectFormat": "absolute atlas pixels [left, top, right, bottom]; right and bottom are exclusive"
+  },
+  "rendering": {
+    "manifest": "dist/homecoming-art-frames.mjs",
+    "measurementScript": "scripts/measure-art-frames.py",
+    "alphaThreshold": 8,
+    "sourcePixelsModified": false
+  },
+  "presentationReference": {
+    "title": "Merge Gardens official game demonstrations",
+    "url": "https://mergegardens.com/",
+    "scope": "Ground perspective, relative scale hierarchy, quiet placement grid, coherent grass and river composition, compact HUD. Original project sprites remain in use."
+  }
+}

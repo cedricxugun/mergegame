@@ -1,7 +1,8 @@
-import {NAMES,CAPS,TASKS,key,inTray,valueOf,landCells,progress,currentTask,taskItem,nextStep,previewMerge,completedTasks} from './homecoming-play.mjs';
+import {NAMES,CAPS,TASKS,key,inTray,valueOf,landCells,progress,currentTask,taskItem,nextStep,previewMerge,completedTasks,isTrial} from './homecoming-play.mjs';
 
 // Presentation uses the same inventory and geography as the game rules.
 export function boardRegion(state,item){
+  if(isTrial(item))return 'river';
   if(!item||inTray(item))return null;
   return landCells(state,'camp').some(c=>key(c)===key([item.q,item.r]))?'camp':'river';
 }

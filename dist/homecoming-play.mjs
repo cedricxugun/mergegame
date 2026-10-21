@@ -11,11 +11,12 @@ export const SIZE={1:1,2:1,3:1,4:1,5:1,6:1,7:3};
 export const key=c=>c.join(',');
 export const unique=cells=>[...new Map(cells.map(c=>[key(c),c])).values()];
 export const distance=(a,b)=>Math.max(Math.abs(a[0]-b[0]),Math.abs(a[1]-b[1]),Math.abs(a[0]+a[1]-b[0]-b[1]));
-export const inTray=i=>i.q===null;
+export const isTrial=i=>typeof i?.trialSocket==='string';
+export const inTray=i=>i.q===null&&!isTrial(i);
 export const nameOf=i=>NAMES[i.chain]?.[i.level]||'素材';
 export const valueOf=i=>2**(i.level-1);
 export function shape(level,rotation=0){let cells=SIZE[level]===3?[[0,0],[1,0],[0,1]]:[[0,0]];for(let i=0;i<rotation;i++)cells=cells.map(([q,r])=>[-r,q+r]);return cells;}
-export const cellsOf=i=>inTray(i)?[]:shape(i.level,i.rotation||0).map(([q,r])=>[q+i.q,r+i.r]);
+export const cellsOf=i=>inTray(i)||isTrial(i)?[]:shape(i.level,i.rotation||0).map(([q,r])=>[q+i.q,r+i.r]);
 export function boundary(cells){
   const edges=new Map(),vertices=new Map(),vk=p=>p.map(v=>Math.round(v*1e6)).join(',');
   for(const[q,r]of unique(cells)){const x=Math.sqrt(3)*(q+r/2),y=1.5*r,ps=Array.from({length:6},(_,i)=>{const a=(60*i-30)*Math.PI/180;return[x+Math.cos(a),y+Math.sin(a)];});for(let i=0;i<6;i++){const a=ps[i],b=ps[(i+1)%6],ak=vk(a),bk=vk(b),k=[ak,bk].sort().join('|');vertices.set(ak,a);vertices.set(bk,b);if(edges.has(k))edges.delete(k);else edges.set(k,[ak,bk]);}}
@@ -51,6 +52,21 @@ export const completedTasks=(state,region=state.region)=>{const p=progress(state
 export const taskDone=(state,id)=>['camp','river'].some(r=>completedTasks(state,r).some(t=>t.id===id));
 export const availableTasks=(state,region=state.region)=>!progress(state,region)?[]:state.version===7?TASKS[region].slice(progress(state,region).stage,progress(state,region).stage+1):TASKS[region].filter(t=>!taskDone(state,t.id)&&DEPENDENCIES[t.id].every(id=>taskDone(state,id)));
 export const currentTask=state=>availableTasks(state).find(t=>t.id===progress(state).focusId)||availableTasks(state)[0]||null;
+export const TRIAL_SOCKETS={
+  canal:{chain:'water',minLevel:5,cell:[5,-2],after:'spring',until:'stream',title:'旧渠试水位',verb:'试水',effect:'一小段干渠流起了细水'},
+  bank:{chain:'reed',minLevel:4,cell:[5,1],after:'spring',until:'shore',title:'护岸试种位',verb:'试种',effect:'草垫旁长出一片新绿'},
+  landing:{chain:'dock',minLevel:5,cell:[7,0],after:'reeds',until:'ferry',title:'栈桥试铺位',verb:'试铺',effect:'断口暂时架上了踏板'}
+};
+export const trialSockets=state=>state.regions.river?Object.entries(TRIAL_SOCKETS).filter(([,s])=>taskDone(state,s.after)&&!taskDone(state,s.until)).map(([id,s])=>({id,...s})):[];
+export function previewTrial(state,id,socketId){
+  const item=state.items.find(i=>i.id===id),socket=trialSockets(state).find(s=>s.id===socketId);
+  if(!item||!socket)return{ok:false,message:'这里暂时不能试装。'};
+  if(isTrial(item))return{ok:false,message:'它已经在试装位上，可以先取回。'};
+  if(item.chain!==socket.chain||item.level<socket.minLevel||item.level>6)return{ok:false,message:`这里需要 ${NAMES[socket.chain][socket.minLevel]} L${socket.minLevel} 至 L6 的组件。`};
+  if(state.items.some(i=>i.trialSocket===socketId))return{ok:false,message:'试装位已经有组件了，先取回原来那件。'};
+  return{ok:true,socket,cells:[socket.cell],shifted:[]};
+}
+export const trialFor= (state,item)=>item&&!isTrial(item)?trialSockets(state).find(s=>previewTrial(state,item.id,s.id).ok)||null:null;
 export const FRONTIERS=[
   {id:'camp-fern',region:'camp',cell:[-3,1],level:3,after:['roof'],title:'蕨丛空地'},
   {id:'camp-stump',region:'camp',cell:[-1,-2],level:4,after:['fire','path'],title:'旧树桩旁'},
@@ -92,8 +108,9 @@ export function placePlan(state,item,q,r,rotation=item.rotation||0,exclude=[item
   const used=occupancy(state,exclude),ids=new Set(cells.map(c=>used.get(key(c))).filter(Boolean)),blockers=state.items.filter(i=>ids.has(i.id)),reserved=[...occupancy(state,[...exclude,...ids]).keys(),...cells.map(key)],shifted=relocate(state,blockers,allowed,reserved);
   return shifted?{ok:true,q,r,rotation,cells,shifted}:{ok:false,cells,message:'没有足够的连续空地，素材会留在原位。可以先合成，或放到暂放区。'};
 }
-export function previewMove(state,id,q,r,rotation){const i=state.items.find(i=>i.id===id);if(!i)return{ok:false,message:'这件素材已经用掉了。'};const plan=placePlan(state,i,q,r,rotation??i.rotation);return plan.ok?{...plan,discoveries:discoveriesFor(state,{...i,q:plan.q,r:plan.r,rotation:plan.rotation})}:plan;}
+export function previewMove(state,id,q,r,rotation){const i=state.items.find(i=>i.id===id);if(!i)return{ok:false,message:'这件素材已经用掉了。'};if(isTrial(i))return{ok:false,message:'先从试装位取回，再移动或合成。'};const plan=placePlan(state,i,q,r,rotation??i.rotation);return plan.ok?{...plan,discoveries:discoveriesFor(state,{...i,q:plan.q,r:plan.r,rotation:plan.rotation})}:plan;}
 function mergePlan(state,aId,bId){
+  if(state.items.some(i=>[aId,bId].includes(i.id)&&isTrial(i)))return{ok:false,message:'先取回试装中的组件，就能继续合成。'};
   const a=state.items.find(i=>i.id===aId),b=state.items.find(i=>i.id===bId);if(!a||!b||a.id===b.id||a.chain!==b.chain||a.level!==b.level)return{ok:false,message:'相同种类、相同等级的两件素材才能合成。'};if(a.level>=CAPS[a.chain])return{ok:false,message:'这是本章的最高等级，可以交付当前修复任务。'};
   const level=a.level+1,preferred=inTray(b)?inTray(a)?OFFSETS[state.region]:[a.q,a.r]:[b.q,b.r],item={id:'merging',chain:a.chain,level,rotation:0};let best=null;
   for(const[q,r]of workCells(state).sort((x,y)=>distance(x,preferred)-distance(y,preferred)))for(let rotation=0;rotation<(SIZE[level]===3?6:1);rotation++){const plan=placePlan(state,item,q,r,rotation,[a.id,b.id]);if(!plan.ok)continue;const score=distance([q,r],preferred)*2+plan.shifted.length*.4+rotation*.02;if(!best||score<best.score)best={...plan,score};if(score===0)return{...best,chain:a.chain,level,grown:SIZE[level]>SIZE[a.level]};}
@@ -111,7 +128,8 @@ export function nextStep(state){
   if(state.version===7)return Classic.nextStep(state);
   if(regionComplete(state))return{type:progress(state).settled?'done':'finish'};
   const task=currentTask(state),ready=taskItem(state);if(ready)return{type:'build',id:ready.id,task};
-  const items=state.items.slice().sort((a,b)=>Number(b.chain===task.chain)-Number(a.chain===task.chain)||a.level-b.level);
+  const waiting=state.items.find(i=>isTrial(i)&&state.items.some(j=>!isTrial(j)&&j.chain===i.chain&&j.level===i.level));if(waiting)return{type:'retrieve',id:waiting.id,task};
+  const items=state.items.filter(i=>!isTrial(i)).sort((a,b)=>Number(b.chain===task.chain)-Number(a.chain===task.chain)||a.level-b.level);
   let obstructed=false;for(let i=0;i<items.length;i++)for(let j=i+1;j<items.length;j++)if(items[i].chain===items[j].chain&&items[i].level===items[j].level&&items[i].level<CAPS[items[i].chain]){const plan=previewMerge(state,items[i].id,items[j].id);if(plan.ok)return{type:'merge',a:items[i].id,b:items[j].id,task};obstructed=true;}
   if(state.pending.length&&freeCount(state)>0)return{type:'draw',task};
   const other=availableTasks(state).find(t=>t.id!==task.id&&state.items.some(i=>canBuild(state,i,t)));
@@ -129,6 +147,7 @@ const fail=(state,message)=>({ok:false,state,message,events:[]});
 export function act(state,action){
   if(state.version===7)return Classic.act(state,action);
   if(action.type==='COLLECT')return collectBox(state,action);
+  if(action.type==='TRY'||action.type==='RETRIEVE')return trialAction(state,action);
   const next=structuredClone(state),p=progress(next),events=[];let selected=null;
   if(action.type==='FOCUS'){
     const task=availableTasks(state).find(t=>t.id===action.id);if(!task)return fail(state,'先完成前面的修复，才能开始这里。');p.focusId=task.id;
@@ -161,7 +180,7 @@ export function act(state,action){
     else plan=previewMove(state,item.id,action.q,action.r,action.rotation);
     if(!plan?.ok)return fail(state,plan?.message||'暂时放不下，先合成或腾出连续空地。');Object.assign(item,{q:plan.q,r:plan.r,rotation:plan.rotation});shift(next,plan.shifted);const discoveries=discover(next,item);selected=item.id;events.push({discoveries,newCells:discoveries.map(f=>f.cell),type:'move',title:plan.shifted.length?`${plan.shifted.length} 件素材整体让位`:'已放在空地上',message:'营地与河湾的空地共用，切换区域也不会丢失素材。',shifted:plan.shifted});
   }else if(action.type==='STORE'){
-    const item=next.items.find(i=>i.id===action.id);if(!item||inTray(item))return fail(state,'请选择地图上的素材。');if(next.items.filter(inTray).length>=next.storeLimit)return fail(state,`暂存 ${next.storeLimit} 格已满。先合成、修复或取回一件素材。`);item.q=null;item.r=null;selected=item.id;events.push({type:'store',title:'素材放进了下方暂放区',message:'点它可以取回，也能直接与地图素材合成或交付。'});
+    const item=next.items.find(i=>i.id===action.id);if(!item||inTray(item)||isTrial(item))return fail(state,'请选择地图上的素材；试装组件需要先取回。');if(next.items.filter(inTray).length>=next.storeLimit)return fail(state,`暂存 ${next.storeLimit} 格已满。先合成、修复或取回一件素材。`);item.q=null;item.r=null;selected=item.id;events.push({type:'store',title:'素材放进了下方暂放区',message:'点它可以取回，也能直接与地图素材合成或交付。'});
   }else if(action.type==='BUILD'){
     const plan=previewBuild(state,action.id,action.taskId);if(!plan.ok)return fail(state,plan.message);next.items=next.items.filter(i=>i.id!==action.id);p.stage++;p.doneIds.push(plan.task.id);p.focusId=null;shift(next,plan.shifted);if(plan.refund)changeBack(next,plan.task.chain,plan.refund);events.push({type:'build',task:plan.task.id,title:plan.task.result,message:plan.task.reward,newCells:plan.newCells,shifted:plan.shifted,refund:plan.refund});
   }else if(action.type==='FINISH'){
@@ -172,6 +191,22 @@ export function act(state,action){
 }
 // One user action opens at most one earned box and puts a batch in one region.
 // A partial batch keeps the remainder pending; no overflow is hidden in storage.
+export function trialAction(state,action){
+  const next=structuredClone(state),item=next.items.find(i=>i.id===action.id);
+  if(!item)return fail(state,'这件组件已经不在这里了。');
+  if(action.type==='TRY'){
+    const plan=previewTrial(state,item.id,action.socket);if(!plan.ok)return fail(state,plan.message);
+    item.trialOrigin=inTray(item)?null:{q:item.q,r:item.r,rotation:item.rotation};item.trialSocket=plan.socket.id;item.q=null;item.r=null;
+    return{ok:true,state:next,selected:item.id,events:[{type:'try',itemId:item.id,socket:plan.socket.id,title:plan.socket.effect,message:'组件保留在蓝色试装位。点它取回，等级不变，不占工作格。'}]};
+  }
+  if(!isTrial(item))return fail(state,'这件组件没有在试装。');
+  const socket=item.trialSocket,original=item.trialOrigin,near=original?[original.q,original.r]:TRIAL_SOCKETS[socket].cell,used=occupancy(next),pos=workCells(next).sort((a,b)=>distance(a,near)-distance(b,near)).find(c=>!used.has(key(c)));
+  delete item.trialSocket;delete item.trialOrigin;
+  let pending=false;
+  if(pos){item.q=pos[0];item.r=pos[1];}
+  else if(next.items.filter(i=>i.id!==item.id&&inTray(i)).length>=next.storeLimit){next.items=next.items.filter(i=>i.id!==item.id);next.pending.push({chain:item.chain,level:item.level});pending=true;}
+  return{ok:true,state:next,selected:pending?null:item.id,events:[{type:'retrieve',itemId:pending?null:item.id,socket,pending,title:`${nameOf(item)}已取回`,message:pending?'地图和暂存都满了，组件已完整放回物资箱，腾出空地后可领取。':pos?'回到空地上了，等级不变，可以继续合成。':'已放到暂存中，等级不变，可以直接与地图上的素材合成。'}]};
+}
 export function collectBox(state,{chain,view=state.region}={}){
   if(!state.regions[view])view=state.region;
   const destination=freeCount(state,view)>0?view:['camp','river'].find(r=>state.regions[r]&&freeCount(state,r)>0);
@@ -192,7 +227,17 @@ export function validState(state){
     if(p.settled){if(!p.settlement||!Array.isArray(p.settlement.converted)||!Number.isInteger(p.settlement.retainedValue)||p.settlement.retainedValue<0||p.settlement.converted.some(i=>!i||!NAMES[i.chain]?.[i.level]||i.value!==valueOf(i)))return false;}else if(p.settlement!==null)return false;}
   if(!!state.regions.river!==state.regions.camp.settled||state.region==='camp'&&state.regions.river)return false;
   if(state.explored.some(id=>{const f=FRONTIERS.find(f=>f.id===id);return !state.regions[f.region]||!f.after.some(t=>taskDone(state,t));}))return false;
-  const allowed=new Set(workCells(state).map(key)),seen=new Set(),ids=new Set();for(const i of state.items){if(typeof i.id!=='string'||!/^h-\d+$/.test(i.id)||Number(i.id.slice(2))>=state.nextId||ids.has(i.id)||!NAMES[i.chain]?.[i.level]||!Number.isInteger(i.level)||!Number.isInteger(i.rotation)||i.rotation<0||i.rotation>5||(i.q===null)!==(i.r===null)||!inTray(i)&&(!Number.isInteger(i.q)||!Number.isInteger(i.r)))return false;ids.add(i.id);for(const c of cellsOf(i)){const k=key(c);if(!allowed.has(k)||seen.has(k))return false;seen.add(k);}}
+  const mounted=new Set();for(const item of state.items){if(isTrial(item)){const socket=trialSockets(state).find(s=>s.id===item.trialSocket),origin=item.trialOrigin;if(!socket||mounted.has(socket.id)||item.q!==null||item.r!==null||item.chain!==socket.chain||item.level<socket.minLevel||item.level>6||origin!==null&&(!origin||!Number.isInteger(origin.q)||!Number.isInteger(origin.r)||!Number.isInteger(origin.rotation)||origin.rotation<0||origin.rotation>5))return false;mounted.add(socket.id);}else if(item.trialSocket!==undefined||item.trialOrigin!==undefined)return false;}
+  const allowed=new Set(workCells(state).map(key)),seen=new Set(),ids=new Set();for(const i of state.items){if(typeof i.id!=='string'||!/^h-\d+$/.test(i.id)||Number(i.id.slice(2))>=state.nextId||ids.has(i.id)||!NAMES[i.chain]?.[i.level]||!Number.isInteger(i.level)||!Number.isInteger(i.rotation)||i.rotation<0||i.rotation>5||(i.q===null)!==(i.r===null)||!inTray(i)&&!isTrial(i)&&(!Number.isInteger(i.q)||!Number.isInteger(i.r)))return false;ids.add(i.id);for(const c of cellsOf(i)){const k=key(c);if(!allowed.has(k)||seen.has(k))return false;seen.add(k);}}
   const a=accounting(state);for(const chain of Object.keys(NAMES))if((a.supplied[chain]||0)!==(a.spent[chain]||0)+(a.inventory[chain]||0)+(a.converted[chain]||0))return false;return state.supplies===Object.values(a.converted).reduce((x,y)=>x+y,0);
 }
 export function demoRiver(){let s=freshGame();for(let n=0;n<200&&!regionComplete(s);n++){const h=nextStep(s);const a=h.type==='win'?{type:'WIN'}:h.type==='open'?{type:'OPEN'}:h.type==='draw'?{type:'DRAW'}:h.type==='focus'?{type:'FOCUS',id:h.task.id}:h.type==='merge'?{type:'MERGE',a:h.a,b:h.b}:{type:'BUILD',id:h.id};const result=act(s,a);if(!result.ok)throw Error(result.message);s=result.state;}return act(s,{type:'FINISH',recycle:false}).state;}
+export function demoRiverHandsOn(){
+  let s=demoRiver();const step=a=>{const r=act(s,a);if(!r.ok)throw Error(r.message);s=r.state;};
+  if(s.pending.length)step({type:'COLLECT',view:'camp'});step({type:'WIN'});step({type:'COLLECT',chain:'water'});
+  while(!taskItem(s)){const h=nextStep(s);if(h.type!=='merge')throw Error('Invalid practice recipe');step({type:'MERGE',a:h.a,b:h.b});}
+  step({type:'BUILD',id:taskItem(s).id});step({type:'WIN'});step({type:'COLLECT',chain:'water'});
+  const thirds=s.items.filter(i=>i.chain==='water'&&i.level===3);step({type:'MERGE',a:thirds[0].id,b:thirds[1].id});
+  const pieces=s.items.filter(i=>i.chain==='water').sort((a,b)=>a.level-b.level),positions=[[4,1],[5,0],[6,0],[7,-1]];
+  pieces.forEach((piece,i)=>step({type:'MOVE',id:piece.id,q:positions[i][0],r:positions[i][1]}));return s;
+}

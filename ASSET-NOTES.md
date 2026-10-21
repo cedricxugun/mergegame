@@ -30,3 +30,14 @@
 | match-garden-bg | portrait forest garden, bright polished 3D casual-game rendering, distant cozy wooden cottage, central 70% a simple softly blurred clearing; no UI, text or characters |
 
 玩法参考核对自官方帮助：[道具生成](https://dreamgames.helpshift.com/hc/en/3-royal-match/faq/6-creating-and-using-the-power-ups/) 与 [道具组合](https://dreamgames.helpshift.com/hc/en/3-royal-match/faq/7-power-up-combinations/)。本原型采用独立代码、关卡布局和原创图像。无商业成品品质等同承诺。
+
+
+## v14：场景整体构图与可试装组件
+
+新增的三张 PNG 为内置 image_gen 生成的原创图集：`dist/assets/craft-camp-scenes-v14.png`、`dist/assets/craft-river-scenes-v14.png`、`dist/assets/craft-forest-props-v14.png`。完整原始与修正提示词、来源路径、视觉检查和已知限制记录在 `ASSET-PROMPTS-v14.json`。原始素材保留。
+
+布局参考 [Merge Gardens 官方演示](https://mergegardens.com/)：连片草地、弱化硬格线、树木与建筑形成较大体量、低级素材较小、前后遮挡按地面位置排序，以及更紧凑的 HUD。参考用于呈现设计，游戏内图片全部来自本项目资源。
+
+旧图集的有效主体占比差异很大，河湾旧场景仅约 38.5–48%。v14 对 48 帧按 alpha>8 测量裁框，并保留护边和长宽比。`scripts/measure-art-frames.py` 只读取 PNG、生成 `dist/homecoming-art-frames.mjs`，不修改源像素。新版河湾图集有少量跨理论格线的独立轮廓，使用逐帧安全矩形防止裁掉溪流。
+
+这些资源已通过本版渲染和手机尺寸可读性检查，不等同商业美术终审。人物、三消资源及部分旧材料继续沿用；下一步发行级验收仍包括全链风格审定、真机表现与资源性能。
