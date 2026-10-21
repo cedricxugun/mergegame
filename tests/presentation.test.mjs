@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import * as m from '../dist/match3-premium.mjs';
 import {motionPlan,motionColumns,motionInputFits} from '../dist/match3-motion.mjs';
 import {ART_FRAMES} from '../dist/homecoming-art-frames.mjs';
+import {WORLD_PLATE,CREEK_ART} from '../dist/homecoming-world.mjs';
 import {CRAFT_ATLASES,craftFrame,craftSvg,portraitAsset} from '../dist/homecoming-art.mjs';
 import {STORY_SCENES,availableStoryKeys,restoreStory,storySummary} from '../dist/homecoming-story.mjs';
 import {freshGame,demoRiver,TASKS} from '../dist/homecoming.mjs';
@@ -13,6 +14,14 @@ test('measured crop rectangles match the actual PNG dimensions and never include
     const bytes=fs.readFileSync(new URL('../dist/assets/'+name+'.png',import.meta.url));assert.equal(bytes.readUInt32BE(16),source.width);assert.equal(bytes.readUInt32BE(20),source.height);
     for(const [i,box]of source.frames.entries()){const[x,y,w,h]=box;assert.ok(w>0&&h>0&&x>=0&&y>=0&&x+w<=source.width&&y+h<=source.height);for(const other of source.frames.slice(i+1)){const[ox,oy,ow,oh]=other;assert.ok(x+w<=ox||ox+ow<=x||y+h<=oy||oy+oh<=y,`${name}: overlapping crop rectangles`);}}
   }
+});
+
+test('landscape and both watercourse states share their declared source geometry',()=>{
+  for(const [name,expected]of [[WORLD_PLATE.asset,WORLD_PLATE.pixels],['craft-creek-dry-v15',CREEK_ART.pixels],['craft-creek-flow-v15',CREEK_ART.pixels]]){
+    const bytes=fs.readFileSync(new URL('../dist/assets/'+name+'.png',import.meta.url));
+    assert.deepEqual([bytes.readUInt32BE(16),bytes.readUInt32BE(20)],expected);
+  }
+  const[x,y,w,h]=CREEK_ART.crop;assert.ok(x>=0&&y>=0&&w>0&&h>0&&x+w<=CREEK_ART.pixels[0]&&y+h<=CREEK_ART.pixels[1]);
 });
 
 test('the buffered and parallel input gate rejects stale pieces and reserved columns',()=>{const before=m.m3Move(m.m3Create(1,{seed:20261017}),{type:'SWAP',a:10,b:17}).state,first=m.m3Move(before,{type:'SWAP',a:32,b:39}),columns=motionColumns(before,first.frames),second={type:'SWAP',a:8,b:15};assert.ok(motionInputFits(before,first.state,second,columns));const follow=m.m3Move(first.state,second),other=motionColumns(first.state,follow.frames);assert.equal([...other].some(c=>columns.has(c)),false);assert.equal(follow.state.moves,before.moves-2);assert.ok(m.m3Valid(follow.state));assert.equal(motionInputFits(before,first.state,{type:'SWAP',a:32,b:39},columns),false);const stale=structuredClone(before);stale.board[8].id='old-piece';assert.equal(motionInputFits(stale,first.state,second,columns),false);assert.equal(motionInputFits(before,first.state,{type:'HAMMER',index:8},columns),false);});

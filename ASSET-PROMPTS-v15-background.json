@@ -1,0 +1,197 @@
+{
+  "version": "v15",
+  "createdLocalDate": "2026-10-21",
+  "timeZone": "Asia/Shanghai",
+  "purpose": "One continuous original terrain painting for camp and river to share, not a finished settlement or a literal record of Merge Gardens implementation.",
+  "engine": "built-in image_gen.imagegen",
+  "mode": "One landscape generation and two targeted edits; dry creek generation and wet-state edit",
+  "selectedAsset": "dist/assets/craft-homeland-v15b.png",
+  "selectedSource": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-30c31088-bc90-4379-bb79-ab9639050dbd.png",
+  "initialSource": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-859184d2-9590-4752-85fd-0a69853b0dac.png",
+  "dimensions": {
+    "width": 1536,
+    "height": 1024
+  },
+  "colorMode": "RGB",
+  "bytes": 2623934,
+  "sha256": "f2cf18a33ce9e339af3eef5bf9728eee21a7421912c4456cc6674e330f52bddb",
+  "referenceReview": [
+    "dist/assets/craft-camp-scenes-v14.png",
+    "dist/assets/craft-river-scenes-v14.png"
+  ],
+  "referenceUse": "Existing original camp/river sprites viewed for materials and palette only. No third-party image assets supplied to generation or copied.",
+  "worldMapping": {
+    "xMin": -9,
+    "xMax": 27,
+    "yMin": -12,
+    "yMax": 12,
+    "campCenterNormalized": [
+      0.25,
+      0.5
+    ],
+    "riverCenterNormalized": [
+      0.54,
+      0.5
+    ],
+    "requiredClearPlayableRectangle": {
+      "xMin": 0.15,
+      "xMax": 0.79,
+      "yMin": 0.34,
+      "yMax": 0.75
+    }
+  },
+  "prompts": {
+    "generate": "Use case: stylized-concept.\nAsset type: ONE continuous landscape background PNG for a portrait casual merge game's pannable world. Make a 3:2 landscape image, 1536 by 1024 composition, opaque full-bleed.\n\nPRIMARY REQUEST: Paint a single authored continuous forest-to-riverside garden landscape. This is the QUIET GROUND AND PERIMETER LAYER of one world; separate game sprites will be added later. It must NOT look like an atlas, collage, disconnected islands, platforms, modular tiles or isolated asset stickers.\n\nCAMERA AND STYLE: consistent orthographic overhead view at about 45 degrees, no horizon or sky. Warm, lovingly painted premium casual mobile game environment, softly dimensional rounded foliage and rocks, carefully grouped forms and natural contact shadows. Clean readable broad forms at mobile size, gentle painterly surfaces, lightly textured grass. Soft afternoon sun from upper left. Restrained olive/sage forest, warm pale green meadow, subdued honey-earth paths and cool turquoise water. Richer detail only at outer edges; ground must remain visually quiet. Match the material language of warm honey-brown rounded timber, softly beveled warm grey natural rocks and lush rounded foliage, without adding any timber buildings.\n\nMANDATORY LAYOUT in percentages of full image, origin at top left:\n* The entire rectangle x=15% through 79%, y=34% through 75% is continuous FLAT DRY GRASS with ample open space for interactive items. It has no trees, boulders, cliffs, water, structures or props. Camp gameplay center will be x=25%, y=50%; riverside gameplay center x=54%, y=50%; both must be unobstructed and visually belong to the SAME meadow. Grass stays dry clear land out to x=79%, y=75%.\n* Forest canopy and low understory form an irregular natural enclosure along top x=0–82%, y=0–26%, the left x=0–11%, and bottom y=84–100%, creating clustered density variation rather than evenly spaced trees. Tall trees and big rocks must stay outside the central rectangle; soft tree shadows may graze the clearing edges.\n* A calm turquoise river or lake occupies only the far-right strip x=86–100%. A gently curving grassy shore can reach x=83% but must never intrude into x<=79% inside the central play rectangle. Water is part of the landscape and extends beyond the image, NOT a central pond. Some reeds along this far shore are fine but never large bushes inside the clear ground.\n* One old, faint, softly worn warm-earth footpath crosses the meadow from x=24%, y=55% via x=40%, y=56% to x=60%, y=57%. It fades naturally into grass and has soft irregular edges. It is a low-contrast trace, not a road, not paving, not a prominent S-shaped band.\n* Crucial future dynamic stream corridor x=30–50%, y=37–43% stays PLAIN PALE GRASS. No painted stream, ditch, path, bridge, rocks or pond there. It will be repaired by players later.\n* Small natural grass variations connect both areas across the whole clearing. There must be no divider at the center, no separate circular patches, no seams or change of art style.\n\nAVOID ENTIRELY: finished buildings, houses, cabins, tents, campfires, bridges, docks, boats, characters, people, animals, merge materials, scattered collectible objects, game UI, lettering, numbers, symbols, grid lines, hexagons, round or square island bases, floating land slabs, fences, vertical cliffs around the clearing, plastic toy sheen, dramatic lighting, vignette, border or watermark. No central water. No polished manicured formal garden. This should feel like ONE peaceful open forest homeland awaiting reconstruction, not a completed settlement.",
+    "targetedEdit": "Use case: precise-object-edit. Edit this landscape game background only in its BOTTOM FOREST EDGE. Keep the SAME 3:2 landscape format, same upper forest, same left forest, same central meadow and faint path, same right shoreline and water, same palette, painted style, overhead camera and lighting.\nREQUIRED SINGLE CHANGE: push back the BOTTOM foreground tree line, including all its canopy tops, bushes and rocks, so that across x=15% to 79% there is completely flat, uninterrupted empty dry grass all the way down to y=79% of image height. The TOPS of the bottom-edge trees must not rise above y=82%. Reduce tree scale and move their trunks below the bottom crop if needed. In the current image the large trees centered around x=40%, y=75% intrude into playable ground: remove that intrusion and continue the pale grass. Also remove any similar bottom canopy/rock intrusions across x=15–79%, y=70–79%.\nEverything outside this bottom edge adjustment stays unchanged. No new objects, structures, water, text, grid, buildings or props. This image is the quiet continuous terrain under interactive merge items. Maintain natural edge and varied forest rhythm at very bottom, not a straight cut line. Opaque full-bleed PNG."
+  },
+  "dynamicCreekOverlays": {
+    "engine": "built-in image_gen.imagegen",
+    "method": "Exactly two calls: original dry-channel generation and a targeted edit adding water. No third-party art inputs, no pixel crops or postprocessing.",
+    "styleReference": "dist/assets/craft-homeland-v15.png (viewed for palette and lighting; source image pixels were not reused)",
+    "worldDisplayBounds": {
+      "xMin": 1.25,
+      "xMax": 9.7,
+      "yMin": -2.8,
+      "yMax": -1.4
+    },
+    "use": "Dry and flowing state overlays for one fixed creek on the authored world. Suggested renderer crop is the shared union alpha>8 bounds [5,194,2171,533], right/bottom exclusive; source pixels remain untouched.",
+    "assets": [
+      {
+        "asset": "dist/assets/craft-creek-dry-v15.png",
+        "source": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-3e81a193-e502-4aa0-aefb-716ce11703d6.png",
+        "dimensions": {
+          "width": 2172,
+          "height": 724
+        },
+        "mode": "RGBA",
+        "bytes": 908232,
+        "alphaBounds": [
+          0,
+          19,
+          2172,
+          724
+        ],
+        "alphaGreaterThan8Bounds": [
+          11,
+          201,
+          2166,
+          531
+        ],
+        "alphaGreaterThan128Bounds": [
+          18,
+          206,
+          2154,
+          529
+        ],
+        "zeroAlphaPixels": 1239854,
+        "totalPixels": 1572528,
+        "sha256": "7b4d06e2f14cac218f219edd5f744db64d0f579cc565dd4b263497e84e33114e",
+        "prompt": "Use case: stylized-concept.\nAsset type: ONE original transparent game terrain overlay, a very long and narrow DRY creek bed. NOT a whole scene, NOT an island, NOT an atlas.\nCanvas: wide 3:1 landscape composition, ideally 1536 by 512 pixels. Actual transparent alpha background everywhere outside the creek strip. NO drawn checkerboard.\nPRIMARY SUBJECT: one connected shallow dry channel passing LEFT to RIGHT through the image, gently meandering horizontally. The painted strip spans about 90% of image width, from x=5% to x=95%. Its centerline is near y=52% at left, y=57% at middle, y=43% at right. The full painted subject's total bounding height INCLUDING banks/grass must be only 20% of image WIDTH. No dramatic S curve or vertical stretch. Both ends remain open, softly irregular and slightly tapering, like a creek segment that can connect to other terrain.\nBANKS: very slim irregular warm gray-beige pebbles embedded in pale sandy honey-earth, a sparse sprinkling of tiny stones, a few VERY SMALL olive/sage grass tufts along bank margins. No large rocks. No thick ring wall or elaborate vegetation. Central dry channel is a thin quiet ribbon of pale gravel and exposed soil, with a few smaller embedded stones. The banks blend outward with soft broken alpha edges; no separate grassy island plate and no continuous green slab surrounding it.\nSTYLE: premium casual mobile garden game; original lightly hand-painted natural terrain, soft dimensional forms with understated shadows, viewed orthographically from about 45 degrees overhead, no horizon. Warm soft sunlight from upper left. Muted sage/olive grass and soft warm gray/beige stone, gently textured painterly shading, restrained saturation. Designed to blend invisibly onto a pale warm green painted meadow. This must be visually quiet UNDER interactive objects, not a hero sculpture.\nCRITICAL AVOID: water of any kind, round pool/pond, waterfall, bridge, buildings, docks, trees, bushes, flowers, reeds taller than the tiny stones, animals, people, merge items, hexagons, UI, letters, symbols, text, shadow rectangle, opaque background, green ground island, thick stone border, photographic hard textures, plastic gloss. Do not paint the meadow background. Render only the narrow creek and its tiny soft banks over REAL TRANSPARENCY."
+      },
+      {
+        "asset": "dist/assets/craft-creek-flow-v15.png",
+        "source": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-ed7ce27f-b94b-4a51-9fb0-22fee45f64de.png",
+        "dimensions": {
+          "width": 2172,
+          "height": 724
+        },
+        "mode": "RGBA",
+        "bytes": 858957,
+        "alphaBounds": [
+          0,
+          20,
+          2172,
+          724
+        ],
+        "alphaGreaterThan8Bounds": [
+          5,
+          194,
+          2171,
+          533
+        ],
+        "alphaGreaterThan128Bounds": [
+          15,
+          200,
+          2156,
+          531
+        ],
+        "zeroAlphaPixels": 1237382,
+        "totalPixels": 1572528,
+        "sha256": "42804c60b3ec7339887a5c2c070a9aa0a5c7927b2bc23941fd5f8b1f86403c17",
+        "prompt": "Use case: precise-object-edit.\nEdit this exact transparent narrow DRY creek asset into its FLOWING version for a crossfade animation in a game. Preserve the exact same canvas size and aspect ratio, framing, camera, creek centerline and full outer alpha silhouette. Do not move, resize, widen, extend, recompose or redraw the banks. Preserve every visible grass tuft, bank pebble, earth skirt and shadow in its current location as closely as possible.\nThe ONLY CHANGE: fill ONLY the exposed central gravel channel between the existing banks with quiet flowing shallow MUTED TURQUOISE water, softly translucent so a few small existing submerged gravel stones remain visible. The water is a single continuous slim ribbon from the left open end to the right open end. Subtle tiny painted ripples, soft sunlight glints, no white foam or rapids. Color resembles a peaceful garden river, cool teal-blue but NOT neon. Keep the entire central flow inside the existing channel and keep all outer banks and grass DRY.\nMaintain original warm upper-left light, softly hand-painted natural style and tiny-scale detail.\nKeep actual transparent alpha outside the asset, including current broad transparent upper/lower padding. No black or colored background. No new props, plants, rocks, pools, waterfall, bridges, buildings, animals, words, UI, border or grid. This is the exact SAME creek in a second gameplay state."
+      }
+    ],
+    "review": {
+      "accepted": "Slim continuous shallow channel; tiny warm pebble banks and small sage grass tufts; water edit retains the overall shape and major bank stones. No buildings, round pool, waterfall, grids or UI. True alpha present.",
+      "limitations": [
+        "Model output has a few very low-alpha pixels in padding; raw nonzero bounds are almost full image. Use alpha>8 union crop metadata to frame the visible painted strip, without rewriting source pixels.",
+        "Dry/wet bank silhouettes differ by several pixels; do not promise pixel-identical crossfade. Shared render crop maintains the same scale and center.",
+        "Open ends taper naturally but are slightly rounded; tuck under existing scene rocks or water-source objects for the most natural join.",
+        "Assets need integrated-game contrast/shadow QA by parent. Generated originals are not commercially art-approved final assets."
+      ]
+    }
+  },
+  "upperBayVariant": {
+    "asset": "dist/assets/craft-homeland-v15b.png",
+    "source": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-30c31088-bc90-4379-bb79-ab9639050dbd.png",
+    "editTarget": "dist/assets/craft-homeland-v15.png",
+    "tool": "built-in image_gen.imagegen",
+    "generationCount": 1,
+    "purpose": "Reveal connected distant water in the upper-right to make the near river region read as riverside.",
+    "dimensions": {
+      "width": 1536,
+      "height": 1024
+    },
+    "mode": "RGB",
+    "bytes": 2623934,
+    "sha256": "f2cf18a33ce9e339af3eef5bf9728eee21a7421912c4456cc6674e330f52bddb",
+    "prompt": "Use case: precise-object-edit.\nEdit this existing original 3:2 landscape game background with ONE targeted correction in the TOP-RIGHT background only. Keep the same 1536x1024 composition, original overhead camera, painterly style, palette, sunlight and all existing terrain positions.\nREQUIRED CHANGE: extend the existing quiet turquoise water from the far-right side continuously around into a broad distant BAY INLET across the TOP-RIGHT. Replace only the upper-right forest at x=53% to 100%, y=0% to 30% with this connected water and a natural curving grassy shoreline along its LOWER edge. The inlet is connected to the existing right-side river; do NOT make a separate pond. The water should clearly be visible around x=54–66%, y=24–28%. Curve the shoreline gently so its deepest point is y=30%, never below y=31%. Add a few small reeds or soft low shore vegetation immediately along this edge, but never below y=31%.\nKEEP the original top-left woodland from x=0% to about x=50%, so the forest camp transitions naturally into the riverside meadow as the view moves right. Preserve the existing far-right water and shoreline, particularly below y=34%. Preserve the entire bottom woodland.\nABSOLUTE INVARIANT: all existing playable ground in x=15% through 79%, y=34% through 75% must remain unchanged in location and appearance: dry continuous grass, faint old footpath, no new water or rocks or trees. Do not shift the meadow, path, trees elsewhere, original scale, or camera. The whole area below y=34% is not part of this edit.\nThe result should show one cohesive authored environment: woodland left, spacious central meadow, turquoise river glimpsed beyond the upper-right meadow and along far right.\nNo structures, boats, bridges, characters, items, grid, UI, words or text. Opaque full-bleed PNG. Only alter the requested top-right forest into the connected bay and its low natural bank.",
+    "review": {
+      "accepted": "Broad turquoise inlet now connects upper-right and existing right-side water; top-left forest remains. Meadow, footpath and bottom forest keep composition. No buildings, objects or illegal water placed within planned playable clearing.",
+      "limitations": [
+        "Water lower edge remains around normalized y=0.23–0.24, with shoreline vegetation reaching about y=0.27. This is shallower than requested y=0.30 and may be mostly clipped by a river camera whose top starts at y=0.24. Parent should review a y=0.20–0.21 top framing before selecting this variant.",
+        "Generation preserves ground layout visually but exact pixel invariance of untouched areas is not guaranteed. Original v15 remains available unchanged.",
+        "Finite background still requires camera bounds; no seamless tiling claim."
+      ]
+    }
+  },
+  "visualReview": {
+    "accepted": "One contiguous dry meadow; no center divider, buildings, prebuilt stream, grid, UI or collectible items. Upper/left/bottom woodland and far-right river share one palette and lighting. Both camp/river centers and intended lower playable edge are unobstructed.",
+    "correction": "First generation bottom canopy reached roughly 70% of image height. Targeted edit retracted bottom tree line to about 89% through central width, preserving dry free ground down through the required 75% boundary.",
+    "limitations": [
+      "Texture is deliberately painterly; original dimensional sprite shading still needs scene-level integration and contrast review by renderer.",
+      "This is a finite 1536×1024 landscape, not an infinite tile. Do not expose its hard rectangular edges by over-panning.",
+      "Right bank detail approaches around x=81–83%; interactive placements should stay within planned x<=79% clearing.",
+      "No physical-device or integrated-browser view performed by asset worker; parent owns integration QA.",
+      "Original generated asset remains subject to human art-direction review; not labeled commercially approved final art."
+    ]
+  },
+  "previousLandscapeDraft": {
+    "asset": ".preview/craft-homeland-v15-draft.png",
+    "source": "C:/Users/user/.codex/generated_images/01a15da5-d842-7192-8543-c81a4ce66c90/exec-761d5f59-d12e-4d65-ab39-9a916618120d.png",
+    "sha256": "bb3fc68cc5670af8789d2a16e990ec1d481023d5f7f11210434e2413ec26e9c4"
+  },
+  "selectedAssets": [
+    "dist/assets/craft-homeland-v15b.png",
+    "dist/assets/craft-creek-dry-v15.png",
+    "dist/assets/craft-creek-flow-v15.png"
+  ],
+  "integrationReview": {
+    "worldBounds": [
+      -9,
+      -12,
+      36,
+      24
+    ],
+    "nearCellRadius": 32,
+    "smallNearCellRadius": 29,
+    "sharedCreekSourceRectXYWH": [
+      5,
+      194,
+      2166,
+      339
+    ],
+    "referencePackage": "User-supplied Merge Gardens 1.57.2 XAPK statically inspected; extracted material never used as shipped art or generation input",
+    "camera": "Shared coordinate registration and fixed ground contact; no per-region backdrop rescale; bounded pan and reduced-motion-aware transition"
+  }
+}

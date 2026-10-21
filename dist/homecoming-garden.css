@@ -7,3 +7,47 @@
 @media(prefers-reduced-motion:reduce){.piece.milestone .piece-top{animation:none}.land,.scenery,.piece-art,.decor{filter:none}}
 .river-bay{fill:url(#river-bay-color);pointer-events:none}.river-bankline{fill:none;stroke:#bbd29b;stroke-width:7;stroke-linecap:round;opacity:.8;pointer-events:none}
 .wilderness{fill:#5e9557;stroke:none;opacity:.14}.has-selection .ground-top{stroke-opacity:.05}.drag-active .ground-top{stroke-opacity:.5}
+
+/* v15: authored world plate, persistent world-space overlays, no raised tile slab. */
+.map-wrap,.repair-complete .map-wrap{background:#4b6546;box-shadow:none}
+.map-wrap:before{display:none}
+#world-layer{transform-origin:0 0;transform-box:view-box}
+.world-matte{fill:#4b6546;pointer-events:none}
+.world-landscape{pointer-events:none}
+.world-ambient{filter:blur(18px);opacity:.42;pointer-events:none}
+.world-creek{filter:saturate(.85);pointer-events:none}
+.creek-reveal{animation:creek-waken .55s ease-out both}
+@keyframes creek-waken{from{opacity:.3}to{opacity:1}}
+.working-outline{fill:none;stroke:#f7f4ce;stroke-width:1;stroke-opacity:.24;stroke-dasharray:2 5;pointer-events:none}
+.ground-cell .ground-top,.ground-cell.occupied .ground-top{fill:transparent;fill-opacity:0;stroke:#f6f4cc;stroke-width:.8;stroke-opacity:.12;pointer-events:all}
+.has-selection .ground-top{stroke-opacity:.25}
+.ground-cell:hover .ground-top{fill:#fff9d3;fill-opacity:.12;stroke-opacity:.5}
+.drag-active .ground-top{fill:#fff9d3;fill-opacity:.07;stroke-opacity:.72;stroke-width:1.2}
+.drag-active .working-outline{stroke-opacity:.8;stroke-dasharray:none;stroke-width:1.7}
+.overview .ground-top,.overview .working-outline{stroke-opacity:0;fill-opacity:0}
+.ground-cell.revealed .ground-top{fill:#e5efb1;fill-opacity:.38;stroke-opacity:.6}
+.fixed-ground,.fixed-ground.dry,.fixed-ground.water{fill:transparent;stroke:none;pointer-events:none}
+.structure-foot{fill:transparent;stroke:none;pointer-events:all}
+.homeland-trail,.homeland-trail-soft,.brook-bank,.brook-bed,.brook-flow,.brook-glint{fill:none;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.homeland-trail-soft{stroke:#c4bb82;opacity:.21}
+.homeland-trail{stroke:#dfce9d;opacity:.42}
+.brook-bank{stroke:#a8aa72;opacity:.64}
+.brook-bed{stroke:#c2b88a}
+.brook-flow{stroke:url(#brook-water)}
+.brook-glint{stroke:#e0f4d9;stroke-dasharray:3 17;opacity:.6;animation:stream-flow 3.6s linear infinite}
+.scenery,.overview .scenery{filter:drop-shadow(1px 3px 2px #304b363d) saturate(.79) brightness(.98)}
+.ruin-art{filter:drop-shadow(1px 3px 2px #304b3635) saturate(.65)}
+.piece-art,.carry-art,.trial-component{filter:drop-shadow(1px 3px 2px #34483445) saturate(.86)}
+.piece-top{fill:#e9dca3;fill-opacity:.06;stroke:#dfd3a4;stroke-opacity:.2}
+.piece-side{opacity:0}
+.piece.multi .piece-top{stroke:#f0d281;stroke-opacity:.9;fill-opacity:.18}
+.piece.selected .piece-top{stroke:#fff1ae;fill-opacity:.23;stroke-opacity:1}
+.trial-water-edge{stroke:#a7ab7b;opacity:.5}
+.trial-water{stroke:#a5d9cf;stroke-dasharray:none}
+.trial-green{fill:#97ba6980}
+.map-caption span{background:#f9f8e7e3;border-color:#c5d2a499;color:#557046}
+.frontier path{fill:#e1e9bb65;stroke:#a6b58a;stroke-opacity:.75}
+.frontier text{fill:#5d7246}
+.region-pin rect{fill:#f4f5dce8;stroke:#bdc897;stroke-width:1}
+.region-pin text{fill:#47663e;font-size:10px}
+@media(prefers-reduced-motion:reduce){.brook-glint,.creek-reveal{animation:none}.scenery,.overview .scenery,.piece-art,.carry-art,.trial-component{filter:none}}

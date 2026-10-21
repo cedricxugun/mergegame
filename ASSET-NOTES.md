@@ -41,3 +41,28 @@
 旧图集的有效主体占比差异很大，河湾旧场景仅约 38.5–48%。v14 对 48 帧按 alpha>8 测量裁框，并保留护边和长宽比。`scripts/measure-art-frames.py` 只读取 PNG、生成 `dist/homecoming-art-frames.mjs`，不修改源像素。新版河湾图集有少量跨理论格线的独立轮廓，使用逐帧安全矩形防止裁掉溪流。
 
 这些资源已通过本版渲染和手机尺寸可读性检查，不等同商业美术终审。人物、三消资源及部分旧材料继续沿用；下一步发行级验收仍包括全链风格审定、真机表现与资源性能。
+
+## v15：连贯世界与参考包核对（2026-10-21）
+
+本轮新增并实际引用的原创 PNG：
+
+| 资源 | 用途 | 原始尺寸 |
+| --- | --- | --- |
+| `dist/assets/craft-homeland-v15b.png` | 营地、河湾共用的森林、草地、旧径及远岸整幅环境画 | 1536×1024 |
+| `dist/assets/craft-creek-dry-v15.png` | 从泉眼到营地的干涸河床 | 2172×724 |
+| `dist/assets/craft-creek-flow-v15.png` | 同一岸线恢复流水；试装只显示上游部分 | 2172×724 |
+
+全部由内置 image_gen 生成或编辑；生成用的参考图仅为本项目已有原创资源。原像素与 alpha 保留，渲染使用 source rect；两种水渠共用 `[5,194,2166,339]` 的 x/y/width/height 裁框。完整提示词、生成路径、文件校验值和审阅记录在 `ASSET-PROMPTS-v15-background.json`。水渠两态有少量边缘像素漂移，因此没有宣称逐像素无缝。场景底画为有限构图，相机有边界；近景、全景和区域切换共用一个世界位置，不能将它当作任意平铺纹理。
+
+### Merge Gardens 参考包的实际发现
+
+输入为用户提供的 `Merge+Gardens_1.57.2_APKPure.xapk`，包内 manifest 声明版本 1.57.2、版本号 1632、包名 `com.futureplay.mergematch`。这是对该文件的静态分析，没有安装或运行它，也没有据此验证整个发行版本的运行行为。
+
+- 容器内 `UnityDataAssetPack.apk` 包含 Addressables bundles；Unity 原始数据头提供 `6000.3.16f1` 版本信息。
+- `_campbg.spriteatlasv2` 包含 1 张 4096×4096 Texture2D、136 个 Sprite 和 1 个 SpriteAtlas。解码查看后，可以直接辨认独立建筑、树群、地表块、河流、池塘、崖岸和雾片，并非完整花园的一张截图。
+- `scenes_scenes_main` 含 2 个 Grid、3 个 Tilemap / TilemapRenderer；其中两个序列化 Tilemap 分别记录 632、638 个 tile entry。数量仅指序列化内容，不等同玩家实际开放格数。
+- 资源名示例：`groundTexture_Grass02`、`GreenMainLight_var2`、`decoRiver_MainCamp_Summer`、`TreesModular`、`decoCliff01_MainCamp_Summer 1`、`decoMansion_MainCamp`、`MainGardenFog`。主场景也有对应独立装饰节点；图集内部分地表 Sprite 约 230×130 px。
+
+由这些直接证据可判断：至少该包的主花园使用分层地面与独立景物组织，不能说完全由一张整图实现。“先统一设计整片世界，再拆层显示”是本项目据此采用的美术制作判断。我们的有限两站原型选择一张原创环境底画配合动态河床、建筑及素材层，便于保持构图一致；这不声称复刻其内部引擎。
+
+参考解码和结构记录仅保存在 Git 忽略的 `.preview/merge-gardens-1.57.2/`，不随游戏资源或 Git 提交分发。此前官方演示参考仍为 https://mergegardens.com/ 。
