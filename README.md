@@ -1,5 +1,7 @@
 # 风暴之后 · 归乡手记
 
+> **两个方向的体验版**在 `dist/lite/`：A「三消 + 轻合成」和 B「纯合成」。运行 `npm run dev` 后打开 `http://127.0.0.1:4178/lite/`；单文件离线包在 `offline/forest-camp-lite-a.html` 与 `offline/forest-camp-lite-b.html`（各约 3 MB）。方案、数值和要验证的问题见 [LITE-PLAN.md](LITE-PLAN.md)。下文描述的是原有完整原型，未改动。
+
 当前默认入口是灾后重建版，仍面向 iPhone 竖屏。米拉带着莉娜回到风暴后的故乡：先补好避雨棚，再生火、清出旧路、完善营地；随后进入芦苇河湾恢复水源、护岸和渡口，接回船匠罗恩。剧情随着修复进入手记，未完成的成品不会提前显示。
 
 核心规则在 `dist/homecoming-play.mjs`（世界存档 v8）；`homecoming.mjs` 冻结保留 v7 行为，供旧存档校验与兼容。`homecoming-view.mjs`、`homecoming-app.mjs` 和 `homecoming-craft.css` 负责展示。`index.html` 与 `homecoming.html` 使用相同入口。三消通关获得物资箱，再回地图选材、一键领料、亲手合成并修复。营地仍对应第 1–8 关和 4 次修复，河湾对应第 9–20 关和 6 次修复；L1–L6 占单格，L7 展开三格。

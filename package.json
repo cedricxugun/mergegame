@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/serve.mjs",
-    "test": "node --test tests/game.test.mjs tests/first-stop.test.mjs tests/river-bend.test.mjs tests/homecoming.test.mjs tests/homecoming-view.test.mjs tests/homecoming-play.test.mjs tests/homecoming-momentum.test.mjs tests/homecoming-hands-on.test.mjs tests/homecoming-projection.test.mjs tests/match3.test.mjs tests/match3-premium.test.mjs tests/presentation.test.mjs",
-    "build:offline": "node scripts/build-offline.mjs"
+    "test": "node --test tests/game.test.mjs tests/first-stop.test.mjs tests/river-bend.test.mjs tests/homecoming.test.mjs tests/homecoming-view.test.mjs tests/homecoming-play.test.mjs tests/homecoming-momentum.test.mjs tests/homecoming-hands-on.test.mjs tests/homecoming-projection.test.mjs tests/match3.test.mjs tests/match3-premium.test.mjs tests/presentation.test.mjs tests/lite.test.mjs",
+    "build:offline": "node scripts/build-offline.mjs",
+    "build:lite": "node scripts/build-lite-assets.mjs && node scripts/build-lite.mjs"
   }
 }
