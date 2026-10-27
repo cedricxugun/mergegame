@@ -1,39 +1,38 @@
-// Thin adapter around the existing premium match-3 engine and UI. It keeps
-// the Royal-Match-grade feel (swipe threshold, input buffering, power-up
-// combos, flight effects) and swaps in themed pieces, the run summary and
-// pre-level boosters.
-import {m3Create, m3Move, M3_COLORS} from '../../match3-premium.mjs';
+// Thin adapter around the existing premium match-3 engine and UI. It keeps the
+// Royal-Match-grade feel (swipe threshold, input buffering, power-up combos,
+// flight effects) and swaps in themed pieces, this prototype's levels, the
+// run summary and pre-level boosters.
+import {m3Create, M3_COLORS} from '../../match3-premium.mjs';
 import {createMatch3UI} from '../../match3-premium-ui.mjs';
 import {sprite, svgAsset} from '../shared/ui.mjs';
 
-// Map engine colours to themed piece art. Engine order: leaf, book, crown, shield, gem.
-const THEMED = ['piece-leaf', 'piece-berry', 'piece-sun', 'piece-drop', 'piece-flower'];
-const POWER = {'premium-rocket': 'rocket', 'premium-tnt': 'tnt', 'premium-propeller': 'propeller', 'premium-orb': 'orb', 'premium-crate': 'crate', 'premium-mira': 'portrait-mira', 'craft-supply-box': 'chest', 'chest': 'chest', 'match-garden-bg': 'match-bg', 'm3-mud': 'piece-mud'};
+// Map engine colours to themed piece art. Engine order: leaf, berry, star, drop, flower.
+const THEMED = ['leaf', 'berry', 'sun', 'drop', 'flower'];
 export const PIECE_NAMES = ['叶子', '浆果', '星星', '水滴', '花朵'];
-M3_COLORS.forEach((c, i) => { c.id = THEMED[i].replace('piece-', 'themed-'); c.name = PIECE_NAMES[i]; });
+M3_COLORS.forEach((c, i) => { c.id = 'themed-' + THEMED[i]; c.name = PIECE_NAMES[i]; });
+const ASSET = {'premium-rocket': 'rocket', 'premium-tnt': 'tnt', 'premium-propeller': 'propeller', 'premium-orb': 'orb', 'premium-crate': 'crate', 'premium-mira': 'portrait-mira', 'craft-supply-box': 'chest', chest: 'chest', 'match-garden-bg': 'match-bg', 'm3-mud': 'piece-mud'};
 export function asset(name) {
   if (name.startsWith('premium-themed-')) return sprite('piece-' + name.slice(15));
-  if (POWER[name]) return sprite(POWER[name]);
+  if (ASSET[name]) return sprite(ASSET[name]);
   if (name.startsWith('m3-')) return svgAsset(name);
   return sprite(name);
 }
+export const pieceArt = color => sprite('piece-' + THEMED[color]);
 
 // Start a level with optional boosters already on the board.
-export function createRun(level, {seed, boosters = [], extraMoves = 0} = {}) {
-  let game = m3Create(level, {seed});
-  game.moves += extraMoves;
+export function createRun(level, def, {seed, boosters = [], extraMoves = 0} = {}) {
+  const custom = {layout: def.layout, moves: def.moves + extraMoves, colors: def.colors, collect: def.collect};
+  const game = m3Create(level, {seed, custom});
   const powers = {rocket: 'row', bomb: 'bomb', orb: 'orb'};
-  const spots = [24, 17, 31, 23, 25].filter(i => game.board[i] && !game.board[i].power);
-  boosters.forEach((b, n) => { const i = spots[n]; if (i !== undefined) game.board[i] = {id: `boost${n}-${game.nextId++}`, color: null, power: powers[b]}; });
-  // The engine validates moves + usedMoves against the level config, so keep
-  // the extra moves out of the persisted config by tracking them here.
-  return {version: 1, region: 'camp', winsBefore: 0, game, extraMoves};
+  const spots = [24, 17, 31, 23, 25, 10].filter(i => game.board[i] && !game.board[i].power);
+  boosters.forEach((b, n) => { const i = spots[n]; if (i !== undefined) game.board[i] = {id: `t${game.nextId++}`, color: null, power: powers[b]}; });
+  return {version: 1, region: 'camp', winsBefore: 0, game};
 }
 
-export function mountMatch(root, {onWin, onExit, onLose, getSound, onToggleSound}) {
+export function mountMatch(root, {onWin, onExit, onLose, getSound, onToggleSound, regionLabel}) {
   let session = null;
   const ui = createMatch3UI({
-    root, asset,
+    root, asset, regionLabel,
     onChange: s => { session = s; return true; },
     onExit: () => onExit(session),
     onClaim: s => onWin(s.game),
@@ -46,4 +45,3 @@ export function mountMatch(root, {onWin, onExit, onLose, getSound, onToggleSound
     isBusy: () => ui.isBusy()
   };
 }
-export {m3Move};

@@ -31,12 +31,15 @@ const layouts=[
   ['.......','.......','.......','C.....C','CM...MC','CM...MC','CCMMMCC','2222222'],
   ['##...##','#.....#','.......','.......','MMCCCMM','CCMMMCC','2C...C2','2222222']
 ];
-export function m3LevelConfig(level){
-  const layout=layouts[level-1];if(!layout)throw Error('Unknown match-three level');
-  const cells=layout.join('').split(''),crates=cells.map(c=>c==='2'?2:c==='C'?1:0),mud=cells.map(c=>c==='M'?1:0);
-  const goals=[{kind:'crate',target:crates.filter(Boolean).length}];
+// `custom` lets another game supply its own layout, move count, colour count
+// and colour-collection goals; the authored campaign passes nothing.
+export function m3LevelConfig(level,custom=null){
+  const layout=custom?.layout||layouts[level-1];if(!layout)throw Error('Unknown match-three level');
+  const cells=layout.join('').split(''),crates=cells.map(c=>c==='2'?2:c==='C'?1:0),mud=cells.map(c=>c==='M'?1:0),crateCount=crates.filter(Boolean).length;
+  const goals=crateCount||!custom?[{kind:'crate',target:crateCount}]:[];
   if(mud.some(Boolean))goals.push({kind:'mud',target:mud.reduce((a,b)=>a+b,0)});
-  return{level,colors:level<=3?4:5,moves:level===1?24:26+Math.floor(level/4),mask:cells.map(c=>c==='#'?0:1),crates,mud,goals};
+  for(const[color,target]of custom?.collect||[])goals.push({kind:'color',color,target});
+  return{level,colors:custom?.colors??(level<=3?4:5),moves:custom?.moves??(level===1?24:26+Math.floor(level/4)),mask:cells.map(c=>c==='#'?0:1),crates,mud,goals};
 }
 function random(s){s.rng=(Math.imul(s.rng,1664525)+1013904223)>>>0;return s.rng/4294967296;}
 const piece=(s,color,power=null)=>({id:`t${s.nextId++}`,color,power});
@@ -73,10 +76,10 @@ function remix(s){
   for(let attempt=0;attempt<100;attempt++){const tokens=original.slice();for(let i=tokens.length-1;i>0;i--){const j=Math.floor(random(s)*(i+1));[tokens[i],tokens[j]]=[tokens[j],tokens[i]];}positions.forEach((p,i)=>s.board[p]=tokens[i]);if(!m3FindMatches(s.board).length&&m3AvailableMoves(s).length){s.shuffles++;return;}}
   const powers=original.filter(p=>p.power);do{s.board=fillStable(s);powers.forEach((p,n)=>s.board[positions[n]]=p);}while(!m3AvailableMoves(s).length);s.shuffles++;
 }
-export function m3Create(level,{seed=1,runId=`level-${level}-${seed}`}={}){
-  const c=m3LevelConfig(level),s={version:2,level,runId,seed:seed>>>0,rng:seed>>>0,nextId:1,colors:c.colors,moves:c.moves,usedMoves:0,turn:0,board:[],mask:c.mask,crates:c.crates,mud:c.mud,goals:c.goals,collected:Array(5).fill(0),cratesCleared:0,mudCleared:0,score:0,tools:{hammer:1,row:1,col:1,shuffle:1},hammer:1,shuffles:0,status:'playing'};
+export function m3Create(level,{seed=1,runId=`level-${level}-${seed}`,custom=null}={}){
+  const c=m3LevelConfig(level,custom),s={version:2,level,...(custom?{custom}:{}),runId,seed:seed>>>0,rng:seed>>>0,nextId:1,colors:c.colors,moves:c.moves,usedMoves:0,turn:0,board:[],mask:c.mask,crates:c.crates,mud:c.mud,goals:c.goals,collected:Array(5).fill(0),cratesCleared:0,mudCleared:0,score:0,tools:{hammer:1,row:1,col:1,shuffle:1},hammer:1,shuffles:0,status:'playing'};
   // The first authored move creates a rocket. The starter propeller drops beside it.
-  for(let attempt=0;attempt<3000;attempt++){s.board=fillStable(s);if(level===1){for(const i of[15,16,18,10])s.board[i].color=1;s.board[17].color=2;s.board[11]=piece(s,null,'propeller');}if(m3FindMatches(s.board).length||!m3AvailableMoves(s).length)continue;if(level===1){const first=m3Move(s,{type:'SWAP',a:10,b:17});if(first.waves!==1||first.state.board[17]?.power!=='row'||first.state.board[18]?.power!=='propeller')continue;}return s;}
+  const tutorial=level===1&&!custom?.layout;for(let attempt=0;attempt<3000;attempt++){s.board=fillStable(s);if(tutorial){for(const i of[15,16,18,10])s.board[i].color=1;s.board[17].color=2;s.board[11]=piece(s,null,'propeller');}if(m3FindMatches(s.board).length||!m3AvailableMoves(s).length)continue;if(tutorial){const first=m3Move(s,{type:'SWAP',a:10,b:17});if(first.waves!==1||first.state.board[17]?.power!=='row'||first.state.board[18]?.power!=='propeller')continue;}return s;}
   throw Error('Could not create a stable match board');
 }
 function snapshot(s){return{board:structuredClone(s.board),mask:[...s.mask],crates:[...s.crates],mud:[...s.mud],collected:[...s.collected],cratesCleared:s.cratesCleared,mudCleared:s.mudCleared,score:s.score,moves:s.moves,hammer:s.hammer,tools:{...s.tools}};}
@@ -133,8 +136,8 @@ export function m3Move(state,action){
 }
 export function m3Valid(s){
   if(s?.version===1)return M3Legacy.m3Valid(s);
-  if(!s||s.version!==2||!Number.isInteger(s.level)||s.level<1||s.level>20||typeof s.runId!=='string'||!s.runId||s.runId.length>140)return false;
-  const c=m3LevelConfig(s.level),uint=n=>Number.isInteger(n)&&n>=0&&n<=4294967295;
+  if(!s||s.version!==2||!Number.isInteger(s.level)||s.level<1||!s.custom&&s.level>20||typeof s.runId!=='string'||!s.runId||s.runId.length>140)return false;
+  const c=m3LevelConfig(s.level,s.custom||null),uint=n=>Number.isInteger(n)&&n>=0&&n<=4294967295;
   if(s.colors!==c.colors||JSON.stringify(s.mask)!==JSON.stringify(c.mask)||JSON.stringify(s.goals)!==JSON.stringify(c.goals)||!uint(s.seed)||!uint(s.rng)||!uint(s.score)||!uint(s.nextId)||s.nextId<1||!uint(s.shuffles)||!uint(s.moves)||!uint(s.usedMoves)||s.moves+s.usedMoves!==c.moves||!s.tools||Object.keys(s.tools).length!==4||['hammer','row','col','shuffle'].some(t=>![0,1].includes(s.tools[t]))||s.hammer!==s.tools.hammer||s.turn!==s.usedMoves+Object.values(s.tools).filter(n=>n===0).length)return false;
   if(!Array.isArray(s.board)||s.board.length!==56||!Array.isArray(s.crates)||s.crates.length!==56||s.crates.some((hp,i)=>!Number.isInteger(hp)||hp<0||hp>c.crates[i])||!Array.isArray(s.mud)||s.mud.length!==56||s.mud.some((v,i)=>!Number.isInteger(v)||v<0||v>c.mud[i])||!Array.isArray(s.collected)||s.collected.length!==5||s.collected.some(n=>!uint(n)))return false;
   if(s.cratesCleared!==c.crates.filter(Boolean).length-s.crates.filter(Boolean).length||s.mudCleared!==c.mud.reduce((a,b)=>a+b,0)-s.mud.reduce((a,b)=>a+b,0))return false;

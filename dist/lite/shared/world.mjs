@@ -12,6 +12,18 @@ export const cellOfPlate = ([X, Y]) => fromWorld(X / PLATE.cell - PLATE.origin[0
 const NS = 'http://www.w3.org/2000/svg';
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); return e; };
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Frame-driven tween with a timer backstop: if frames pause (background tab,
+// throttled webview) the tween still lands on its final value and resolves.
+function tween(duration, onStep) {
+  return new Promise(resolve => {
+    const start = performance.now(); let finished = false;
+    const finish = () => { if (finished) return; finished = true; onStep(1); resolve(); };
+    const step = now => { if (finished) return; const t = Math.min(1, Math.max(0, (now - start) / duration)); onStep(t); if (t < 1) requestAnimationFrame(step); else finish(); };
+    requestAnimationFrame(step);
+    setTimeout(finish, duration + 150);
+  });
+}
+const settle = (anim, ms) => Promise.race([anim.finished.catch(() => {}), new Promise(r => setTimeout(r, ms + 150))]);
 const loadImage = src => new Promise((resolve, reject) => { const i = new Image(); i.decoding = 'async'; i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
 
 export function createWorld(container, handlers = {}) {
@@ -87,14 +99,10 @@ export function createWorld(container, handlers = {}) {
     const from = {...cam}; Object.assign(cam, target); clamp(); Object.assign(target, cam);
     if (!animate || reduced()) { applyCamera(); return Promise.resolve(); }
     Object.assign(cam, from);
-    const start = performance.now();
-    return new Promise(resolve => {
-      const step = now => {
-        const t = Math.min(1, (now - start) / duration), e = 1 - (1 - t) ** 3;
-        cam.scale = from.scale + (target.scale - from.scale) * e; cam.x = from.x + (target.x - from.x) * e; cam.y = from.y + (target.y - from.y) * e;
-        applyCamera(); if (t < 1) requestAnimationFrame(step); else resolve();
-      };
-      requestAnimationFrame(step);
+    return tween(duration, t => {
+      const e = 1 - (1 - t) ** 3;
+      cam.scale = from.scale + (target.scale - from.scale) * e; cam.x = from.x + (target.x - from.x) * e; cam.y = from.y + (target.y - from.y) * e;
+      applyCamera();
     });
   }
   const fit = (cells, opts) => frame(rectOfCells(cells), opts);
@@ -149,7 +157,7 @@ export function createWorld(container, handlers = {}) {
   function fadeDecal(id) {
     const img = decals.querySelector(`[data-decal="${id}"]`); if (!img) return Promise.resolve();
     if (reduced()) { img.remove(); return Promise.resolve(); }
-    return img.animate([{opacity: 1, transform: 'scale(1)'}, {opacity: 0, transform: 'scale(1.25)'}], {duration: 420, easing: 'ease-out'}).finished.then(() => img.remove());
+    return settle(img.animate([{opacity: 1, transform: 'scale(1)'}, {opacity: 0, transform: 'scale(1.25)'}], {duration: 420, easing: 'ease-out'}), 420).then(() => img.remove());
   }
 
   // Sprites: items, generators, scenery. Placed by their ground foot point.
@@ -180,8 +188,9 @@ export function createWorld(container, handlers = {}) {
     let p = pinMap.get(id);
     if (!p) {
       const el = document.createElement('button'); el.type = 'button'; pins.append(el); p = {el}; pinMap.set(id, p);
-      el.addEventListener('pointerdown', e => e.stopPropagation());
-      el.addEventListener('click', e => { e.stopPropagation(); p.onClick?.(); });
+      // A pin only claims taps on itself when nothing draggable is under it.
+      el.addEventListener('pointerdown', e => { if (!itemUnder(e.clientX, e.clientY)) e.stopPropagation(); });
+      el.addEventListener('click', e => { e.stopPropagation(); if (!itemUnder(e.clientX, e.clientY)) p.onClick?.(); });
     }
     if (p.html !== html) { p.el.innerHTML = html; p.html = html; }
     p.el.className = `pin ${cls}`; p.anchor = anchor; p.onClick = onClick; if (label) p.el.setAttribute('aria-label', label); placePin(p);
@@ -195,11 +204,7 @@ export function createWorld(container, handlers = {}) {
     const [x, y] = plateOf(cell), R = radiusCells * PLATE.cell * SQ3, spot = {x, y, r: 0};
     spots.push(spot);
     if (instant || reduced() || !plates) { spot.r = R; queueDraw(); return Promise.resolve(); }
-    const start = performance.now();
-    return new Promise(resolve => {
-      const step = now => { const t = Math.min(1, (now - start) / duration); spot.r = R * (1 - (1 - t) ** 3); draw(); if (t < 1) requestAnimationFrame(step); else resolve(); };
-      requestAnimationFrame(step);
-    });
+    return tween(duration, t => { spot.r = R * (1 - (1 - t) ** 3); draw(); });
   }
   function fog(id, cells) {
     fogSvg.querySelector(`[data-fog="${id}"]`)?.remove();
@@ -211,20 +216,49 @@ export function createWorld(container, handlers = {}) {
   function clearFog(id, duration = 1300) {
     const g = fogSvg.querySelector(`[data-fog="${id}"]`); if (!g) return Promise.resolve();
     if (reduced()) { g.remove(); return Promise.resolve(); }
-    return g.animate([{opacity: 1, transform: 'translate(0,0)'}, {opacity: 0, transform: 'translate(40px,-30px)'}], {duration, easing: 'ease-in'}).finished.then(() => g.remove());
+    return settle(g.animate([{opacity: 1, transform: 'translate(0,0)'}, {opacity: 0, transform: 'translate(40px,-30px)'}], {duration, easing: 'ease-in'}), duration).then(() => g.remove());
+  }
+
+  // Tap targets: the topmost sprite under the finger, else any interactive
+  // sprite whose box contains the point (sprites are small on a phone).
+  function spriteAtPoint(x, y) {
+    const item = itemUnder(x, y); if (item) return item;
+    const hit = document.elementFromPoint(x, y)?.closest?.('.spr');
+    if (hit && (hit.classList.contains('site') || hit.classList.contains('gen'))) return hit.dataset.id;
+    let best = null, bestD = Infinity;
+    for (const [id, s] of spriteMap) {
+      if (!/\b(item|gen|site)\b/.test(s.el.className)) continue;
+      const r = s.el.getBoundingClientRect(), pad = 10;
+      if (x < r.left - pad || x > r.right + pad || y < r.top - pad || y > r.bottom + pad) continue;
+      const d = Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height * .6));
+      if (d < bestD) { bestD = d; best = id; }
+    }
+    return best;
+  }
+
+  function itemUnder(x, y) {
+    for (const [id, sp] of spriteMap) {
+      if (!sp.el.classList.contains('item')) continue;
+      const r = sp.el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return id;
+    }
+    return null;
   }
 
   // Gestures: tap, drag (targets the game accepts) and pan (everything else).
   let gesture = null;
-  const targetOf = e => e.target.closest?.('.spr')?.dataset.id || null;
+  const targetOf = e => spriteAtPoint(e.clientX, e.clientY);
   container.addEventListener('pointerdown', e => {
     if (gesture || e.button > 0 || e.isPrimary === false) return;
+    if (e.target.closest?.('.pin') && !itemUnder(e.clientX, e.clientY)) return;
     const cell = cellAt(e.clientX, e.clientY), id = targetOf(e);
     gesture = {pointer: e.pointerId, start: [e.clientX, e.clientY], last: [e.clientX, e.clientY], cell, id, moved: false, dragging: false, panFrom: [cam.x, cam.y]};
     try { container.setPointerCapture(e.pointerId); } catch { /* synthetic pointers in tests */ }
     handlers.onPress?.(cell, id);
   });
-  container.addEventListener('pointermove', e => {
+  // Move/up are read from the window so a finger released over the HUD (or a
+  // lost pointer capture) still ends the gesture instead of leaving it open.
+  window.addEventListener('pointermove', e => {
     if (!gesture || gesture.pointer !== e.pointerId) return;
     const dx = e.clientX - gesture.start[0], dy = e.clientY - gesture.start[1];
     gesture.last = [e.clientX, e.clientY];
@@ -242,13 +276,12 @@ export function createWorld(container, handlers = {}) {
     if (g.dragging) { const foot = clientToPlate(g.last[0], g.last[1] - liftPx); onDragEnd(cancelled ? null : cellOfPlate(foot), foot, g.last); return; }
     if (!g.moved && !cancelled) onTap(g.cell, g.id, [e.clientX, e.clientY]);
   }
-  container.addEventListener('pointerup', e => end(e, false));
-  container.addEventListener('pointercancel', e => end(e, true));
-  container.addEventListener('lostpointercapture', e => { if (gesture?.pointer === e.pointerId && gesture.dragging) end(e, true); });
+  window.addEventListener('pointerup', e => end(e, false));
+  window.addEventListener('pointercancel', e => end(e, true));
 
   return {
     container, inner, cam, ready, fit, frame, rectOfCells, clientToPlate, plateToClient, cellAt, cellToClient,
     setCells, markCell, clearMarks, ringCells, badge, decal, fadeDecal, upsertSprite, moveSprite, removeSprite, spriteEl, spriteIds, spriteClient,
-    upsertPin, removePin, pinEl, reveal, fog, clearFog, isGesturing: () => !!gesture
+    upsertPin, removePin, pinEl, reveal, fog, clearFog, spriteAtPoint, isGesturing: () => !!gesture
   };
 }
