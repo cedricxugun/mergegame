@@ -1,10 +1,10 @@
 # 两个方向 · 方案与体验版
 
-同一个故事（风暴之后，米拉和莉娜回乡修家）、同一张原创故乡底图、同一套 28 级素材，做出两种核心循环，用来对比验证。
+两版都从米拉和莉娜回乡重建开始。当前 B 在横屏连续地图上操作，沿用四条材料链、20 张居民委托和 17 处修复。玩法与练习入口见 [README](README.md)。下方 v2 为原有方案记录。
 
 - 入口：`npm run dev` 后打开 `http://127.0.0.1:4178/lite/`
-- 单文件离线包（可直接发给试玩者）：`offline/forest-camp-lite-a.html`、`offline/forest-camp-lite-b.html`，各约 3.6 MB
-- 重新生成：`npm run build:lite`（素材 + 离线包）；规则测试：`node --test tests/lite.test.mjs`
+- 单文件离线包（可直接发给试玩者）：`offline/forest-camp-lite-a.html`、`offline/forest-camp-lite-b.html`
+- 重新生成：`npm run build:lite`（素材 + 离线包）；规则测试：`npm test`
 - 链接加 `?fresh=1` 重新开始；两版的「设置」里都能看到本机记录的试玩数据
 
 ## 第二轮打磨（v2）

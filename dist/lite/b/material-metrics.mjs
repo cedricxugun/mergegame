@@ -1,0 +1,32 @@
+// Sizes of the candy-color board illustrations in WebP pixels.
+// Pivots are the projected foot center, normalized in the trimmed frame.
+export const MATERIAL_METRICS = {
+  'mat-wood-1': {size: [318, 295], pivot: [0.53, 0.78]},
+  'mat-wood-2': {size: [320, 295], pivot: [0.52, 0.75]},
+  'mat-wood-3': {size: [320, 263], pivot: [0.47, 0.64]},
+  'mat-wood-4': {size: [320, 270], pivot: [0.48, 0.80]},
+  'mat-wood-5': {size: [320, 288], pivot: [0.48, 0.89]},
+  'mat-wood-6': {size: [320, 261], pivot: [0.49, 0.84]},
+  'mat-wood-7': {size: [320, 304], pivot: [0.49, 0.88]},
+  'mat-water-1': {size: [276, 320], pivot: [0.48, 0.88]},
+  'mat-water-2': {size: [320, 285], pivot: [0.48, 0.88]},
+  'mat-water-3': {size: [289, 320], pivot: [0.40, 0.88]},
+  'mat-water-4': {size: [320, 303], pivot: [0.72, 0.87]},
+  'mat-water-5': {size: [272, 320], pivot: [0.52, 0.91]},
+  'mat-water-6': {size: [315, 320], pivot: [0.52, 0.72]},
+  'mat-water-7': {size: [320, 313], pivot: [0.50, 0.83]},
+  'mat-reed-1': {size: [188, 320], pivot: [0.39, 0.92]},
+  'mat-reed-2': {size: [310, 320], pivot: [0.49, 0.92]},
+  'mat-reed-3': {size: [295, 320], pivot: [0.42, 0.81]},
+  'mat-reed-4': {size: [320, 256], pivot: [0.52, 0.76]},
+  'mat-reed-5': {size: [297, 320], pivot: [0.50, 0.89]},
+  'mat-reed-6': {size: [317, 320], pivot: [0.45, 0.83]},
+  'mat-reed-7': {size: [286, 320], pivot: [0.55, 0.88]},
+  'mat-dock-1': {size: [320, 259], pivot: [0.57, 0.70]},
+  'mat-dock-2': {size: [320, 253], pivot: [0.50, 0.64]},
+  'mat-dock-3': {size: [320, 280], pivot: [0.50, 0.72]},
+  'mat-dock-4': {size: [283, 320], pivot: [0.51, 0.88]},
+  'mat-dock-5': {size: [318, 320], pivot: [0.52, 0.75]},
+  'mat-dock-6': {size: [320, 300], pivot: [0.48, 0.90]},
+  'mat-dock-7': {size: [269, 320], pivot: [0.53, 0.79]}
+};

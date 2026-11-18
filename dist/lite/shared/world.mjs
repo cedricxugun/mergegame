@@ -26,7 +26,9 @@ function tween(duration, onStep) {
 const settle = (anim, ms) => Promise.race([anim.finished.catch(() => {}), new Promise(r => setTimeout(r, ms + 150))]);
 const loadImage = src => new Promise((resolve, reject) => { const i = new Image(); i.decoding = 'async'; i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
 
-export function createWorld(container, handlers = {}) {
+export function createWorld(container, handlers = {}, visuals = {}) {
+  const asset = visuals.asset || sprite;
+  const boxFor = visuals.box || spriteBox;
   const {onTap = () => {}, onDragStart = () => false, onDragMove = () => {}, onDragEnd = () => {}, onPan = () => {}, liftPx = 30} = handlers;
   container.classList.add('world');
   container.innerHTML = '';
@@ -37,37 +39,52 @@ export function createWorld(container, handlers = {}) {
   const canvas = document.createElement('canvas'); canvas.className = 'plate'; canvas.width = PLATE.width; canvas.height = PLATE.height;
   const ctx = canvas.getContext('2d'), mask = document.createElement('canvas'); mask.width = PLATE.width; mask.height = PLATE.height;
   const mctx = mask.getContext('2d');
+  const settledMask = document.createElement('canvas');
+  settledMask.width = PLATE.width; settledMask.height = PLATE.height;
+  const settledCtx = settledMask.getContext('2d');
+  let eastEdge = null;
+  if (visuals.extendEast) {
+    eastEdge=document.createElement('canvas');eastEdge.width=1;eastEdge.height=PLATE.height;
+    Object.assign(eastEdge.style,{position:'absolute',top:'0',left:(PLATE.width-1)+'px',width:PLATE.width+'px',height:PLATE.height+'px',pointerEvents:'none'});
+  }
   const turf = svgEl('svg', {class: 'turf', viewBox: `0 0 ${PLATE.width} ${PLATE.height}`, width: PLATE.width, height: PLATE.height});
   turf.innerHTML = '<g class="decals"></g><g class="cells"></g><g class="rings"></g>';
   const sprites = document.createElement('div'); sprites.className = 'sprites';
   const fogSvg = svgEl('svg', {class: 'turf fog', viewBox: `0 0 ${PLATE.width} ${PLATE.height}`, width: PLATE.width, height: PLATE.height});
   fogSvg.innerHTML = '<defs><radialGradient id="fog-soft"><stop offset="0" stop-color="#eef2ea" stop-opacity=".97"/><stop offset=".55" stop-color="#e3eadf" stop-opacity=".85"/><stop offset="1" stop-color="#e3eadf" stop-opacity="0"/></radialGradient></defs>';
   inner.append(canvas, turf, sprites, fogSvg);
+  if(eastEdge)inner.insertBefore(eastEdge,turf);
   const pins = document.createElement('div'); pins.className = 'pins';
   container.append(inner, pins);
   const decals = turf.querySelector('.decals'), cellsG = turf.querySelector('.cells'), rings = turf.querySelector('.rings');
 
   const cam = {scale: 1, x: 0, y: 0};
-  const spriteMap = new Map(), pinMap = new Map(), cellMap = new Map(), spots = [];
+  const spriteMap = new Map(), pinMap = new Map(), cellMap = new Map(), activeSpots = new Set();
   let plates = null, focusRect = null, drawQueued = false;
-  const ready = Promise.all([loadImage(sprite('homeland-gloom')), loadImage(sprite('homeland'))]).then(([gloom, color]) => { plates = {gloom, color}; draw(); });
+  const plateNames = visuals.plates || ['homeland-gloom', 'homeland'];
+  const ready = Promise.all(plateNames.map(name => loadImage(asset(name)))).then(([gloom, color]) => { plates = {gloom, color}; draw(); });
 
+  function paintSpot(layer, s) {
+    if (s.r <= 1) return;
+    const g = layer.createRadialGradient(s.x, s.y, s.r * .35, s.x, s.y, s.r);
+    g.addColorStop(0,'rgba(0,0,0,1)'); g.addColorStop(.7,'rgba(0,0,0,.85)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    layer.save();
+    layer.translate(s.x,s.y);layer.scale(1,.8);layer.translate(-s.x,-s.y);
+    layer.fillStyle=g;layer.beginPath();layer.arc(s.x,s.y,s.r,0,Math.PI*2);layer.fill();
+    layer.restore();
+  }
   function draw() {
     drawQueued = false; if (!plates) return;
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(plates.gloom, 0, 0, PLATE.width, PLATE.height);
     mctx.globalCompositeOperation = 'source-over';
     mctx.clearRect(0, 0, PLATE.width, PLATE.height);
-    for (const s of spots) {
-      if (s.r <= 1) continue;
-      const g = mctx.createRadialGradient(s.x, s.y, s.r * 0.35, s.x, s.y, s.r);
-      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.7, 'rgba(0,0,0,.85)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-      mctx.fillStyle = g; mctx.save(); mctx.translate(s.x, s.y); mctx.scale(1, 0.8); mctx.translate(-s.x, -s.y);
-      mctx.beginPath(); mctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); mctx.fill(); mctx.restore();
-    }
+    mctx.drawImage(settledMask,0,0);
+    for (const spot of activeSpots) paintSpot(mctx,spot);
     mctx.globalCompositeOperation = 'source-in';
     mctx.drawImage(plates.color, 0, 0, PLATE.width, PLATE.height);
     ctx.drawImage(mask, 0, 0);
+    if(eastEdge)eastEdge.getContext('2d').drawImage(canvas,PLATE.width-1,0,1,PLATE.height,0,0,1,PLATE.height);
   }
   const queueDraw = () => { if (!drawQueued) { drawQueued = true; requestAnimationFrame(draw); } };
 
@@ -78,10 +95,11 @@ export function createWorld(container, handlers = {}) {
   }
   // `slack` lets the plate edge slide under the HUD bars instead of forcing
   // regions near the painting's edge off-centre.
-  let slack = {top: 0, bottom: 0};
+  let slack = {top: 0, bottom: 0, right: 0};
   function clamp() {
     const w = container.clientWidth, h = container.clientHeight, sw = PLATE.width * cam.scale, sh = PLATE.height * cam.scale;
-    cam.x = sw <= w ? (w - sw) / 2 : Math.min(0, Math.max(w - sw, cam.x));
+    const workWidth = w - slack.right;
+    cam.x = sw <= workWidth ? (workWidth - sw) / 2 : Math.min(0, Math.max(workWidth - sw, cam.x));
     cam.y = sh + slack.top + slack.bottom <= h ? (h - sh) / 2 : Math.min(slack.top, Math.max(h - sh - slack.bottom, cam.y));
   }
   function rectOfCells(cells) {
@@ -90,10 +108,11 @@ export function createWorld(container, handlers = {}) {
     return {x, y, width: x2 - x, height: y2 - y};
   }
   function frame(rect, opts = {}) {
-    const {pad = 0.3, top = 0, bottom = 0, animate = false, maxScale = 1.3, duration = 650, overscroll = false} = opts;
-    slack = overscroll ? {top: top * 0.9, bottom: bottom * 0.6} : {top: 0, bottom: 0};
+    const {pad = 0.3, top = 0, bottom = 0, right = 0, animate = false, maxScale = 1.3, duration = 650, overscroll = false} = opts;
+    const insetRight=typeof right==='function'?right():right;
+    slack = overscroll ? {top: top * 0.9, bottom: bottom * 0.6, right:insetRight} : {top: 0, bottom: 0, right: 0};
     focusRect = {rect, opts: {...opts, animate: false}};
-    const w = container.clientWidth, h = Math.max(80, container.clientHeight - top - bottom), p = pad * PLATE.cell * 2;
+    const w = Math.max(120,container.clientWidth-insetRight), h = Math.max(80, container.clientHeight - top - bottom), p = pad * PLATE.cell * 2;
     const scale = Math.min(maxScale, w / (rect.width + p), h / (rect.height + p));
     const target = {scale, x: w / 2 - (rect.x + rect.width / 2) * scale, y: top + h / 2 - (rect.y + rect.height / 2) * scale};
     const from = {...cam}; Object.assign(cam, target); clamp(); Object.assign(target, cam);
@@ -120,8 +139,8 @@ export function createWorld(container, handlers = {}) {
     for (const e of entries) {
       const k = key(...e.cell); let node = cellMap.get(k);
       if (!node) {
-        const [X, Y] = plateOf(e.cell);
-        node = svgEl('polygon', {points: corners(X, Y, PLATE.cell * 0.97).map(p => p.map(v => v.toFixed(1)).join(',')).join(' ')});
+        const [X,Y] = plateOf(e.cell);
+        node = svgEl('polygon',{points: corners(X,Y,PLATE.cell*.97).map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')});
         cellsG.append(node); cellMap.set(k, node);
       }
       const tone = ((e.cell[0] - e.cell[1]) % 3 + 3) % 3;
@@ -146,12 +165,12 @@ export function createWorld(container, handlers = {}) {
     const t = svgEl('text', {x: X, y: Y + 5, 'text-anchor': 'middle'}); t.textContent = text; g.append(t);
     rings.append(g);
   }
-  function decal(id, name, cell, {width = PLATE.cell * SQ3 * 1.08, cls = '', opacity = 1} = {}) {
+  function decal(id, name, cell, {width = PLATE.cell * SQ3 * 1.08, aspect = .5, cls = '', opacity = 1} = {}) {
     const old = decals.querySelector(`[data-decal="${id}"]`);
     if (!name) { old?.remove(); return; }
-    const [X, Y] = plateOf(cell), h = width * 0.5;
+    const [X, Y] = plateOf(cell), h = width * aspect;
     const img = old || svgEl('image', {'data-decal': id, preserveAspectRatio: 'none'});
-    Object.entries({href: sprite(name), x: X - width / 2, y: Y - h / 2, width, height: h, class: `decal ${cls}`, opacity}).forEach(([k, v]) => img.setAttribute(k, v));
+    Object.entries({href: asset(name), x: X - width / 2, y: Y - h / 2, width, height: h, class: `decal ${cls}`, opacity}).forEach(([k, v]) => img.setAttribute(k, v));
     if (!old) decals.append(img);
   }
   function fadeDecal(id) {
@@ -164,8 +183,8 @@ export function createWorld(container, handlers = {}) {
   function upsertSprite(id, {name, cell, foot, extent, cls = '', z = null, lift = 0.32}) {
     let s = spriteMap.get(id);
     if (!s) { const el = document.createElement('div'); el.innerHTML = '<img alt="" draggable="false">'; sprites.append(el); s = {el, name: null}; spriteMap.set(id, s); }
-    const f = foot || plateOf(cell), box = spriteBox(name, [f[0], f[1] + PLATE.cell * lift], extent);
-    if (s.name !== name) { s.el.querySelector('img').src = sprite(name); s.name = name; }
+    const f = foot || plateOf(cell), box = boxFor(name, [f[0], f[1] + PLATE.cell * lift], extent);
+    if (s.name !== name) { s.el.querySelector('img').src = asset(name); s.name = name; }
     s.el.className = `spr ${cls}`; s.el.dataset.id = id;
     Object.assign(s.el.style, {left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, zIndex: String(z ?? Math.round(f[1] * 2))});
     Object.assign(s, {foot: f, extent, cell, lift});
@@ -174,7 +193,7 @@ export function createWorld(container, handlers = {}) {
   // Moves an existing sprite's foot without touching anything else (drag path).
   function moveSprite(id, foot, {z = null} = {}) {
     const s = spriteMap.get(id); if (!s) return;
-    const box = spriteBox(s.name, [foot[0], foot[1] + PLATE.cell * s.lift], s.extent);
+    const box = boxFor(s.name, [foot[0], foot[1] + PLATE.cell * s.lift], s.extent);
     s.el.style.left = `${box.left}px`; s.el.style.top = `${box.top}px`; if (z !== null) s.el.style.zIndex = String(z);
   }
   function removeSprite(id) { const s = spriteMap.get(id); if (s) { s.el.remove(); spriteMap.delete(id); } }
@@ -202,9 +221,13 @@ export function createWorld(container, handlers = {}) {
   // Colour returns around a cell. Spots persist, so reloads restore them.
   function reveal(cell, radiusCells, {duration = 900, instant = false} = {}) {
     const [x, y] = plateOf(cell), R = radiusCells * PLATE.cell * SQ3, spot = {x, y, r: 0};
-    spots.push(spot);
-    if (instant || reduced() || !plates) { spot.r = R; queueDraw(); return Promise.resolve(); }
-    return tween(duration, t => { spot.r = R * (1 - (1 - t) ** 3); draw(); });
+    if (instant || reduced() || !plates) { spot.r=R; paintSpot(settledCtx,spot); queueDraw(); return Promise.resolve(); }
+    activeSpots.add(spot);
+    return tween(duration, t => {
+      spot.r=R*(1-(1-t)**3);
+      if (t===1 && activeSpots.delete(spot)) paintSpot(settledCtx,spot);
+      queueDraw();
+    });
   }
   function fog(id, cells) {
     fogSvg.querySelector(`[data-fog="${id}"]`)?.remove();
@@ -236,13 +259,16 @@ export function createWorld(container, handlers = {}) {
     return best;
   }
 
-  function itemUnder(x, y) {
+  function itemUnder(x, y, except = null) {
+    let best = null, bestScore = Infinity;
     for (const [id, sp] of spriteMap) {
-      if (!sp.el.classList.contains('item')) continue;
+      if (id === except || !sp.el.classList.contains('item')) continue;
       const r = sp.el.getBoundingClientRect();
-      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return id;
+      if (x < r.left || x > r.right || y < r.top || y > r.bottom) continue;
+      const score = Math.hypot((x - r.left) / r.width - .5, (y - r.top) / r.height - .55);
+      if (score < bestScore) { bestScore = score; best = id; }
     }
-    return null;
+    return best;
   }
 
   // Gestures: tap, drag (targets the game accepts) and pan (everything else).
@@ -282,6 +308,6 @@ export function createWorld(container, handlers = {}) {
   return {
     container, inner, cam, ready, fit, frame, rectOfCells, clientToPlate, plateToClient, cellAt, cellToClient,
     setCells, markCell, clearMarks, ringCells, badge, decal, fadeDecal, upsertSprite, moveSprite, removeSprite, spriteEl, spriteIds, spriteClient,
-    upsertPin, removePin, pinEl, reveal, fog, clearFog, spriteAtPoint, isGesturing: () => !!gesture
+    upsertPin, removePin, pinEl, reveal, fog, clearFog, spriteAtPoint, itemUnder, isGesturing: () => !!gesture
   };
 }

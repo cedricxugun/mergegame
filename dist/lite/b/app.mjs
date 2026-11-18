@@ -1,530 +1,561 @@
-// Prototype B · 纯合成: tap generators, merge on the hex map, clear storm debris
-// by merging beside it, fill residents' orders, install components to repair
-// the camp, the creek valley and the river bend. Rules live in rules.mjs.
+// Merge directly in the homeland. Rules commit before presentation.
+// A held drag uses its own draft until the player releases it on the map.
 import * as R from './rules.mjs';
-import {createWorld, plateOf, PLATE} from '../shared/world.mjs';
-import {key, parseKey, neighbors} from '../shared/hex.mjs';
-import {CHAINS, nameOf, matName} from '../shared/art.mjs';
-import {SPOTS, REGIONS, regionOfCell, regionFrame, AREA} from '../shared/map.mjs';
-import {CAST, INTRO, LETTER, DIARY, OUTRO} from '../shared/chapter.mjs';
-import {renderScenery, creekLayer, renderLife} from '../shared/scenery.mjs';
-import {sfx, unlock, setMuted} from '../shared/audio.mjs';
-import {burst, ring, floatText, fly, squash, shake, haptic, centerOf, reducedMotion} from '../shared/fx.mjs';
-import {createStore, createMetrics} from '../shared/store.mjs';
-import {$, esc, wait, sprite, toast, sheet, speak, converse} from '../shared/ui.mjs';
+import {recoverHomeland} from './resume.mjs';
+import * as V from './views.mjs';
+import {bayBoard} from './board.mjs';
+import {art, materialSound} from './art.mjs';
+import {WORKSHOPS, WORK_ART, CHAIN_SHOP, JOB_NAMES, BENEFITS, REGION_COPY} from './story.mjs';
+import {REGIONS, SPOTS, SPOT_REGION, regionOfCell, spotAt} from '../shared/map.mjs';
+import {matName, nameOf, CHAINS} from '../shared/art.mjs';
+import {key, parseKey} from '../shared/hex.mjs';
+import {CAST, LETTER} from '../shared/chapter.mjs';
+import {createStore,createMetrics} from '../shared/store.mjs';
+import {$, sheet, esc, wait} from '../shared/ui.mjs';
+import {sfx, setMuted, unlock} from '../shared/audio.mjs';
+import {burst, ring, fly, floatText, squash, haptic, centerOf, reducedMotion} from '../shared/fx.mjs';
 import {icon} from '../shared/icons.mjs';
 
-const PORTRAIT = {mira: sprite('portrait-mira'), lina: sprite('portrait-lina'), rowan: sprite('portrait-rowan')};
-const NAMES = Object.fromEntries(Object.entries(CAST).map(([k, v]) => [k, v.name]));
-const store = createStore('forest-camp.lite-b', R.VERSION);
-const saved = store.load(() => null) || {};
-let state = saved.state && R.validate(saved.state) ? saved.state : R.freshState();
+const launchUrl=new URL(location.href);
+const practice = launchUrl.searchParams.get('visit') === 'wharf';
+const store = createStore('forest-camp.lite-b' + (practice ? '.ferry-practice' : ''), R.VERSION);
+if(launchUrl.searchParams.has('fresh')) {
+  const clean=new URL(location.href);clean.searchParams.delete('fresh');
+  try {history.replaceState(null,'',clean.href);} catch { /* Some file viewers disable history writes. */ }
+}
+const saved = store.load(()=>null) || {};
+const recovery=recoverHomeland(saved.state);
+if(recovery.backup) {
+  try { const key='forest-camp.lite-b.counter-backup';if(!localStorage.getItem(key))localStorage.setItem(key,JSON.stringify(saved)); } catch { /* The active save can still be used. */ }
+}
+let state=recovery.state || (practice ? R.wharfPractice() : R.beginVoyage());
+R.refillOrders(state);
+let region = REGIONS[saved.view] && R.isOpen(state,saved.view) ? saved.view : practice ? 'river' : 'camp';
+let tracked = saved.tracked;
+let shop = saved.shop;
+let selected = null, drag = null, busy = false, story = null, feedbackTimer = 0;
+let muted = !!saved.muted, vibrations = saved.vibrations !== false;
 const metrics = createMetrics(saved.metrics);
-let muted = !!saved.muted; setMuted(muted);
-let seenDiary = saved.seenDiary ?? 1;
-let view = saved.view && REGIONS[saved.view] && R.isOpen(state, saved.view) ? saved.view : 'camp';
-let selected = null, busy = false, drag = null;
-
+setMuted(muted);
 const app = $('#app');
-app.innerHTML = `
-  <div id="world"></div>
-  <header class="hud">
-    <button class="pill energy" id="energy" aria-label="体力"><span class="pill-icon">${icon.energy}</span><span id="energy-n"></span><small id="energy-t"></small><span class="plus" aria-hidden="true">+</span></button>
-    <div class="pill" id="coins"><span class="pill-icon">${icon.star}</span><span id="coins-n"></span></div>
-    <div class="spacer"></div>
-    <button class="icon-btn" id="diary" aria-label="外婆的手记">${icon.book}<b id="diary-dot" hidden></b></button>
-    <button class="icon-btn" id="settings" aria-label="设置">${icon.gear}</button>
-  </header>
-  <nav class="regions" id="regions" aria-label="切换地区"></nav>
-  <section class="orders" id="orders" aria-label="居民的请求"></section>
-  <footer class="bottom">
-    <div class="panel" id="panel" aria-live="polite"></div>
-    <div class="bottom-row"><div class="bag" id="bag" aria-label="背包"></div><button class="icon-btn hint-btn" id="hint" aria-label="提示">${icon.hint}</button></div>
-  </footer>`;
-
-const world = createWorld($('#world'), {onPress: () => unlock(), onTap: handleTap, onDragStart: startDrag, onDragMove: moveDrag, onDragEnd: endDrag});
-const creek = creekLayer($('#world'));
-
-// ---------- persistence ----------
-function save() { store.save({state, metrics: metrics.data, muted, view, seenDiary}); }
-setInterval(() => { if (!busy) { R.tick(state); renderHud(); } }, 1000);
-document.addEventListener('visibilitychange', () => { if (document.hidden) { metrics.flush(); save(); } else { R.tick(state); render(); } });
-
-// ---------- camera ----------
-const findItem = id => state.items.find(i => i.id === id) || state.bag.find(i => i.id === id);
-const sameKind = (a, b) => { const x = findItem(a), y = findItem(b); return x && y && x.id !== y.id && x.chain === y.chain && x.level === y.level && x.level < 7; };
-// Frame the region's land plus the debris that touches it, so the camera
-// widens as the clearing grows.
-function frameCells(region) {
-  if (!R.isOpen(state, region)) return regionFrame(region);
-  const land = R.landCells(state).filter(c => regionOfCell(c) === region), keys = new Set(land.map(c => key(...c)));
-  const edge = R.stormCells(state).filter(t => t.region === region && neighbors(...t.cell).some(n => keys.has(key(...n)))).map(t => t.cell);
-  return regionFrame(region, [...land, ...edge]);
+app.classList.add('bay-app');
+document.body.classList.add('bay-body');
+document.body.style.setProperty('--postcard', 'url("'+art('river-postcard')+'")');
+document.body.style.setProperty('--homeland','url("'+art('world')+'")');
+app.innerHTML=V.shell();
+const field=$('.playfield'), board=bayBoard($('#world'),{onTap:tapTile,onPress:unlock,onDragStart:lift,onDragMove:carry,onDragEnd:drop});
+const {world}=board;
+const pulse = ms => { if(vibrations) haptic(ms); };
+function save() {
+  store.save({state, view:region, tracked, shop, muted, vibrations, metrics:metrics.data});
 }
-function insets() {
-  const a = app.getBoundingClientRect();
-  return {top: $('#orders').getBoundingClientRect().bottom - a.top + 6, bottom: a.bottom - $('.bottom').getBoundingClientRect().top + 4};
+const findItem = (id,s=state) => [...s.items,...s.bag].find(i=>i.id===id);
+const matches = (a,b) => a&&b&&a.id!==b.id&&a.chain===b.chain&&a.level===b.level&&a.level<7;
+function currentJob() {
+  const available=R.availableRepairs(state);
+  return available.find(r=>r.id===tracked) || available.find(r=>SPOT_REGION[r.spot]===region) || available[0];
 }
-function focusRegion(region, animate = true) {
-  view = region; save(); renderRegions();
-  return world.fit(frameCells(region), {...insets(), pad: .05, animate, maxScale: 1.2, overscroll: true});
+function currentShop() {
+  const available=Object.keys(R.GENERATORS).filter(id=>R.generatorOpen(state,id) && R.GENERATORS[id].region===region);
+  const preferred=CHAIN_SHOP[currentJob()?.chain];
+  return available.includes(shop)?shop:available.includes(preferred)?preferred:available[0] || 'logs';
 }
-
-// ---------- rendering ----------
-function renderTurf() {
-  const entries = R.landCells(state).map(c => ({cell: c, cls: 'free'}));
-  const items = state.items.filter(i => i.cell);
-  for (const t of R.stormCells(state)) {
-    const near = items.some(i => neighbors(...i.cell).some(n => key(...n) === key(...t.cell)) && i.level >= t.level);
-    entries.push({cell: t.cell, cls: 'storm' + (near ? ' frontier' : '')});
-  }
-  world.setCells(entries);
-  for (const [k, t] of R.STORM) {
-    const show = !state.healed.includes(k) && R.isOpen(state, t.region);
-    world.decal('storm-' + k, show ? (t.level >= 4 ? 'ground-gravel' : t.level >= 3 ? 'ground-roots' : 'ground-chips') : null, t.cell, {cls: 'debris'});
-    const edge = show && neighbors(...t.cell).some(n => R.isLand(state, n));
-    world.badge('storm-' + k, t.cell, edge ? `L${t.level}` : null);
-  }
-  world.fog('creek', R.isOpen(state, 'creek') ? null : [...AREA.creek, ...AREA.river]);
+function html(el,markup) { if(el._view!==markup){el._view=markup;el.innerHTML=markup;} }
+function renderWallet() {
+  $('#en').textContent=state.energy>state.maxEnergy?state.energy:state.energy+'/'+state.maxEnergy;
+  $('#money').textContent=state.coins;
+  $('#energy').classList.toggle('low',state.energy<=4);
 }
-function renderSites() {
-  const carrying = drag && findItem(drag.id), glow = new Set();
-  if (carrying) for (const r of R.availableRepairs(state)) if (carrying.chain === r.chain && carrying.level === r.level) glow.add(r.spot);
-  renderScenery(world, state.done, {glow, dim: spot => !R.isOpen(state, R.SPOT_REGION[spot])});
-  for (const [id, g] of Object.entries(R.GENERATORS)) {
-    if (!g.art) continue;
-    world.upsertSprite('gen-' + id, {name: g.art, cell: SPOTS[g.spot], extent: PLATE.cell * 2, cls: 'gen' + (R.generatorOpen(state, id) ? '' : ' dim'), lift: .2});
-  }
-  creek.set(R.done(state, 'stream') ? 'flow' : 'dry');
-  renderLife(world, state.done);
+function renderWorld(s=state,carried=null) {
+  board.render(s,{region,job:currentJob(),selected:carried || selected,carried,onJob:showJob,onWorkshop:gather});
 }
-function renderItems() {
-  const live = new Set(state.items.map(i => 'item-' + i.id));
-  for (const id of world.spriteIds()) if (id.startsWith('item-') && !live.has(id)) world.removeSprite(id);
-  const repairs = R.availableRepairs(state), wanted = new Set(state.orders.flatMap(o => R.orderNeeds(o).map(([c, l]) => c + l)));
-  for (const i of state.items) {
-    if (drag?.id === i.id) continue;
-    const goal = repairs.some(r => r.chain === i.chain && r.level === i.level) || wanted.has(i.chain + i.level);
-    const match = selected && sameKind(selected, i.id);
-    world.upsertSprite('item-' + i.id, {name: matName(i.chain, i.level), cell: i.cell, extent: PLATE.cell * (1.4 + i.level * .08),
-      cls: `item ${selected === i.id ? 'selected' : ''} ${match ? 'match-target' : ''} ${goal ? 'goal' : ''}`});
-  }
+function coach() {
+  if(state.done.length || selected) return '';
+  if(!state.stats.merges && state.items.length>=2) return '将两件相同的材料拖到一起';
+  if(R.progressFor(state,R.repairById('roof')).ready) return '补片已做好，点「修复」送去棚顶';
+  const pair=state.items.some((a,n)=>state.items.slice(n+1).some(b=>matches(a,b)));
+  return pair ? '两件相同的材料可以再合一级' : '点倒木堆，再取一些木料';
 }
-function renderPins() {
-  const repairs = R.availableRepairs(state), all = [...state.items, ...state.bag];
-  for (const r of R.REPAIRS) {
-    const id = 'pin-' + r.id, [x, y] = plateOf(SPOTS[r.spot]);
-    // Only one pin per spot: the next repair there.
-    if (!repairs.includes(r) || !R.isOpen(state, R.SPOT_REGION[r.spot]) || repairs.some(o => o.spot === r.spot && R.REPAIRS.indexOf(o) < R.REPAIRS.indexOf(r))) { world.removePin(id); continue; }
-    const ready = all.some(i => i.chain === r.chain && i.level === r.level);
-    world.upsertPin(id, {anchor: [x, y - PLATE.cell * 1.85], cls: 'clickable site ' + (ready ? 'ready' : ''), label: r.title,
-      html: `<img src="${sprite(matName(r.chain, r.level))}" alt=""><span class="lvl">L${r.level}</span>${ready ? icon.check.replace('<svg', '<svg width="18" height="18"') : ''}`,
-      onClick: () => showRepair(r)});
-  }
-  for (const [id, g] of Object.entries(R.GENERATORS)) {
-    const pid = 'gen-' + id, [x, y] = plateOf(SPOTS[g.spot]);
-    if (!R.generatorOpen(state, id)) { world.removePin(pid); continue; }
-    world.upsertPin(pid, {anchor: [x - PLATE.cell * 1.2, y - PLATE.cell * .2], cls: 'clickable gen-pin', label: `${g.name}：点一下产出${CHAINS[g.chain].label}材料`,
-      html: `${icon.energy.replace('<svg', '<svg width="13" height="13"')}${CHAINS[g.chain].label}`, onClick: () => tapGen(id)});
-  }
-  world.removePin('creek-lock');
-  if (!R.isOpen(state, 'creek')) { const [x, y] = plateOf([7, -1]); world.upsertPin('creek-lock', {anchor: [x, y], cls: 'clickable locked', html: `${icon.lock.replace('<svg', '<svg width="18" height="18"')} 修好旧路后开放`, onClick: () => toast('先把营地东边的旧路修好（施工支架 L5）')}); }
+function message(text='',duration=2000) {
+  clearTimeout(feedbackTimer);
+  const el=$('#field-message');
+  el.textContent=text || coach(); el.classList.toggle('show',!!el.textContent);
+  if(text) feedbackTimer=setTimeout(()=>{feedbackTimer=0;message();},duration);
+  else feedbackTimer=0;
 }
-function renderRegions() {
-  $('#regions').innerHTML = Object.entries(REGIONS).map(([id, r]) => {
-    const open = R.isOpen(state, id), work = open && id !== view && regionHasWork(id);
-    return `<button data-region="${id}" class="${id === view ? 'on' : ''} ${work ? 'attention' : ''}" ${open ? '' : 'disabled'}>${open ? '' : icon.lock.replace('<svg', '<svg width="12" height="12"')}${r.short}</button>`;
-  }).join('');
+function render() {
+  const r=currentJob(), current=findItem(selected);
+  tracked=r?.id||null; shop=currentShop();
+  renderWorld(drag?.draft || state,drag?.id); renderWallet();
+  $('#chapter-number').textContent=state.done.length+'/'+R.REPAIRS.length;
+  $('#region-name').textContent=REGIONS[region].name+(practice?' · 练习':'');
+  const requestEl=$('#requests'), scroll=requestEl.querySelector('.orders-list')?.scrollLeft||0;
+  html(requestEl,V.ordersView(state,r,story)); if(scroll && requestEl.querySelector('.orders-list'))requestEl.querySelector('.orders-list').scrollLeft=scroll;
+  $('#bag-num').textContent=state.bag.length+'/'+state.bagSize;
+  html($('#panel'),current?V.itemPanel(state,current):V.repairPanel(state,r));
+  const gatherEl=$('#gather'); html(gatherEl,V.gatherView(state,shop)); gatherEl.dataset.shop=shop;
+  if(!feedbackTimer)message();
 }
-function regionHasWork(region) {
-  const here = state.items.filter(i => regionOfCell(i.cell) === region);
-  if (R.availableRepairs(state).some(r => R.SPOT_REGION[r.spot] === region && [...state.items, ...state.bag].some(i => i.chain === r.chain && i.level === r.level))) return true;
-  return here.some((a, n) => here.some((b, m) => m > n && a.chain === b.chain && a.level === b.level && a.level < 7));
-}
-function renderHud() {
-  R.tick(state);
-  $('#energy-n').textContent = `${state.energy}/${state.maxEnergy}`;
-  const next = R.nextEnergyIn(state);
-  $('#energy-t').textContent = next ? `${Math.ceil(next / 1000)}s` : '';
-  $('#energy').classList.toggle('low', state.energy < 5);
-  $('#coins-n').textContent = state.coins;
-  $('#diary-dot').hidden = state.diary.length <= seenDiary;
-}
-function renderOrders() {
-  const all = [...state.items, ...state.bag];
-  $('#orders').innerHTML = state.orders.map(o => {
-    const t = R.ORDERS.find(x => x.id === o.id), picks = R.pickForOrder(state, o), used = new Set();
-    const needs = t.needs.map(([chain, lv]) => {
-      const have = all.find(i => !used.has(i.id) && i.chain === chain && i.level === lv); if (have) used.add(have.id);
-      return `<span class="need ${have ? 'have' : ''}"><img src="${sprite(matName(chain, lv))}" alt="${nameOf(chain, lv)}"><b>${lv}</b></span>`;
-    }).join('');
-    return `<button class="order ${picks ? 'ready' : ''}" data-order="${o.id}" aria-label="${NAMES[t.who]}：${esc(t.text)}"><span class="who"><img src="${PORTRAIT[t.who]}" alt=""></span><span class="needs">${needs}</span><span class="reward">${picks ? '<em>交付</em>' : `<span>${icon.star}${t.coins}</span>`}</span>${t.diary && !state.diary.includes(t.diary) ? '<i class="page" title="会找回一页手记"></i>' : ''}</button>`;
-  }).join('');
-}
-function renderBag() {
-  const slots = Array.from({length: state.bagSize}, (_, n) => state.bag[n]);
-  $('#bag').innerHTML = `<span class="bag-label">${icon.bag}</span>` + slots.map((i, n) => i
-    ? `<button class="slot filled" data-bag="${i.id}" aria-label="背包：${nameOf(i.chain, i.level)} L${i.level}"><img src="${sprite(matName(i.chain, i.level))}" alt=""><b>${i.level}</b></button>`
-    : `<span class="slot" data-slot="${n}"></span>`).join('');
-}
-function renderPanel() {
-  const item = selected && findItem(selected), panel = $('#panel');
-  if (item) {
-    const c = CHAINS[item.chain], max = state.discovered[item.chain];
-    const ladder = c.names.map((n, j) => `<span class="${j + 1 === item.level ? 'current' : ''} ${j + 1 > max ? 'unknown' : ''}"><img src="${sprite(matName(item.chain, j + 1))}" alt=""></span>`).join('');
-    panel.innerHTML = `<div class="copy"><strong>${nameOf(item.chain, item.level)} <em>L${item.level}</em></strong><div class="ladder">${ladder}</div></div>
-      <div class="acts">${item.cell ? `<button class="btn secondary" data-act="store">${icon.bag}收起</button>` : `<button class="btn secondary" data-act="place">放回</button>`}<button class="btn secondary" data-act="sell">${icon.star}${R.sellPrice(item.level)}</button></div>`;
-    panel.className = 'panel item';
-    return;
-  }
-  panel.className = 'panel goal';
-  const repairs = R.availableRepairs(state);
-  if (!repairs.length) { panel.className = 'panel goal finished'; panel.innerHTML = `<span class="art"><img src="${sprite('v11-cookfire')}" alt=""></span><div class="copy"><strong>第一章完成了</strong><small>山坡上的信号灯，下一章见</small></div>`; return; }
-  const here = repairs.filter(r => R.SPOT_REGION[r.spot] === view), list = (here.length ? here : repairs).slice(0, 3), all = [...state.items, ...state.bag];
-  panel.innerHTML = `<div class="tasks">${list.map(r => {
-    const ready = all.some(i => i.chain === r.chain && i.level === r.level), best = Math.max(0, ...all.filter(i => i.chain === r.chain && i.level <= r.level).map(i => i.level));
-    return `<button class="task ${ready ? 'ready' : ''}" data-task="${r.id}"><span class="art"><img src="${sprite(matName(r.chain, r.level))}" alt=""></span><span class="copy"><strong>${r.title}</strong><small>${ready ? '拖到工地上' : `${CHAINS[r.chain].label} L${r.level} · 现有最高 L${best}`}</small></span></button>`;
-  }).join('')}</div>${repairs.length > list.length ? `<small class="more">还有 ${repairs.length - list.length} 处可修</small>` : ''}`;
-}
-function render() { renderTurf(); renderSites(); renderItems(); renderPins(); renderRegions(); renderHud(); renderOrders(); renderBag(); renderPanel(); save(); }
-
-// ---------- interactions ----------
-function handleTap(cell, spriteId) {
-  if (busy) return;
-  if (spriteId?.startsWith('gen-')) { tapGen(spriteId.slice(4)); return; }
-  const item = spriteId?.startsWith('item-') ? findItem(spriteId.slice(5)) : R.itemAt(state, cell);
-  if (item) {
-    if (selected && sameKind(selected, item.id)) { doMerge(selected, item.id); return; }
-    selected = selected === item.id ? null : item.id; sfx.tap(); render(); return;
-  }
-  const spot = spriteId?.startsWith('site-') ? spriteId.slice(5) : null;
-  if (spot) {
-    const gen = Object.entries(R.GENERATORS).find(([, g]) => g.spot === spot)?.[0];
-    const repair = R.availableRepairs(state).find(r => r.spot === spot), it = selected && findItem(selected);
-    if (repair && it && it.chain === repair.chain && it.level === repair.level) { doInstall(it.id, repair.id); return; }
-    if (gen && R.generatorOpen(state, gen)) { tapGen(gen); return; }
-    if (repair) showRepair(repair);
-    return;
-  }
-  if (selected && R.isFree(state, cell)) { const res = R.move(state, selected, cell); if (res.ok) { state = res.state; sfx.drop(); selected = null; render(); } return; }
-  const storm = R.STORM.get(key(...cell));
-  if (storm && !state.healed.includes(key(...cell)) && R.isOpen(state, storm.region)) { toast(`在旁边合出 L${storm.level} 或更高的素材，就能清走这里的残骸`); return; }
-  if (selected) { selected = null; render(); }
-}
-
-async function tapGen(id) {
-  if (busy) return;
-  const g = R.GENERATORS[id], res = R.tapGenerator(state, id);
-  if (!res.ok) {
-    if (res.needEnergy) { metrics.count('体力耗尽弹窗'); offerEnergy(); return; }
-    if (res.noSpace) { metrics.count('空间不足'); sfx.error(); toast(res.message, {tone: 'bad'}); shake(genEl(id), 5); haptic(30); showHint(false); return; }
-    toast(res.message); return;
-  }
-  state = res.state; metrics.count('点击生成器');
-  const item = res.events.find(e => e.type === 'spawn').item;
-  renderItems(); renderTurf();
-  const el = world.spriteEl('item-' + item.id), src = genEl(id), from = src ? centerOf(src) : world.cellToClient(SPOTS[g.spot]);
-  if (src) squash(src, {from: .85, peak: 1.1, duration: 240});
-  if (el && !reducedMotion()) { el.style.opacity = '0'; await fly(sprite(matName(item.chain, item.level)), from, world.spriteClient('item-' + item.id), {size: 44, duration: 280, arc: -60}); el.style.opacity = ''; squash(el, {from: .6, peak: 1.15, duration: 280}); }
-  sfx.spawn(item.level); haptic(6);
-  await afterEvents(res.events);
-}
-const genEl = id => world.spriteEl('gen-' + id) || world.spriteEl('site-' + R.GENERATORS[id].spot);
-
-function startDrag(cell, spriteId) {
-  if (busy) return false;
-  const id = spriteId?.startsWith('item-') ? spriteId.slice(5) : R.itemAt(state, cell)?.id;
-  if (!id) return false;
-  drag = {id, target: null}; selected = id; sfx.lift(); haptic(6);
-  world.spriteEl('item-' + id)?.classList.add('lifted');
-  renderSites(); renderPanel();
-  for (const i of state.items) world.spriteEl('item-' + i.id)?.classList.toggle('match-target', sameKind(id, i.id));
+function commit(res) {
+  if(!res.ok){message(res.message,2800);sfx.error();return false;}
+  state=res.state;
+  save();
   return true;
 }
-function moveDrag(cell, foot, client) {
-  if (!drag) return;
-  world.moveSprite('item-' + drag.id, foot, {z: 9000});
-  const overBag = !!document.elementFromPoint(client[0], client[1])?.closest('#bag');
-  $('#bag').classList.toggle('drop', overBag);
-  if (overBag) { drag.target = {type: 'store'}; world.clearMarks('drop-ok'); drag.k = null; return; }
-  if (drag.k === key(...cell)) return;
-  drag.k = key(...cell); world.clearMarks('drop-ok');
-  const other = R.itemAt(state, cell), item = findItem(drag.id);
-  const spot = Object.entries(SPOTS).find(([, c]) => key(...c) === key(...cell))?.[0];
-  const repair = spot && R.availableRepairs(state).find(r => r.spot === spot && item.chain === r.chain && item.level === r.level);
-  if (other && sameKind(drag.id, other.id)) drag.target = {type: 'merge', id: other.id};
-  else if (repair) drag.target = {type: 'install', repair: repair.id};
-  else if (R.isLand(state, cell)) { drag.target = {type: 'move', cell}; world.markCell(cell, 'drop-ok'); }
-  else drag.target = null;
+function placeAt(i) {
+  if(!i)return centerOf($('#gather'));
+  if(!i.cell)return centerOf($('#bag'));
+  return regionOfCell(i.cell)===region ? world.spriteClient('item-'+i.id)||world.cellToClient(i.cell) : centerOf($('.location'));
 }
-async function endDrag(cell) {
-  const d = drag; drag = null; world.clearMarks('drop-ok'); $('#bag').classList.remove('drop');
-  if (!d) return;
-  world.spriteEl('item-' + d.id)?.classList.remove('lifted');
-  if (d.target?.type === 'store') { const res = R.store(state, d.id); if (res.ok) { state = res.state; selected = null; sfx.drop(); metrics.count('放入背包'); } else { toast(res.message, {tone: 'bad'}); sfx.error(); } render(); return; }
-  if (!d.target || !cell) { sfx.drop(); render(); return; }
-  if (d.target.type === 'merge') return doMerge(d.id, d.target.id, true);
-  if (d.target.type === 'install') return doInstall(d.id, d.target.repair);
-  if (d.target.type === 'move') { const res = R.move(state, d.id, d.target.cell); if (res.ok) { state = res.state; sfx.drop(); } selected = null; render(); }
+function popAt(point,level=2,color='#ffcd70') {
+  if(!point)return;
+  burst(point[0],point[1],{count:7+Math.min(14,level*2),colors:[color,'#fff3cf','#ffdf85'],spread:24+level*5,duration:410});
+  ring(point[0],point[1],{size:35+level*6,color,duration:330,width:3});
 }
-
-async function doMerge(aId, bId, dragged = false) {
-  const a = findItem(aId), res = R.merge(state, aId, bId);
-  if (!res.ok) { toast(res.message, {tone: 'bad'}); sfx.error(); render(); return; }
-  busy = true;
-  const target = world.spriteClient('item-' + bId);
-  if (!dragged && !reducedMotion()) {
-    const from = a.cell ? world.spriteClient('item-' + aId) : centerOf($(`[data-bag="${aId}"]`) || $('#bag'));
-    world.spriteEl('item-' + aId)?.style.setProperty('opacity', '0');
-    await fly(sprite(matName(a.chain, a.level)), from, target, {size: 50, duration: 200, arc: -30});
-  }
-  state = res.state; selected = null; metrics.count('合成');
-  const item = res.events.find(e => e.type === 'merge').item;
+let storyClock=0;
+function sendLine(who,text,ms=5000) {
+  clearTimeout(storyClock); story={who,text};
   render();
-  const el = world.spriteEl('item-' + item.id), at = world.spriteClient('item-' + item.id) || target;
-  squash(el, {from: .45, peak: 1.25, duration: 400});
-  burst(at[0], at[1], {count: 10 + item.level * 2, colors: [CHAINS[item.chain].color, '#fff6c8', '#ffffff'], spread: 46 + item.level * 8, shape: item.chain === 'reed' ? 'leaf' : item.chain === 'water' ? 'dot' : 'chip'});
-  ring(at[0], at[1], {size: 70 + item.level * 12});
-  sfx.merge(item.level); haptic(10 + item.level * 2);
-  busy = false;
-  await afterEvents(res.events);
+  storyClock=setTimeout(()=>{story=null;if(!busy&&!drag)render();},ms);
 }
-
-async function afterEvents(events) {
-  let healed = 0;
-  for (const e of events) {
-    if (e.type === 'heal') {
-      healed++;
-      const p = world.cellToClient(e.cell);
-      world.reveal(e.cell, 0.9, {duration: 700}); world.fadeDecal('storm-' + key(...e.cell));
-      burst(p[0], p[1], {count: 12, colors: ['#a7e86a', '#fff3b0', '#6fbf4a'], spread: 46, shape: 'leaf'});
-      if (e.bonus?.energy) { floatText(p[0], p[1] - 6, `+${e.bonus.energy}`, {size: 16, color: '#ffe36b'}); sfx.energy(); }
-      else if (e.bonus?.coins) { floatText(p[0], p[1] - 6, `+${e.bonus.coins}★`, {size: 16, color: '#fff3a1'}); sfx.coin(); }
-      else if (e.bonus?.item) floatText(p[0], p[1] - 6, '残骸里有东西！', {size: 14, color: '#ffe36b'});
-      metrics.count('清理残骸');
+async function focus(next,{pick=true,animate=true}={}) {
+  if(!R.isOpen(state,next))return;
+  selected=null; region=next;
+  if(pick && SPOT_REGION[currentJob()?.spot]!==next)tracked=R.availableRepairs(state).find(r=>SPOT_REGION[r.spot]===next)?.id;
+  shop=currentShop();render();save();await board.focus(state,next,animate);
+}
+function revealMerge(events) {
+  const joins=events.filter(e=>e.type==='merge'), latest=joins.at(-1), healed=events.filter(e=>e.type==='heal');
+  for(const e of events) {
+    if(e.type==='heal'||e.type==='bloom')world.reveal(e.cell,e.type==='heal'?.98:.6,{duration:430});
+    if(e.type==='heal'){popAt(world.cellToClient(e.cell),1,'#a4eb85');metrics.count('清理残骸');}
+  }
+  if(!latest)return;
+  const i=latest.item; squash(world.spriteEl('item-'+i.id),{from:.72,peak:1.17,duration:260});
+  const at=placeAt(i);popAt(at,i.level,CHAINS[i.chain].color);sfx.merge(i.level,joins.length-1);pulse(10);
+  metrics.count('合成',joins.length);
+  const words=[];
+  if(joins.length>1)words.push(joins.length+' 连合成');
+  if(events.some(e=>e.type==='discover'&&e.level>=3))words.push('发现'+nameOf(i.chain,i.level));
+  if(healed.length)words.push('新开 '+healed.length+' 格草地');
+  if(i.wide)words.push('组件在相连的三格展开');
+  const rescued=healed.find(e=>e.bonus?.item)?.bonus.item;
+  if(rescued)words.push('找回'+nameOf(rescued.chain,rescued.level));
+  if(words.length) message(words.join(' · '));
+}
+function gather(id) {
+  if(busy||drag)return;
+  unlock();
+  const res=R.tapGenerator(state,id);
+  if(!res.ok){if(res.needEnergy){showEnergy();return;}message(res.message,2800);sfx.error();return;}
+  const e=res.events[0];selected=null;shop=id;
+  if(!commit(res))return;
+  metrics.count('采集'); render();
+  const dest=placeAt(e.item), source=world.spriteEl('gen-'+id)||world.spriteEl('site-'+R.GENERATORS[id].spot);
+  const from=source?centerOf(source):centerOf($('#gather'));
+  const el=world.spriteEl('item-'+e.item.id);
+  if(el&&!reducedMotion()){
+    el.style.visibility='hidden';
+    fly(art(matName(e.item.chain,e.item.level)),from,dest,{size:39,duration:185,arc:-30,endScale:.94}).finally(()=>{
+      el.style.visibility='';squash(el,{from:.80,peak:1.13,duration:200});
+    });
+  }
+  materialSound(e.item.chain,muted);
+  pulse(5);
+  if(state.energy===0)message('体力已用完，还可以合成或交付委托');
+}
+function performMerge(a,b) {
+  const first=findItem(a), at=placeAt(first), target=findItem(b), to=placeAt(target);
+  const r=R.merge(state,a,b); if(!commit(r))return;
+  selected=null;render();fly(art(matName(first.chain,first.level)),at,to,{size:35,duration:140,arc:-16});
+  revealMerge(r.events);
+}
+function tapTile(cell,id) {
+  if(busy||drag)return;
+  if(id?.startsWith('gen-'))return gather(id.slice(4));
+  const i=id?.startsWith('item-')?findItem(id.slice(5)):R.itemAt(state,cell);
+  if(i) {
+    if(matches(findItem(selected),i))return performMerge(selected,i.id);
+    selected=selected===i.id?null:i.id; sfx.tap(); render();return;
+  }
+  const spot=id?.startsWith('site-')?id.slice(5):spotAt(cell);
+  if(spot) {
+    const r=R.availableRepairs(state).find(j=>j.spot===spot), part=findItem(selected);
+    if(r&&part&&part.chain===r.chain) {
+      if(part.level===r.level)return repair(r,part);
+      if(r.level>=5&&part.level===r.level-1)return fitPart(r,part);
     }
-    if (e.type === 'bloom') world.reveal(e.cell, 0.45, {duration: 500});
-    if (e.type === 'discover') await showDiscovery(e);
-    if (e.type === 'diary') { metrics.count('手记'); await wait(300); diaryToast(e.page); }
-    if (e.type === 'empty') { await wait(200); offerEnergy(); }
+    const id=Object.keys(R.GENERATORS).find(k=>R.GENERATORS[k].spot===spot && R.generatorOpen(state,k));
+    if(r&&currentJob()?.id===r.id&&!id)return showJob(r);
+    if(id)return gather(id);
+    if(r)return showJob(r);
+    if(R.REPAIRS.some(r=>r.spot===spot&&R.done(state,r.id))){message('这处已经修好，旁边的草地可以继续摆材料');return;}
   }
-  if (healed) sfx.sparkle();
-  render();
-  if (healed) await maybeGrowCamera();
-  if (R.isStuck(state)) toast('没有可合成的了。把一件收进背包或卖掉，腾出空地。', {ms: 3200});
-  maybeTutorial();
-}
-// When the clearing grows past the frame, widen the camera.
-async function maybeGrowCamera() {
-  const land = R.landCells(state).filter(c => regionOfCell(c) === view);
-  const box = world.container.getBoundingClientRect(), {top, bottom} = insets();
-  const outside = land.some(c => { const [x, y] = world.cellToClient(c); return x < box.left + 14 || x > box.right - 14 || y < box.top + top || y > box.bottom - bottom; });
-  if (outside) await focusRegion(view, true);
-}
-
-let discoverTimer;
-async function showDiscovery(e) {
-  if (e.level <= 1) return;
-  metrics.count('新发现');
-  let el = $('.discover');
-  if (!el) { el = document.createElement('div'); el.className = 'discover'; app.append(el); }
-  el.innerHTML = `<img src="${sprite(matName(e.chain, e.level))}" alt=""><div><small>新发现 · ${CHAINS[e.chain].label} L${e.level}</small><strong>${nameOf(e.chain, e.level)}</strong></div>`;
-  el.classList.add('show'); sfx.chime(); clearTimeout(discoverTimer);
-  discoverTimer = setTimeout(() => el.classList.remove('show'), 1700);
-}
-function diaryToast(page) {
-  sfx.sparkle(.1);
-  const el = document.createElement('button'); el.className = 'diary-toast'; el.innerHTML = `${icon.book}<span><small>找回一页外婆的手记</small>${esc(DIARY[page].slice(0, 16))}…</span>`;
-  app.append(el); requestAnimationFrame(() => el.classList.add('show'));
-  el.addEventListener('click', () => { el.remove(); showDiary(page); });
-  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 4200);
-}
-
-async function doInstall(itemId, repairId) {
-  const r = R.repairById(repairId), item = findItem(itemId), res = R.install(state, itemId, repairId);
-  if (!res.ok) { toast(res.message, {tone: 'bad'}); sfx.error(); render(); return; }
-  busy = true; selected = null; hideHand(); metrics.count('修复'); metrics.event('repair', {id: repairId});
-  const site = SPOTS[r.spot], from = item.cell ? world.spriteClient('item-' + itemId) : centerOf($('#bag'));
-  world.removeSprite('item-' + itemId); world.removePin('pin-' + r.id);
-  const region = R.SPOT_REGION[r.spot];
-  await world.fit([site], {...insets(), pad: 1.8, animate: true, maxScale: 1.3, duration: 450, overscroll: true});
-  const to = world.cellToClient(site);
-  await fly(sprite(matName(item.chain, item.level)), from || to, [to[0], to[1] - 20], {size: 64, duration: 480, arc: -120, spin: 20});
-  sfx.build();
-  shake(world.spriteEl('site-' + r.spot), 6, 300);
-  for (let n = 0; n < 3; n++) { burst(to[0] + (n - 1) * 18, to[1] - 18, {count: 8, colors: ['#ffe9a6', '#ffffff', '#d7a35a'], spread: 40, shape: 'chip'}); await wait(110); }
-  state = res.state;
-  const revealDone = world.reveal(site, r.reveal, {duration: 1400});
-  render();
-  const fixed = world.spriteEl('site-' + r.spot);
-  if (fixed) { fixed.classList.add('just-built'); setTimeout(() => fixed.classList.remove('just-built'), 900); }
-  burst(to[0], to[1] - 30, {count: 26, colors: ['#ffd25e', '#fff3b0', '#ffffff', '#8fdc4e'], spread: 120, shape: 'star', duration: 900});
-  ring(to[0], to[1], {size: 220, width: 5, duration: 700});
-  if (r.reward?.text) floatText(to[0], to[1] - 70, r.reward.text, {cls: 'big', rise: 60, duration: 1700, size: 22});
-  if (r.creek) { creek.fill(); world.reveal([4, -2], 3, {duration: 2200}); world.reveal([1, -1], 1.6, {duration: 2400}); }
-  await revealDone;
-  for (const e of res.events) {
-    if (e.type === 'open') { world.clearFog('creek'); world.reveal([5, -1], 1.2, {duration: 1500}); world.reveal([10, -2], 1.2, {duration: 1500}); }
-    if (e.type === 'heal' && e.wash) { world.reveal(e.cell, .9, {duration: 900}); world.fadeDecal('storm-' + key(...e.cell)); }
+  if(selected && R.isFree(state,cell)){
+    if(commit(R.move(state,selected,cell))){selected=null;sfx.drop();render();}return;
   }
-  // Settle the camera before handing control back, so it never jumps mid-play.
-  const opened = res.events.some(e => e.type === 'open');
-  await focusRegion(opened ? 'creek' : region);
-  if (opened) toast('旧溪谷和芦苇河湾开放了！', {tone: 'good', ms: 2400});
-  busy = false;
-  render();
-  await converse(r.lines, {at: () => world.cellToClient(site), portrait: PORTRAIT, names: NAMES, root: app});
-  for (const e of res.events) if (e.type === 'diary') diaryToast(e.page);
-  if (res.events.some(e => e.type === 'letter')) await showLetter();
-  if (res.events.some(e => e.type === 'finale')) await ending();
+  const tile=R.STORM.get(key(...cell));
+  if(tile&&!state.healed.includes(key(...cell))&&R.isOpen(state,tile.region))message('在旁边合出 L'+tile.level+'，这格就能摆材料');
+  selected=null; render();
 }
-
-async function showLetter() {
-  sfx.chime(); metrics.event('letter');
-  const el = document.createElement('div'); el.className = 'letter';
-  el.innerHTML = `<div class="card"><h3>${LETTER.to}</h3><p>${LETTER.text}</p><div class="sign">——${LETTER.from}</div><button class="btn">把信收好</button></div>`;
-  app.append(el); requestAnimationFrame(() => el.classList.add('show'));
-  await new Promise(r => el.querySelector('button').addEventListener('click', r, {once: true}));
-  el.classList.remove('show'); await wait(250); el.remove();
+function lift(cell,id) {
+  if(busy||drag)return false;
+  const i=id?.startsWith('item-')?findItem(id.slice(5)):R.itemAt(state,cell);
+  if(!i)return false;
+  drag={id:i.id,draft:state,events:[],target:null,lastJoin:null}; selected=i.id;
+  renderWorld(state,i.id);
+  world.spriteEl('item-'+i.id)?.classList.add('lifted');sfx.lift();pulse(5);
+  return true;
 }
-async function ending() {
-  metrics.event('complete'); metrics.flush(); sfx.fanfare();
-  const s = state.stats;
-  await sheet({cls: 'center', title: OUTRO.title, body: `<p>${OUTRO.text}</p><div class="end-stats"><div><b>${s.merges}</b><small>次合成</small></div><div><b>${s.repairs}</b><small>处修复</small></div><div><b>${s.orders}</b><small>个请求</small></div><div><b>${s.heals}</b><small>块残骸清理</small></div></div><p class="next">${OUTRO.next}</p>`, actions: [{label: '继续在故乡合成', value: 'stay'}]});
+function dragTarget(cell,client) {
+  const [x,y]=client, bounds=field.getBoundingClientRect(), hit=document.elementFromPoint(x,y);
+  if(hit?.closest('#bag'))return {type:'bag'};
+  if(hit?.closest('.field-book,.map-hud,.map-tools'))return null;
+  if(x<bounds.left||x>bounds.right||y<bounds.top||y>bounds.bottom)return null;
+  const s=drag.draft, i=findItem(drag.id,s);
+  const raw=world.cellAt(x,y);
+  const under=world.itemUnder(x,y,'item-'+i.id);
+  const other=(under && findItem(under.slice(5),s)) || R.itemAt(s,raw) || R.itemAt(s,cell);
+  if(matches(i,other))return {type:'merge',other};
+  const pin=hit?.closest('.waypoint');
+  const spot=pin?currentJob()?.spot:spotAt(raw)||spotAt(cell);
+  const r=R.availableRepairs(s).find(j=>j.spot===spot&&j.chain===i.chain);
+  if(r&&r.level===i.level)return {type:'repair',r};
+  if(r&&r.level>=5&&r.level-1===i.level)return {type:'stage',r};
+  if(other?.id===i.id)return {type:'stay'};
+  if(other)return {type:'move',cell:other.cell};
+  if(R.isLand(s,cell))return {type:'move',cell};
+  if(R.isLand(s,raw))return {type:'move',cell:raw};
+  return {type:'stay'};
 }
-function showRepair(r) {
-  const p = world.cellToClient(SPOTS[r.spot]), it = [...state.items, ...state.bag].find(i => i.chain === r.chain && i.level === r.level);
-  if (it) { pointInstall(it, r); return; }
-  speak(p, PORTRAIT[r.lines[0][0]], `${r.title}——需要 ${nameOf(r.chain, r.level)}（${CHAINS[r.chain].label} L${r.level}）。`, {root: app, name: NAMES[r.lines[0][0]]});
+function joinDraft(other,client) {
+  const r=R.merge(drag.draft,drag.id,other.id);
+  if(!r.ok){message(r.message);return false;}
+  drag.draft=r.state;drag.events.push(...r.events);
+  drag.id=r.events.find(e=>e.type==='merge').item.id;drag.lastJoin=client;selected=drag.id;
+  renderWorld(drag.draft,drag.id);
+  world.spriteEl('item-'+drag.id)?.classList.add('lifted');
+  popAt(client,2);sfx.merge(other.level+1,Math.min(3,drag.events.filter(e=>e.type==='merge').length-1));pulse(8);
+  return true;
 }
-async function showDiary(focus = null) {
-  metrics.count('看手记'); seenDiary = state.diary.length; save(); renderHud();
-  const pages = DIARY.map((t, i) => state.diary.includes(i) ? `<li class="${i === focus ? 'new' : ''}"><b>${i + 1}</b><p>${esc(t)}</p></li>` : `<li class="lost"><b>${i + 1}</b><p>这一页还没找回来。</p></li>`).join('');
-  await sheet({title: '外婆的手记', body: `<ol class="diary">${pages}</ol><p class="hint">修好营地里的东西、帮邻居们的忙，会找回散落的手记。</p>`, actions: [{label: '合上手记', value: 1}]});
-}
-async function offerEnergy() {
-  sfx.error();
-  const freeIn = R.freeRefillIn(state), canFree = freeIn === 0, canBuy = state.coins >= R.ENERGY.refillCost;
-  const choice = await sheet({title: '体力用完了', body: `<p>体力每 ${R.ENERGY.regenMs / 1000} 秒恢复 1 点（体验版加速）。也可以先合成、交付请求，请求会返还一点体力。</p>`,
-    actions: [{label: canFree ? `免费领 ${R.ENERGY.freeRefill} 体力（模拟看广告）` : `免费补给 ${Math.ceil(freeIn / 1000)} 秒后可用`, kind: 'gold', value: 'free', disabled: !canFree},
-      {label: `用 ${R.ENERGY.refillCost} 金币换 ${R.ENERGY.refillAmount} 体力`, kind: 'secondary', value: 'buy', disabled: !canBuy}, {label: '等一会儿', kind: 'ghost', value: 'wait'}]});
-  if (choice === 'free' || choice === 'buy') {
-    const res = R.buyEnergy(state, {free: choice === 'free'});
-    if (!res.ok) { toast(res.message, {tone: 'bad'}); return; }
-    state = res.state; metrics.count(choice === 'free' ? '免费体力' : '金币买体力'); sfx.energy();
-    const p = centerOf($('#energy')); floatText(p[0] + 30, p[1] + 24, `+${res.events[0].amount}`, {color: '#ffe36b'}); render();
-  } else metrics.count('选择等待');
-}
-
-// ---------- HUD buttons ----------
-app.addEventListener('click', async e => {
-  if (busy) return;
-  const order = e.target.closest('[data-order]');
-  if (order) {
-    const t = R.ORDERS.find(o => o.id === order.dataset.order), res = R.deliver(state, order.dataset.order);
-    if (!res.ok) {
-      const missing = t.needs.map(([c, l]) => `${CHAINS[c].label} L${l}`).join('、');
-      speak(centerOf(order), PORTRAIT[t.who], `${t.text}（需要 ${missing}）`, {root: app, name: NAMES[t.who]}); return;
+function carry(cell,foot,client) {
+  if(!drag)return;
+  const target=dragTarget(cell,client);
+  const canChain=!drag.lastJoin||Math.hypot(client[0]-drag.lastJoin[0],client[1]-drag.lastJoin[1])>18;
+  if(target?.type==='merge'&&canChain) {
+    const [x,y]=placeAt(target.other);
+    if(Math.hypot(client[0]-x,client[1]-y)<Math.max(13,world.cam.scale*24) && joinDraft(target.other,client)) {
+      drag.target={type:'stay'};drag.markKey='';world.moveSprite('item-'+drag.id,foot,{z:8500});board.outline('drop',[],'');board.outline('shift',[],'');return;
     }
-    const ev = res.events[0], dest = centerOf(order);
-    busy = true;
-    await Promise.all(ev.consumed.map((it, n) => { const from = it.cell ? world.spriteClient('item-' + it.id) : centerOf($('#bag')); world.removeSprite('item-' + it.id); return fly(sprite(matName(it.chain, it.level)), from || dest, dest, {size: 46, duration: 400, delay: n * 80, arc: -90}); }));
-    state = res.state; metrics.count('完成请求');
-    sfx.coin(); sfx.coin(.12);
-    floatText(dest[0], dest[1] + 34, `+${ev.coins}★  +${ev.energy}⚡`, {size: 17, color: '#fff3a1'});
-    burst(dest[0], dest[1], {count: 16, colors: ['#ffd25e', '#fff'], spread: 60, shape: 'star'});
-    busy = false;
-    speak(dest, PORTRAIT[t.who], ['谢谢！', '太好了！', '就是这个！', '帮大忙了！'][state.stats.orders % 4], {ms: 1200, root: app, name: NAMES[t.who]});
-    render();
-    for (const x of res.events) if (x.type === 'diary') diaryToast(x.page);
-    maybeTutorial(); return;
   }
-  const task = e.target.closest('[data-task]');
-  if (task) { const r = R.repairById(task.dataset.task); const region = R.SPOT_REGION[r.spot]; if (region !== view) await focusRegion(region); showRepair(r); return; }
-  const bagItem = e.target.closest('[data-bag]');
-  if (bagItem) {
-    const id = bagItem.dataset.bag;
-    if (selected && selected !== id && sameKind(selected, id) && findItem(selected).cell) { await doMerge(id, selected); return; }
-    const res = R.unbag(state, id, REGIONS[view].center); if (res.ok) { state = res.state; selected = id; sfx.drop(); render(); } else toast(res.message, {tone: 'bad'}); return;
+  drag.target=target;
+  $('#bag').classList.toggle('drop',target?.type==='bag');
+  const markKey=JSON.stringify([drag.id,target?.type,target?.cell,target?.other?.id,target?.r?.id]);
+  if (drag.markKey!==markKey) {
+    drag.markKey=markKey;
+    const part=findItem(drag.id,drag.draft);
+    let shape=target?.cell?[target.cell]:target?.other?[target.other.cell]:target?.r?[SPOTS[target.r.spot]]:[];
+    let shifts=[], style='drop-outline';
+    if(target?.type==='move'){
+      const plan=R.dropLayout(drag.draft,drag.id,target.cell);
+      if(plan){shape=R.occupiedCells(Number.isInteger(plan.turn)?{...part,wide:true}:part,target.cell,plan.turn);shifts=plan.shifts.flatMap(to=>R.occupiedCells(findItem(to.id,drag.draft),to.cell,to.turn));}
+      else style='blocked-outline';
+    }
+    board.outline('drop',shape,style);board.outline('shift',shifts,'shift-outline');
   }
-  const act = e.target.closest('[data-act]')?.dataset.act;
-  if (act === 'store' && selected) { const res = R.store(state, selected); if (res.ok) { state = res.state; selected = null; sfx.drop(); metrics.count('放入背包'); render(); } else toast(res.message, {tone: 'bad'}); return; }
-  if (act === 'place' && selected) { const res = R.unbag(state, selected, REGIONS[view].center); if (res.ok) { state = res.state; render(); } else toast(res.message, {tone: 'bad'}); return; }
-  if (act === 'sell' && selected) {
-    const item = findItem(selected);
-    const useful = R.availableRepairs(state).some(r => r.chain === item.chain && r.level >= item.level) || state.orders.some(o => R.orderNeeds(o).some(([c, l]) => c === item.chain && l >= item.level));
-    if (useful && item.level >= 3) { const ok = await sheet({cls: 'center', title: '确定卖掉？', body: `<p>${nameOf(item.chain, item.level)} 还能用在修复或请求上。</p>`, actions: [{label: `卖掉 +${R.sellPrice(item.level)}★`, kind: 'secondary', value: true}, {label: '留着', value: false}]}); if (!ok) return; }
-    const p = world.spriteClient('item-' + selected) || centerOf($('#bag'));
-    const res = R.sell(state, selected); state = res.state; selected = null; metrics.count('卖出');
-    sfx.coin(); floatText(p[0], p[1], `+${res.events[0].coins}★`, {color: '#fff3a1'}); render();
+  world.moveSprite('item-'+drag.id,foot,{z:8500});
+}
+function cancelDrag() {
+  if(!drag)return;
+  drag=null;selected=null;board.outline('drop',[],'');board.outline('shift',[],'');$('#bag').classList.remove('drop');render();
+}
+function drop(cell,foot,client) {
+  if(!drag)return;
+  if(!cell)return cancelDrag();
+  const target=dragTarget(cell,client);
+  if(!target)return cancelDrag();
+  const d=drag;
+  const oldCenters=new Map();
+  if(target.type==='move' && !reducedMotion()){
+    for(const part of d.draft.items)if(part.id!==d.id)oldCenters.set(part.id,{cell:part.cell,point:world.spriteClient('item-'+part.id)});
+  }
+  drag=null;selected=null;board.outline('drop',[],'');board.outline('shift',[],'');$('#bag').classList.remove('drop');
+  let next={ok:true,state:d.draft,events:[]};
+  if(target.type==='merge')next=R.merge(d.draft,d.id,target.other.id);
+  if(target.type==='move')next=R.move(d.draft,d.id,target.cell);
+  if(target.type==='bag')next=R.store(d.draft,d.id);
+  if(!next.ok){message(next.message);render();return;}
+  // Installation and fittings operate on the newly merged component.
+  if(!commit(next))return;
+  render();
+  for(const part of state.items){
+    const old=oldCenters.get(part.id);
+    if(!old?.point || key(...old.cell)===key(...part.cell))continue;
+    const el=world.spriteEl('item-'+part.id),to=world.spriteClient('item-'+part.id);
+    if(!el||!to)continue;
+    const dx=(old.point[0]-to[0])/world.cam.scale,dy=(old.point[1]-to[1])/world.cam.scale;
+    el.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],{duration:230,easing:'cubic-bezier(.15,.75,.25,1)'});
+  }
+  if(target.type==='repair')return repair(target.r,findItem(d.id));
+  if(target.type==='stage')return fitPart(target.r,findItem(d.id));
+  const events=[...d.events,...next.events];
+  if(events.some(e=>e.type==='merge'))revealMerge(events);
+  else if(target.type==='bag')message('已收入背包，点背包可以取回');
+  sfx.drop();
+}
+async function fitPart(r,i) {
+  if(!i)return;
+  const from=placeAt(i),res=R.stagePart(state,r.id,i.id);
+  if(!commit(res))return;
+  if(region!==SPOT_REGION[r.spot])await focus(SPOT_REGION[r.spot],{pick:false});
+  selected=null;render();
+  const to=world.cellToClient(SPOTS[r.spot]), closed=res.events[0].type==='assemble';
+  fly(art(matName(i.chain,i.level)),from,to,{duration:270,arc:-45,size:42});
+  popAt(to,3);sfx.merge(closed?r.level:i.level);pulse(12);
+  message(closed?'两半合拢了，点「修复」落成':'已试装在工地，工作格已腾出');
+}
+async function repair(r,i) {
+  if(busy||!i)return;
+  const result=R.install(state,i.id,r.id);
+  if(!result.ok){message(result.message);return;}
+  const before=state;
+  const site=SPOTS[r.spot];
+  const staged=before.fittings?.[r.id]?.id===i.id;
+  busy=true;selected=null;metrics.count('修复');metrics.event('repair',{id:r.id});
+  commit(result);
+  try {
+    region=SPOT_REGION[r.spot];
+    // Keep both the old site and the component visible until the flight starts.
+    board.render(before,{region,job:r,onJob:showJob,onWorkshop:gather});
+    const right=field.clientWidth-$('.field-book').offsetLeft+8;
+    const localPart=i.cell && regionOfCell(i.cell)===region;
+    await world.fit(localPart?[i.cell,site]:[site],{right,maxScale:1.55,pad:1.3,top:36,bottom:30,animate:true,duration:240});
+    const from=staged?world.spriteClient('fit-'+r.id)||world.cellToClient(site):placeAt(i);
+    const to=world.cellToClient(site);
+    world.removePin('job-'+r.id);world.removeSprite(staged?'fit-'+r.id:'item-'+i.id);
+    await fly(art(matName(i.chain,i.level)),from,to,{size:54,arc:-58,duration:300});
+    render();popAt(to,7);sfx.build();pulse([12,30,14]);
+    squash(world.spriteEl('site-'+r.spot),{from:.73,peak:1.1,duration:400});
+    if(r.creek)board.creek.fill();
+    for(const e of result.events.filter(e=>e.type==='heal'))world.reveal(e.cell,.98,{instant:true});
+    if(r.creek){world.reveal([4,-2],3,{duration:850});world.reveal([1,-1],1.6,{duration:950});}
+    await world.reveal(site,r.reveal,{duration:500});
+    message(JOB_NAMES[r.id]+' · '+BENEFITS[r.id]);
+    if(r.letter)await sheet({title:'渡口捎来的信',body:V.img('ferry-letter','journal-cover')+'<p>'+esc(LETTER.text)+'</p>',actions:[{label:'收进手记',value:true}]});
+    if(result.events.some(e=>e.type==='finale')){sfx.fanfare();await showEnd();}
+    if(!reducedMotion())await wait(330);
+  } finally {
+    try {await focus(r.opens?'creek':region,{animate:false});} finally {busy=false;save();}
+  }
+  const [who,line]=r.lines.at(-1);sendLine(who,line,3000);
+  const returned=result.events.find(e=>e.type==='retrieve');
+  message(JOB_NAMES[r.id]+' · '+BENEFITS[r.id]+(returned?' · 试装件已退回'+(returned.item.cell?'草地':'背包'):''),3000);
+}
+async function deliver(id) {
+  const order=state.orders.find(o=>o.id===id);
+  if(!order||busy)return;
+  const picks=R.pickForOrder(state,order);
+  if(!picks)return showOrder(order);
+  const job=currentJob(), progress=job&&R.progressFor(state,job);
+  const wouldUseOnlyReady=progress?.ready && picks.includes(progress.ready.id) && ![...state.bag,...state.items].some(i=>!picks.includes(i.id)&&i.chain===job.chain&&i.level===job.level);
+  if(wouldUseOnlyReady){
+    const choice=await sheet({title:'这件材料也能修复',body:'<p>交给居民后，「'+JOB_NAMES[job.id]+'」需要再做一件。</p>'+V.orderDetail(state,order),actions:[{label:'交给居民',value:'send'},{label:'留给工地',kind:'secondary',value:'keep'}]});
+    if(choice!=='send')return;
+  }
+  const current=state.orders.find(o=>o.id===id); if(!current)return;
+  const t=R.orderById(id), res=R.deliver(state,id);
+  if(!res.ok){message(res.message);return;}
+  const dest=centerOf($('[data-order="'+id+'"]')||$('#requests'));
+  const flights=res.events[0].consumed.map(i=>({i,at:placeAt(i)}));
+  busy=true;selected=null;commit(res);render();
+  try{await Promise.all(flights.map(({i,at})=>fly(art(matName(i.chain,i.level)),at,dest,{size:38,duration:240,arc:-50})));}finally{busy=false;}
+  materialSound('stamp',muted);sfx.coin();pulse(12);popAt(dest,2);
+  metrics.count('完成请求');
+  const arrival=id==='o1'?'莉娜把板凳放到了棚门旁':id==='o2'?'米拉把工具箱放回了倒木堆旁':CAST[t.who].name+'收到了';
+  message(arrival+' · 金币 +'+t.coins+' · 体力 +'+t.energy);
+  if(t.diary)sendLine(t.who,'看，我找到了一页外婆的手记。',2400);
+}
+
+
+async function showJob(r) {
+  if(!r || busy || drag)return;
+  const p=R.progressFor(state,r), buttons=[];
+  if(p.ready)buttons.push({label:'送去修复 · '+JOB_NAMES[r.id],value:'install'});
+  if(p.half && r.level>=5 && !p.ready)buttons.push({label:p.staged?'送上另一半，现场合拢':'先将一半放到试装位',value:'stage'});
+  if(p.staged)buttons.push({label:'取回试装件',kind:'secondary',value:'retrieve'});
+  if(!p.ready)buttons.push({label:'去'+WORKSHOPS[CHAIN_SHOP[r.chain]]+'备料',kind:buttons.length?'secondary':'primary',value:'track'});
+  const action=await sheet({title:JOB_NAMES[r.id],body:V.jobDetail(state,r),actions:buttons});
+  if(!action)return;
+  tracked=r.id; selected=null; save();
+  const latest=R.progressFor(state,r);
+  if(action==='install'&&latest.ready)return repair(r,latest.ready);
+  if(action==='stage'&&latest.half) {
+    if(region!==SPOT_REGION[r.spot])await focus(SPOT_REGION[r.spot],{pick:false});
+    return fitPart(r,latest.half);
+  }
+  if(action==='retrieve') {
+    return retrieve(r);
+  }
+  if(action==='track') {shop=CHAIN_SHOP[r.chain];await focus(R.GENERATORS[shop].region,{pick:false});message('已追踪'+JOB_NAMES[r.id]+' · '+V.shortage(r,latest));}
+}
+async function retrieve(r) {
+  const res=R.retrievePart(state,r.id);
+  if(commit(res)){await focus(SPOT_REGION[r.spot],{pick:false});message(res.events[0].item.cell?'已取回到工地旁，可以继续合成':'已取回到背包');}
+}
+async function showJobs() {
+  const choice=await sheet({title:'家园重建',body:V.jobsView(state,tracked)});
+  if(choice){const r=R.repairById(choice);if(!r)return;tracked=r.id;
+    await focus(SPOT_REGION[r.spot],{pick:false});await showJob(r);}
+}
+async function showOrder(o) {
+  const ready=!!R.pickForOrder(state,o);
+  const choice=await sheet({title:'居民委托',body:V.orderDetail(state,o),actions:ready?[{label:'交付委托',value:'deliver'}]:[]});
+  if(choice==='deliver')return deliver(o.id);
+  if(choice?.startsWith('chain-'))return showChain(choice.slice(6));
+}
+async function showMap() {
+  const choices=Object.entries(REGIONS).map(([id,v])=>{
+    const open=R.isOpen(state,id), completed=R.REPAIRS.filter(r=>SPOT_REGION[r.spot]===id&&state.done.includes(r.id)).length;
+    return `<button class="map-stop ${id}" data-pick="${id}" ${open?'':'disabled'}><b>${v.name}</b><small>${REGION_COPY[id]} · ${open?'已修 '+completed+' 处':'接通旧路后开放'}</small><i>${open?(id===region?'当下':'前往 ›'):icon.lock}</i></button>`;}).join('');
+  const actions=[];
+  const result=await sheet({title:'故乡地图',body:'<div class="map-stops">'+choices+'</div>',actions});
+  if(result&&REGIONS[result]){await focus(result);message(REGIONS[result].name);}
+}
+async function showShops() {
+  const body=Object.entries(R.GENERATORS).map(([id,g])=>`<button class="choice" data-pick="${id}" ${R.generatorOpen(state,id)?'':'disabled'}>
+    ${V.img(id==='logs'&&R.generatorBetter(state,id)?'sawmill':WORK_ART[id])}<span><b>${WORKSHOPS[id]}</b>
+    <small>${R.generatorOpen(state,id)?REGIONS[g.region].name+(R.generatorBetter(state,id)?' · 已升级':' · 已开放'):'修好旧路开放'}</small></span><i>›</i></button>`).join('');
+  const pick=await sheet({title:'选择材料来源',body});
+  if(pick&&R.generatorOpen(state,pick)){shop=pick;await focus(R.GENERATORS[pick].region);message('已选'+WORKSHOPS[pick]);}
+}
+async function showBag() {
+  const id=await sheet({title:'随身背包',body:V.bagView(state)});if(!id)return;
+  const res=R.unbag(state,id,REGIONS[region].center);
+  if(commit(res)){selected=id;render();message('已放回'+REGIONS[region].name);sfx.drop();}
+}
+async function showChain(chain) {
+  const id=CHAIN_SHOP[chain];
+  const pick=await sheet({title:CHAINS[chain].label+'合成链',body:V.chainView(state,chain),actions:R.generatorOpen(state,id)?[{label:'前往'+WORKSHOPS[id],value:'go'}]:[]});
+  if(pick){shop=id;await focus(R.GENERATORS[id].region);message('点'+WORKSHOPS[id]+'可采集');}
+}
+async function showAlbum() {
+  const body=Object.entries(CHAINS).map(([c,meta])=>`<button class="choice" data-pick="${c}">${V.img(matName(c,Math.max(1,state.discovered[c])))}<span><b>${meta.label}</b><small>已发现 ${state.discovered[c]} / 7</small></span><i>›</i></button>`).join('');
+  const c=await sheet({title:'材料图鉴',body});if(c&&CHAINS[c])await showChain(c);
+}
+async function showJournal(tab='story') {
+  metrics.count('翻阅手记');
+  while(true) {
+    const pick=await sheet({title:'归乡手记',body:V.journalView(state,tab),actions:[]});
+    if(pick==='story'||pick==='pages'){tab=pick;continue;}break;
+  }
+}
+async function showEnergy() {
+  R.tick(state);
+  const cooldown=R.freeRefillIn(state);
+  const extra=Math.max(0,state.energy-state.maxEnergy);
+  const text=extra?'其中 '+extra+' 点为委托或物资奖励的额外储备。':state.energy>=state.maxEnergy?'体力已充足。':'自然恢复每 30 秒增加 1 点。';
+  const choice=await sheet({title:'码头补给',body:`<div class="supply-count">${icon.energy}<b>${state.energy} / ${state.maxEnergy}</b></div><p>${text}居民委托也会送回体力。</p>`,
+    actions:[{label:cooldown?'免费补给还需 '+Math.ceil(cooldown/1000)+' 秒':'免费补给 · +20 体力（模拟广告）',value:'free',disabled:!!cooldown},
+      {label:'15 金币换 25 体力',value:'buy',kind:'secondary',disabled:state.coins<R.ENERGY.refillCost}]});
+  if(!choice)return;
+  const res=R.buyEnergy(state,{free:choice==='free'});
+  if(commit(res)){render();sfx.energy();message('体力 +'+res.events[0].amount);}
+}
+function visitMode(sandbox) {
+  const url=new URL(location.href);
+  url.searchParams.delete('fresh');
+  if(sandbox)url.searchParams.set('visit','wharf');else url.searchParams.delete('visit');
+  location.assign(url.href);
+}
+async function showSettings() {
+  const vals=metrics.summary();
+  const body=`<div class="settings-list"><button data-pick="sound">游戏声音 <b>${muted?'关':'开'}</b></button><button data-pick="vibration">触感反馈 <b>${vibrations?'开':'关'}</b></button>
+    <button data-pick="hint">找一对可合成的材料 <small>提示 ›</small></button><button data-pick="practice">${practice?'回到我的故乡':'试玩码头大件'} <small>${practice?'返回旅程':'独立练习进度'} ›</small></button><button data-pick="restart">重新开始本进度 <small>›</small></button></div>
+    <details class="memory"><summary>本机游玩记录</summary><p>采集 ${state.stats.taps} 次，合成 ${state.stats.merges} 次，修复 ${state.done.length} 处，完成 ${state.stats.orders} 张委托。</p><small>已开启手记 ${vals['翻阅手记']||0} 次</small></details>`;
+  const choice=await sheet({title:'设置',body});
+  if(choice==='sound'){muted=!muted;setMuted(muted);save();return showSettings();}
+  if(choice==='vibration'){vibrations=!vibrations;save();return showSettings();}
+  if(choice==='hint')return hint();
+  if(choice==='practice'){save();visitMode(!practice);}
+  if(choice==='restart'){
+    const yes=await sheet({title:'重新开始这段旅程？',body:'<p>本机此进度的材料、委托和修复记录都会清空。</p>',actions:[{label:'保留进度',value:false},{label:'重新开始',kind:'secondary',value:true}]});
+    if(yes){restarting=true;store.reset();location.reload();}
+  }
+}
+async function showEnd() {
+  await sheet({title:'第一章 · 归乡',body:V.img('river-postcard','journal-cover')+`<p>营地有了屋顶和炉火，小溪流回营地，渡口接回了邻居。莉娜收好外婆的信，明天她们要去山坡寻找那盏灯。</p><p class="reward-strip">${state.done.length} 处修复 · ${state.stats.orders} 张委托 · ${state.healed.length} 格复苏</p>`,
+    actions:[{label:'回到家园',value:true}]});
+}
+async function hint() {
+  const r=currentJob(),p=r&&R.progressFor(state,r);
+  if(p?.ready){message(JOB_NAMES[r.id]+'的材料齐了，点「修复」');return;}
+  if(p?.staged&&p.half){message('另一半已经做好，去工地合拢');return;}
+  const chain=r?.chain||R.GENERATORS[shop].chain;
+  const items=state.items.filter(i=>i.chain===chain && (!r||i.level<r.level));
+  const pair=items.find((a,n)=>items.slice(n+1).some(b=>matches(a,b)));
+  if(pair) {
+    const other=items.find(b=>matches(pair,b));
+    await focus(regionOfCell(other.cell),{pick:false});selected=pair.id;render();
+    const el=world.spriteEl('item-'+other.id);el?.classList.add('hint');
+    message('把发亮的两件'+nameOf(pair.chain,pair.level)+'合起来');return;
+  }
+  shop=CHAIN_SHOP[chain];await focus(R.GENERATORS[shop].region,{pick:false});
+  message(R.freeCount(state,region)?'去'+WORKSHOPS[shop]+'采集'+CHAINS[chain].label+'材料':'空地满了，点一件材料放进背包');
+}
+
+const screens={jobs:showJobs,journal:showJournal,energy:showEnergy,settings:showSettings,map:showMap,hint,
+  bag:showBag,shops:showShops,album:showAlbum,deselect:()=>{selected=null;render();}};
+app.addEventListener('click', async e=>{
+  const b=e.target.closest('button');
+  if(!b||!app.contains(b)||busy||drag)return;
+  unlock();
+  if(b.dataset.open)return screens[b.dataset.open]?.();
+  if(b.dataset.shop)return gather(b.dataset.shop);
+  if(b.dataset.order){
+    const o=state.orders.find(o=>o.id===b.dataset.order);
+    if(o)return R.pickForOrder(state,o)?deliver(o.id):showOrder(o);
+  }
+  if(b.dataset.jobAct){
+    const r=R.repairById(b.dataset.jobAct),p=R.progressFor(state,r);
+    if(p.ready)return repair(r,p.ready);
+    if(p.half&&r.level>=5)return fitPart(r,p.half);
+    return showJob(r);
+  }
+  if(b.dataset.chain)return showChain(b.dataset.chain);
+  if(b.dataset.itemRepair)return repair(R.repairById(b.dataset.itemRepair),findItem(selected));
+  if(b.dataset.itemFit)return fitPart(R.repairById(b.dataset.itemFit),findItem(selected));
+  if(b.dataset.retrieve)return retrieve(R.repairById(b.dataset.retrieve));
+  if(b.dataset.store){
+    if(commit(R.store(state,b.dataset.store))){selected=null;render();sfx.drop();message('已收入背包');}return;
+  }
+  if(b.dataset.sell){
+    const i=findItem(b.dataset.sell);if(!i)return;
+    if(i.level>=3){const yes=await sheet({title:'出售'+nameOf(i.chain,i.level)+'？',body:'<p>这件素材将换成 '+R.sellPrice(i.level)+' 金币。</p>',actions:[{label:'留在棋盘',value:false},{label:'出售',value:true,kind:'secondary'}]});if(!yes)return;}
+    if(commit(R.sell(state,i.id))){selected=null;render();sfx.coin();message('已出售 · 金币 +'+R.sellPrice(i.level));}
   }
 });
-$('#energy').addEventListener('click', () => { if (!busy) offerEnergy(); });
-$('#regions').addEventListener('click', e => { const r = e.target.closest('[data-region]')?.dataset.region; if (r && !busy && R.isOpen(state, r)) { sfx.tap(); focusRegion(r); } });
-$('#hint').addEventListener('click', () => { metrics.count('提示'); showHint(true); });
-$('#diary').addEventListener('click', () => { if (!busy) showDiary(); });
-$('#settings').addEventListener('click', async () => {
-  const rows = Object.entries(metrics.summary()).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join('');
-  const choice = await sheet({title: '设置', body: `<p>试玩记录（只保存在本机）</p><table class="metrics">${rows || '<tr><td>还没有记录</td><td></td></tr>'}</table>`,
-    actions: [{label: muted ? '打开声音' : '关闭声音', kind: 'secondary', value: 'sound'}, {label: '重新开始', kind: 'secondary', value: 'reset'}]});
-  if (choice === 'sound') { muted = !muted; setMuted(muted); save(); toast(muted ? '声音已关闭' : '声音已打开'); }
-  if (choice === 'reset') { const sure = await sheet({cls: 'center', title: '重新开始？', body: '<p>进度会清空，试玩记录也会清空。</p>', actions: [{label: '重新开始', kind: 'secondary', value: true}, {label: '取消', value: false}]}); if (sure) { store.reset(); location.reload(); } }
+app.addEventListener('keydown',e=>{
+  const spr=e.target.closest('.spr.item');
+  if(spr&&(e.key==='Enter'||e.key===' ')){e.preventDefault();const i=findItem(spr.dataset.id.slice(5));if(i)tapTile(i.cell,spr.dataset.id);}
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && selected && !document.querySelector('.sheet-wrap')) { selected = null; render(); } });
-
-// ---------- guidance ----------
-let hand = null, handTimer;
-function handEl() { if (!hand) { hand = document.createElement('div'); hand.className = 'hand'; hand.innerHTML = icon.hand; document.body.append(hand); } hand.getAnimations().forEach(a => a.cancel()); hand.hidden = false; clearTimeout(handTimer); handTimer = setTimeout(hideHand, 4200); return hand; }
-function pointAt(p) { const h = handEl(); h.style.left = `${p[0]}px`; h.style.top = `${p[1]}px`; if (!reducedMotion()) h.animate([{transform: 'translate(0,0) scale(1)'}, {transform: 'translate(4px,8px) scale(.9)'}, {transform: 'translate(0,0) scale(1)'}], {duration: 900, iterations: 4}); }
-function dragHint(a, b) { const h = handEl(); h.style.left = `${a[0]}px`; h.style.top = `${a[1]}px`; if (!reducedMotion()) h.animate([{transform: 'translate(0,0)', opacity: 1}, {transform: `translate(${b[0] - a[0]}px,${b[1] - a[1]}px)`, opacity: 1, offset: .7}, {transform: `translate(${b[0] - a[0]}px,${b[1] - a[1]}px)`, opacity: 0}], {duration: 1300, iterations: 3}); }
-function hideHand() { if (hand) hand.hidden = true; }
-async function pointInstall(item, r) {
-  const region = R.SPOT_REGION[r.spot];
-  if (item.cell && regionOfCell(item.cell) !== region) { toast(`${nameOf(item.chain, item.level)}在${REGIONS[regionOfCell(item.cell)].short}，先收进背包，再到${REGIONS[region].short}放出来`, {ms: 3000}); return; }
-  if (region !== view) await focusRegion(region);
-  const a = item.cell ? world.spriteClient('item-' + item.id) : centerOf($(`[data-bag="${item.id}"]`) || $('#bag')), b = world.cellToClient(SPOTS[r.spot]);
-  if (a) dragHint(a, b);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!document.querySelector('.sheet-wrap')){if(drag)cancelDrag();else{selected=null;render();}}
+});
+let restarting=false;
+function checkpoint(){
+  if(restarting)return;
+  if(drag)cancelDrag();
+  metrics.flush();save();
 }
-async function showHint(explicit = false) {
-  const s = R.suggestion(state);
-  if (s.type === 'tap') {
-    const g = R.GENERATORS[s.generator];
-    if (g.region !== view) { if (!explicit) return; await focusRegion(g.region); }
-    const el = genEl(s.generator); if (el) pointAt(centerOf(el));
-    if (explicit) toast(state.energy ? `点「${g.name}」拿${CHAINS[g.chain].label}材料` : '体力不够了，先补充体力');
-  }
-  if (s.type === 'merge') {
-    const a = findItem(s.a), b = findItem(s.b), region = regionOfCell(b.cell);
-    if (region !== view) { if (!explicit) return; await focusRegion(region); }
-    const pa = a.cell ? world.spriteClient('item-' + a.id) : centerOf($(`[data-bag="${a.id}"]`) || $('#bag')), pb = world.spriteClient('item-' + b.id);
-    if (pa && pb) dragHint(pa, pb); if (explicit) toast('把两件相同的拖到一起');
-  }
-  if (s.type === 'install') { const r = R.repairById(s.repair); await pointInstall(findItem(s.item), r); if (explicit) toast(`拖到「${r.title}」`); }
-  if (s.type === 'deliver') { const el = $(`[data-order="${s.order}"]`); if (el) pointAt(centerOf(el)); if (explicit) toast('点亮起来的请求就能交付'); }
-  if (s.type === 'store' || s.type === 'sell') { const p = world.spriteClient('item-' + s.item); if (p) pointAt(p); if (explicit) toast('空地满了。点一件素材，收进背包或卖掉。'); }
-  if (s.type === 'wait' && explicit) toast('先等体力恢复，或补充体力');
-}
-function maybeTutorial() {
-  clearTimeout(maybeTutorial.timer);
-  if (state.stats.repairs >= 3) return;
-  maybeTutorial.timer = setTimeout(() => { if (!busy && !drag && !world.isGesturing() && !document.querySelector('.sheet-wrap')) showHint(false); }, state.stats.taps < 3 ? 1200 : 5000);
-}
-
-// ---------- boot ----------
-window.__liteB = {get state() { return state; }, set state(v) { state = v; }, R, world, metrics, render, focusRegion, SPOTS, get busy() { return busy; }};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)checkpoint();else{R.tick(state);renderWallet();}});
+window.addEventListener('pagehide',checkpoint);
+setInterval(()=>{if(!drag){R.tick(state);renderWallet();}},1000);
 await world.ready;
-world.reveal([0, 0], 1.25, {instant: true});
-if (R.isOpen(state, 'creek')) { world.reveal([5, -1], 1.2, {instant: true}); world.reveal([10, -2], 1.2, {instant: true}); }
-if (R.done(state, 'stream')) { world.reveal([4, -2], 3, {instant: true}); world.reveal([1, -1], 1.6, {instant: true}); }
-for (const k of state.healed) world.reveal(parseKey(k), 0.9, {instant: true});
-for (const k of state.blooms) world.reveal(parseKey(k), 0.45, {instant: true});
-for (const id of state.done) { const r = R.repairById(id); world.reveal(SPOTS[r.spot], r.reveal, {instant: true}); }
-render();
-await focusRegion(view, false);
-metrics.enter('play');
-if (!state.stats.taps) {
-  await wait(400);
-  await converse(INTRO, {at: who => world.cellToClient(who === 'lina' ? SPOTS.shelter : [0, 0]), portrait: PORTRAIT, names: NAMES, root: app, gap: 2000});
-  speak(world.cellToClient(SPOTS.logs), PORTRAIT.mira, '先从倒木堆里劈些木料。两块一样的，拼起来就是更好的一块。', {root: app, name: NAMES.mira});
-}
-maybeTutorial();
+world.reveal([0,0],1.85,{instant:true});
+for(const k of state.healed)world.reveal(parseKey(k),.98,{instant:true});
+for(const k of state.blooms)world.reveal(parseKey(k),.6,{instant:true});
+for(const id of state.done){const r=R.repairById(id);if(r)world.reveal(SPOTS[r.spot],r.reveal,{instant:true});}
+if(R.done(state,'stream')){world.reveal([4,-2],3,{instant:true});world.reveal([1,-1],1.6,{instant:true});}
+render();await board.focus(state,region,false);save();metrics.enter('play');
+if(recovery.notice)message(recovery.notice,5000);
+if(practice && !state.stats.merges && !state.fittings?.ferry && !state.done.includes('ferry'))message('从 L3 连合到 L6，或先试装一半',5200);

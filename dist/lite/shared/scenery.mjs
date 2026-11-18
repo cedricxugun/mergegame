@@ -25,13 +25,14 @@ export function renderScenery(world, done, {visible = () => true, glow = new Set
 }
 
 // The creek bed is part of the plate; the flowing version sits on top.
-export function creekLayer(container) {
+export function creekLayer(container, {bounds, dry = sprite('creek-dry'), flow = sprite('creek-flow')} = {}) {
   let el = container.querySelector('.creek');
   if (!el) {
     el = document.createElement('div'); el.className = 'creek';
     const x = (CREEK_ART.x + PLATE.origin[0]) * PLATE.cell, y = (CREEK_ART.y + PLATE.origin[1]) * PLATE.cell, w = CREEK_ART.width * PLATE.cell;
-    Object.assign(el.style, {left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${w * CREEK_ART.aspect}px`});
-    el.innerHTML = `<img class="dry" src="${sprite('creek-dry')}" alt=""><img class="flow" src="${sprite('creek-flow')}" alt="">`;
+    const box = bounds || {x, y, w, h:w * CREEK_ART.aspect};
+    Object.assign(el.style, {left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px`, height: `${box.h}px`});
+    el.innerHTML = `<img class="dry" src="${dry}" alt=""><img class="flow" src="${flow}" alt="">`;
     container.querySelector('.world-inner').insertBefore(el, container.querySelector('.turf'));
   }
   return {
@@ -50,7 +51,7 @@ const LIFE = [
   {after: 'shore', id: 'egret', spot: 'reeds', art: 'v11-egret', size: 1.5, dx: .8, dy: -.2},
   {after: 'home', id: 'lamp', spot: 'shelter', html: '<i></i>', dx: -1.1, dy: -.6}
 ];
-export function renderLife(world, done) {
+export function renderLife(world, done, asset = sprite) {
   const root = world.container.querySelector('.world-inner');
   for (const l of LIFE) {
     let el = root.querySelector(`[data-life="${l.id}"]`);
@@ -58,7 +59,7 @@ export function renderLife(world, done) {
     if (el) continue;
     el = document.createElement('div'); el.className = `life life-${l.id}`; el.dataset.life = l.id;
     const [x, y] = plateOf(SPOTS[l.spot]), px = x + l.dx * PLATE.cell, py = y + l.dy * PLATE.cell;
-    if (l.art) { const s = l.size * PLATE.cell; el.innerHTML = `<img src="${sprite(l.art)}" alt="">`; Object.assign(el.style, {left: `${px - s / 2}px`, top: `${py - s}px`, width: `${s}px`, height: `${s}px`, zIndex: String(Math.round(py * 2))}); }
+    if (l.art) { const s = l.size * PLATE.cell; el.innerHTML = `<img src="${asset(l.art)}" alt="">`; Object.assign(el.style, {left: `${px - s / 2}px`, top: `${py - s}px`, width: `${s}px`, height: `${s}px`, zIndex: String(Math.round(py * 2))}); }
     else { el.innerHTML = l.html; Object.assign(el.style, {left: `${px}px`, top: `${py}px`, zIndex: '4000'}); }
     root.querySelector('.sprites').append(el);
   }

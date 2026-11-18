@@ -1,7 +1,9 @@
 // Pure merge-2 rules for prototype B ("纯合成"). No DOM. Every action returns
 // {ok, state, events} on a cloned state, so the UI can animate events and the
 // tests can replay whole sessions deterministically.
-import {key, parseKey, neighbors} from '../shared/hex.mjs';
+import {key, parseKey, neighbors, distance} from '../shared/hex.mjs';
+import {occupiedCells, layoutFor, applyLayout} from './placement.mjs';
+export {occupiedCells};
 import {MAX_LEVEL} from '../shared/art.mjs';
 import {SPOTS, AREA, regionOfCell, SPOT_REGION, isSpot, isCreek} from '../shared/map.mjs';
 import {REPAIRS as CHAPTER, DIARY} from '../shared/chapter.mjs';
@@ -41,7 +43,7 @@ const REWARDS = {
   ferry: {text: '渡口重开'},
   feast: {text: '第一章完成'}
 };
-export const REPAIRS = CHAPTER.map(r => ({...r, reward: REWARDS[r.id]}));
+export const REPAIRS = CHAPTER.map(r => ({...r,reward:REWARDS[r.id]}));
 export const repairById = id => REPAIRS.find(r => r.id === id);
 export const spotOfRepair = r => SPOTS[r.spot];
 // Repairs that recover a page of the grandmother's diary.
@@ -95,6 +97,7 @@ function roll(state, odds) { let x = rand(state); for (const [lv, p] of odds) { 
 export function freshState(now = Date.now(), seed = 20261022) {
   const s = {version: VERSION, seed, energy: ENERGY.start, maxEnergy: ENERGY.max, energyAt: now, coins: 10, nextId: 1, bagSize: BAG_SIZE,
     items: [], bag: [], healed: [], blooms: [], done: [], orders: [], orderLog: [], freeAt: 0, diary: [0],
+    fittings: {}, trim:'lantern',
     discovered: {wood: 0, water: 0, reed: 0, dock: 0},
     stats: {taps: 0, merges: 0, orders: 0, repairs: 0, sells: 0, stored: 0, heals: 0, outOfEnergy: 0, boughtEnergy: 0, freeEnergy: 0, blocked: 0}};
   refillOrders(s);
@@ -109,7 +112,7 @@ export function isLand(s, cell) {
   if (!AREA[region] || !isOpen(s, region) || isSpot(cell) || isCreek(cell)) return false;
   return BASE[region].some(c => key(...c) === k) || s.healed.includes(k);
 }
-export const itemAt = (s, cell) => s.items.find(i => i.cell && key(...i.cell) === key(...cell)) || null;
+export const itemAt = (s, cell) => s.items.find(i => occupiedCells(i).some(c => c[0] === cell[0] && c[1] === cell[1])) || null;
 export const isFree = (s, cell) => isLand(s, cell) && !itemAt(s, cell);
 export const landCells = s => Object.keys(AREA).filter(r => isOpen(s, r)).flatMap(r => [...BASE[r], ...AREA[r].filter(c => s.healed.includes(key(...c)))]);
 export const stormCells = s => [...STORM.values()].filter(t => !s.healed.includes(key(...t.cell)) && isOpen(s, t.region));
@@ -119,6 +122,12 @@ export const generatorBetter = (s, id) => done(s, GENERATORS[id].upgradeBy);
 export const generatorAt = cell => Object.entries(GENERATORS).find(([, g]) => key(...SPOTS[g.spot]) === key(...cell))?.[0] || null;
 export const repairAvailable = (s, r) => !done(s, r.id) && r.after.every(id => done(s, id));
 export const availableRepairs = s => REPAIRS.filter(r => repairAvailable(s, r));
+function expandsAtSite(state,item) {
+  return item.level===MAX_LEVEL || (item.level===6 && ['stream','ferry'].some(id=>{
+    const job=repairById(id);
+    return job.chain===item.chain && repairAvailable(state,job);
+  }));
+}
 // Nearest free land cell to a point, preferring the point's own region so a
 // generator never drops into a neighbouring region on screen elsewhere.
 export function nearestFreeTo(s, origin, region = regionOfCell(origin)) {
@@ -152,6 +161,31 @@ function discover(s, chain, lv, events) {
 }
 function newItem(s, chain, lv, cell) { const item = {id: `i${s.nextId++}`, chain, level: lv, cell}; s.items.push(item); return item; }
 
+// Both washed-up branches border debris: either direction opens real land.
+export function beginVoyage(now = Date.now(), seed = 20261022) {
+  const s = freshState(now, seed);
+  newItem(s, 'wood', 1, [0, 1]);
+  newItem(s, 'wood', 1, [0, -1]);
+  s.discovered.wood = 1;
+  return s;
+}
+
+// A separately saved wharf practice session for the late footprint
+// and trial fitting. Its stock never enters the player's journey.
+export function wharfPractice(now = Date.now()) {
+  const s = freshState(now);
+  s.done = CHAPTER.filter(r=>!['ferry','feast'].includes(r.id)).map(r=>r.id);
+  s.maxEnergy = 70; s.energy = 60; s.bagSize = 6;
+  s.healed = [...STORM.keys()];
+  s.discovered = {wood:6, water:6, reed:6, dock:6};
+  s.diary = [0,1,2,3,5]; s.stats.repairs = s.done.length;
+  s.orders=[]; s.orderLog = ORDERS.slice(0,12).map(o=>o.id);
+  s.stats.orders = s.orderLog.length;
+  [[3,[9,-2]], [3,[10,-2]], [4,[10,-1]], [5,[11,-2]]].forEach(([level,cell])=>newItem(s,'dock',level,cell));
+  refillOrders(s);
+  return s;
+}
+
 export function tapGenerator(state, id, now = Date.now()) {
   const g = GENERATORS[id];
   if (!g || !generatorOpen(state, id)) return fail(state, '这里还没开放。');
@@ -177,28 +211,65 @@ export function merge(state, aId, bId) {
   if (a.level >= MAX_LEVEL) return fail(state, '已经是最高级了。');
   const s = clone(state), cell = b.cell, lv = a.level + 1;
   s.items = s.items.filter(i => i.id !== aId && i.id !== bId); s.bag = s.bag.filter(i => i.id !== aId);
-  const item = newItem(s, a.chain, lv, cell), events = [{type: 'merge', from: [aId, bId], fromCell: a.cell, item: {...item}}];
+  const item = newItem(s, a.chain, lv, cell);
+  const events = [];
   s.stats.merges++;
   const k = key(...cell); if (!s.blooms.includes(k)) { s.blooms.push(k); events.push({type: 'bloom', cell}); }
   discover(s, a.chain, lv, events);
   for (const n of neighbors(...cell)) heal(s, n, lv, events);
+  if (expandsAtSite(s,item)) {
+    item.wide=true;
+    const land=landCells(s);
+    const anchors=land.filter(c=>regionOfCell(c)===regionOfCell(cell)).sort((a,b)=>distance(a,cell)-distance(b,cell));
+    let plan=null;
+    for(const anchor of anchors){plan=layoutFor(s.items,land,item,anchor);if(plan)break;}
+    if (!plan) return fail(state, '这里没有三格相连的空地。可以先试装一半，或把材料挪到开阔处。');
+    applyLayout(s.items, item, plan);
+  }
+  events.unshift({type: 'merge', from: [aId, bId], fromCell: a.cell, mergedAt:cell, item: {...item}});
   return ok(s, events);
+}
+
+export function salvageAt(tile) {
+  const [q,r] = tile.cell;
+  if (q===-1 && r===-1) return {chain:'wood',level:1};
+  if (hash(q,r)%6 !== 1) return null;
+  const variety=Math.abs(q*11+r*17);
+  const chain = tile.region === 'camp' ? 'wood' : ['water','reed','dock'][hash(r,q)%3];
+  return {chain,level:1 + variety%2};
 }
 function heal(s, n, lv, events) {
   const tile = STORM.get(key(...n));
   if (!tile || s.healed.includes(key(...n)) || !isOpen(s, tile.region) || lv < tile.level) return;
   s.healed.push(key(...n)); s.stats.heals++;
   const event = {type: 'heal', cell: n, level: tile.level}, h = hash(...n) % 6;
-  if (h === 0) { event.bonus = {energy: 3}; s.energy += 3; }
-  else if (h === 1) { const chain = tile.region === 'camp' ? 'wood' : ['water', 'reed', 'dock'][hash(n[1], n[0]) % 3]; const bonus = newItem(s, chain, 1 + hash(n[0] + 5, n[1]) % 2, n); event.bonus = {item: {...bonus}}; discover(s, chain, bonus.level, events); }
+  const salvage = salvageAt(tile);
+  if (salvage) {
+    const bonus = newItem(s,salvage.chain,salvage.level,n);
+    event.bonus = {item:{...bonus}}; discover(s,bonus.chain,bonus.level,events);
+  } else if (h === 0) { event.bonus = {energy: 3}; s.energy += 3; }
   else if (h === 2) { event.bonus = {coins: 5}; s.coins += 5; }
   events.push(event);
+}
+
+export function dropLayout(state,id,cell) {
+  const item=[...state.items,...state.bag].find(i=>i.id===id);
+  if (!item || !isLand(state,cell)) return null;
+  return layoutFor(state.items,landCells(state),expandsAtSite(state,item)?{...item,wide:true}:item,cell);
 }
 
 export function move(state, id, cell) {
   const s = clone(state), item = s.items.find(i => i.id === id) || s.bag.find(i => i.id === id);
   if (!item) return fail(state, '找不到这件素材。');
   if (!isLand(s, cell)) return fail(state, '这里不能放。');
+  if(expandsAtSite(s,item))item.wide=true;
+  if (item.wide || item.level === MAX_LEVEL || occupiedCells(itemAt(s,cell)||{}).length>1) {
+    const plan = layoutFor(s.items, landCells(s), item, cell);
+    if (!plan) return fail(state, '周围没有足够的地格让位。');
+    if (!item.cell) { s.bag = s.bag.filter(i => i.id !== id); s.items.push(item); }
+    applyLayout(s.items, item, plan);
+    return ok(s, [{type: 'move', id, shifts: plan.shifts}]);
+  }
   const other = itemAt(s, cell);
   if (other && other.id === id) return ok(s, []);
   if (other) {
@@ -219,10 +290,17 @@ export function store(state, id) {
   return ok(s, [{type: 'store', id}]);
 }
 export function unbag(state, id, near) {
-  const cell = nearestFreeTo(state, near);
-  if (!cell) return fail(state, '地图上没有空地了。');
-  return move(state, id, cell);
+  const item = state.bag.find(i => i.id === id);
+  if (!item) return fail(state, '背包里没有这件素材。');
+  const cells = landCells(state).filter(c => regionOfCell(c) === regionOfCell(near) && !itemAt(state, c));
+  cells.sort((a, b) => distance(a, near) - distance(b, near));
+  for (const cell of cells) {
+    const r = move(state, id, cell);
+    if (r.ok) return r;
+  }
+  return fail(state, '这片区域放不下了。先合成腾地，或换个地区取出。');
 }
+
 export const sellPrice = lv => lv <= 2 ? lv : 2 ** (lv - 2) + 1;
 export function sell(state, id) {
   const s = clone(state), item = s.items.find(i => i.id === id) || s.bag.find(i => i.id === id);
@@ -236,11 +314,18 @@ export function sell(state, id) {
 export function install(state, id, repairId) {
   const repair = repairById(repairId);
   if (!repair || !repairAvailable(state, repair)) return fail(state, '这里还不能修。');
-  const item = state.items.find(i => i.id === id) || state.bag.find(i => i.id === id);
+  const item = [...state.items, ...state.bag, state.fittings?.[repairId]].find(i => i?.id === id);
   if (!item || item.chain !== repair.chain || item.level !== repair.level) return fail(state, `需要 L${repair.level} 的组件。`);
-  const s = clone(state), events = [{type: 'install', repair: repair.id, item: {...item}}];
+  let s = clone(state);
+  const events = [{type: 'install', repair: repair.id, item: {...item}}];
   s.items = s.items.filter(i => i.id !== id); s.bag = s.bag.filter(i => i.id !== id);
+  if (s.fittings?.[repairId] && s.fittings[repairId].id !== id) {
+    const returned=retrievePart(s,repairId,item.cell);
+    if (!returned.ok) return fail(state,returned.message);
+    s=returned.state; events.push(...returned.events);
+  }
   s.done.push(repair.id); s.stats.repairs++;
+  if (s.fittings) delete s.fittings[repairId];
   const r = repair.reward || {};
   if (r.maxEnergy) { s.maxEnergy += r.maxEnergy; s.energy += r.maxEnergy; }
   if (r.bag) s.bagSize += r.bag;
@@ -251,11 +336,13 @@ export function install(state, id, repairId) {
   const page = DIARY_REPAIRS[repair.id];
   if (page !== undefined && !s.diary.includes(page)) { s.diary.push(page); events.push({type: 'diary', page}); }
   if (repair.letter) events.push({type: 'letter'});
-  if (repair.finale) events.push({type: 'finale'});
+  if (s.done.length===REPAIRS.length) events.push({type:'finale'});
   refillOrders(s, events);
   return ok(s, events);
 }
 
+
+export const orderById = id => ORDERS.find(o=>o.id===id);
 export const orderNeeds = order => ORDERS.find(o => o.id === order.id).needs;
 // Picks concrete items for an order, preferring the bag, then the board.
 export function pickForOrder(s, order) {
@@ -282,12 +369,74 @@ export function deliver(state, orderId) {
   refillOrders(s, events);
   return ok(s, events);
 }
-function refillOrders(s, events = []) {
+export function refillOrders(s, events = []) {
   for (const t of ORDERS) {
     if (s.orders.length >= ACTIVE_ORDERS) break;
     if (s.orderLog.includes(t.id) || s.orders.some(o => o.id === t.id)) continue;
     if ((t.after || []).every(id => s.done.includes(id))) { s.orders.push({id: t.id}); events.push({type: 'order', order: t.id}); }
   }
+}
+
+export function progressFor(s, repair) {
+  const staged = s.fittings?.[repair.id];
+  const stock = [...s.bag, ...s.items].filter(i => i.chain === repair.chain && i.level <= repair.level);
+  const need = 2 ** (repair.level - 1);
+  const total = stock.reduce((n, i) => n + 2 ** (i.level - 1), staged ? 2 ** (staged.level - 1) : 0);
+  const match = stock.find(i => i.level === repair.level);
+  const half = stock.find(i => i.level === repair.level - 1);
+  const ready = staged?.level === repair.level ? staged : match;
+  const nextLimit = staged ? repair.level-1 : repair.level;
+  const highest = stock.reduce((lv,i)=>Math.max(lv,i.level),0);
+  const nextLevel = Math.min(nextLimit,highest+1);
+  const lowerValue = stock.filter(i=>i.level<nextLevel).reduce((n,i)=>n+2**(i.level-1),0);
+  const nextGap = Math.max(0,2**(nextLevel-1)-lowerValue);
+  return {total: Math.min(need, total), need, missing: Math.max(0, need - total), ready, half, staged, nextLevel, nextGap, highest};
+}
+
+export function stagePart(state, repairId, itemId) {
+  const r = repairById(repairId);
+  if (!r || r.level < 5 || !repairAvailable(state, r)) return fail(state, '这处工地还不能试装。');
+  const part = [...state.items, ...state.bag].find(i => i.id === itemId);
+  if (!part || part.chain !== r.chain || part.level !== r.level - 1) return fail(state, '需要这个组件的前一级。');
+  const s = clone(state);
+  s.fittings ??= {};
+  const fitted = s.fittings[r.id];
+  if (fitted && fitted.level !== part.level) return fail(state, '工地上的组件已经合好。');
+  s.items = s.items.filter(i => i.id !== itemId);
+  s.bag = s.bag.filter(i => i.id !== itemId);
+  if (!fitted) {
+    s.fittings[r.id] = {...part, cell: null};
+    return ok(s, [{type: 'stage', repair: r.id, item: s.fittings[r.id]}]);
+  }
+  const item = {id: `i${s.nextId++}`, chain: part.chain, level: r.level, cell: null};
+  if(expandsAtSite(s,item))item.wide=true;
+  s.fittings[r.id] = item;
+  s.stats.merges++;
+  const events = [{type: 'assemble', repair: r.id, item}];
+  discover(s, part.chain, r.level, events);
+  return ok(s, events);
+}
+
+export function retrievePart(state, repairId, freedCell = null) {
+  const r = repairById(repairId), part = state.fittings?.[repairId];
+  if (!r || !part) return fail(state, '工地上没有试装件。');
+  const s = clone(state), origin = SPOTS[r.spot];
+  const nearby = landCells(s).filter(c => regionOfCell(c) === SPOT_REGION[r.spot] && !itemAt(s, c));
+  nearby.sort((a, b) => distance(a, origin) - distance(b, origin));
+  if(freedCell && isFree(s,freedCell)) nearby.push(freedCell);
+  const item = s.fittings[repairId];
+  const land = landCells(s);
+  let plan = null;
+  for (const cell of nearby) { plan=layoutFor(s.items,land,item,cell); if(plan)break; }
+  if (plan) {
+    applyLayout(s.items, item, plan); s.items.push(item);
+  } else if (s.bag.length < s.bagSize) {
+    s.bag.push(item);
+  } else {
+    return fail(state, '草地和背包都满了。试装件仍在工地，可以直接与另一半合拢。');
+  }
+  delete s.fittings[repairId];
+  return ok(s, [{type: 'retrieve', item}]);
 }
 
 // Coins buy energy. The free refill stands in for a rewarded ad and has a cooldown.
@@ -305,6 +454,7 @@ export function buyEnergy(state, {free = false, now = Date.now()} = {}) {
 // generator has space to drop into.
 export function isStuck(s) {
   if (freeCount(s) > 0) return false;
+  if (availableRepairs(s).some(r=>{const p=progressFor(s,r);return p.ready || p.staged&&p.half;})) return false;
   const pool = [...s.items, ...s.bag];
   if (pool.some((a, i) => pool.some((b, j) => j > i && a.chain === b.chain && a.level === b.level && a.level < MAX_LEVEL))) return false;
   if (availableRepairs(s).some(r => pool.some(i => i.chain === r.chain && i.level === r.level))) return false;
@@ -336,9 +486,27 @@ export function suggestion(s) {
 }
 
 export function validate(s) {
-  if (!s || s.version !== VERSION || !Array.isArray(s.items) || !Array.isArray(s.bag) || s.bag.length > s.bagSize) return false;
+  if (!s || s.version !== VERSION || !s.discovered || !s.stats) return false;
+  const arrays=['items','bag','healed','blooms','done','orders','orderLog','diary'];
+  if (!arrays.every(k=>Array.isArray(s[k])) || !Number.isInteger(s.bagSize) || s.bag.length>s.bagSize) return false;
+  if (!Number.isInteger(s.nextId) || !Number.isFinite(s.energy) || !Number.isFinite(s.maxEnergy)) return false;
+  if (s.orders.some(o=>!o || !orderById(o.id)) || s.items.some(i=>!i || !Array.isArray(i.cell) || i.cell.length!==2) || s.bag.some(i=>!i)) return false;
   const seen = new Set();
-  for (const i of s.items) { if (!i.cell || !isLand(s, i.cell)) return false; const k = key(...i.cell); if (seen.has(k)) return false; seen.add(k); }
-  return [...s.items, ...s.bag].every(i => i.level >= 1 && i.level <= MAX_LEVEL && i.chain in s.discovered);
+  for (const i of s.items) {
+    if (!i.cell || i.turn != null && (!Number.isInteger(i.turn) || i.turn < 0 || i.turn > 5)) return false;
+    for (const c of occupiedCells(i)) {
+      const k = key(...c);
+      if (!isLand(s, c) || seen.has(k)) return false;
+      seen.add(k);
+    }
+  }
+  const slots = Object.entries(s.fittings || {});
+  if (!slots.every(([id, part]) => {
+    const repair = repairById(id);
+    return repair && part && repairAvailable(s, repair) && !part.cell && part.chain === repair.chain && [repair.level - 1, repair.level].includes(part.level);
+  })) return false;
+  const stock = [...s.items, ...s.bag, ...slots.map(([, part]) => part)];
+  return new Set(stock.map(i => i.id)).size === stock.length &&
+    stock.every(i => i.level >= 1 && i.level <= MAX_LEVEL && i.chain in s.discovered);
 }
 export {parseKey, SPOT_REGION};

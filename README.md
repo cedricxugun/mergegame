@@ -1,7 +1,12 @@
 # 风暴之后 · 归乡手记
 
-> **两个方向的体验版**在 `dist/lite/`：A「三消 + 轻合成」和 B「纯合成」。运行 `npm run dev` 后打开 `http://127.0.0.1:4178/lite/`；单文件离线包在 `offline/forest-camp-lite-a.html` 与 `offline/forest-camp-lite-b.html`（各约 3 MB）。方案、数值和要验证的问题见 [LITE-PLAN.md](LITE-PLAN.md)。下文描述的是原有完整原型，未改动。
+> 运行 `npm run dev`，在 [体验版入口](http://127.0.0.1:4178/lite/) 选择 A「三消 + 轻合成」或 [B「横屏合成与重建」](http://127.0.0.1:4178/lite/b/)。执行 `npm run build:lite` 可生成两份内嵌图像与声音的离线 HTML。
 
+B 版沿用营地、旧溪谷、芦苇河湾的连续地理位置。直接点倒木堆等四处生成器取料，在六边草地上拖合；把两件材料合在残骸旁，可以清出真正可用的工作格。地图上的工地显示需求，侧栏显示材料缺口和修复收益。交付时组件飞入原址，棚屋、溪流或码头在同一位置改变。已经修好的地区仍可返回操作。
+
+四条链共 28 件材料。原有 17 处修复的配方与奖励沿用 v2。溪流或渡口进入大修时，恰好达到交付等级的 L6 水渠或泊位组件在草地展开三格，L7 也占三格。L5 及以上的工地支持试装一件前级组件，可以取回或与另一半合拢。拖过多个同级搭档可连续升级；将整串拖出地图取消。三格落点和让位落点提前描边，无法放下会保留原材料。可进入[独立河湾练习](http://127.0.0.1:4178/lite/b/?visit=wharf)体验。
+
+美术参考 [Microfun《Gossip Harbor》公布的角色与物件画法](https://play.google.com/store/apps/details?id=com.mergegames.gossipharbor)。原创图像、尺寸与脚点记录见[材料](ASSET-PROMPTS-bay-materials.md)、[人物与建筑](ASSET-PROMPTS-bay-story.md)和[环境与声音](ASSET-PROMPTS-bay-world.md)。下文描述旧版原型。
 当前默认入口是灾后重建版，仍面向 iPhone 竖屏。米拉带着莉娜回到风暴后的故乡：先补好避雨棚，再生火、清出旧路、完善营地；随后进入芦苇河湾恢复水源、护岸和渡口，接回船匠罗恩。剧情随着修复进入手记，未完成的成品不会提前显示。
 
 核心规则在 `dist/homecoming-play.mjs`（世界存档 v8）；`homecoming.mjs` 冻结保留 v7 行为，供旧存档校验与兼容。`homecoming-view.mjs`、`homecoming-app.mjs` 和 `homecoming-craft.css` 负责展示。`index.html` 与 `homecoming.html` 使用相同入口。三消通关获得物资箱，再回地图选材、一键领料、亲手合成并修复。营地仍对应第 1–8 关和 4 次修复，河湾对应第 9–20 关和 6 次修复；L1–L6 占单格，L7 展开三格。
