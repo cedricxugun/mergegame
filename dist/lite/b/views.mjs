@@ -11,45 +11,68 @@ const coin = '<i class="gold-coin" aria-hidden="true">✦</i>';
 export const img = (name,cls='',alt='') => `<img class="${cls}" src="${art(name)}" alt="${esc(alt)}" draggable="false">`;
 export const portrait = who => img('portrait-'+who,'face',CAST[who].name);
 export const piece = (chain,level) => `<span class="piece-pic">${img(matName(chain,level),'',nameOf(chain,level))}<b>${level}</b></span>`;
-const reward = o => `<span class="pay">${coin}${o.coins} <i class="tiny-energy">${icon.energy}</i>${o.energy}</span>`;
+const reward = o => `<span class="pay">${coin}${o.coins} 金币　<i class="tiny-energy">${icon.energy}</i>${o.energy} 体力</span>`;
+const countedNames={wood:['块木片','捆木料','块防雨补片'],dock:['根木条','块木板','组栈道板','根基础桩'],water:['滴水','只集水碗','个净水罐'],reed:['株芦芽','株幼苗','束芦苇']};
+const quantity=(chain,level,count)=>count+(countedNames[chain]?.[level-1]||('件'+nameOf(chain,level)));
 
 export function shell() {
-  return `<section class="playfield" aria-label="可拖合的家园地图"><div id="world"></div>
-    <header class="map-hud"><button class="location" data-open="map" aria-label="切换地区">${icon.map}<span id="region-name"></span><i>⌄</i></button>
-      <button class="journey-count" data-open="jobs" aria-label="查看区域修复进度">${icon.lamp}<span id="chapter-number"></span></button></header>
-    <div class="map-tools"><button id="bag" class="map-tool" data-open="bag" aria-label="打开背包">${icon.bag}<span>背包</span><b id="bag-num"></b></button>
-      <button class="map-tool icon-only" data-open="hint" aria-label="寻找合成搭档">${icon.hint}</button>
-      <button class="map-tool icon-only" data-open="journal" aria-label="归乡手记">${icon.book}</button></div>
-    <div class="field-message" id="field-message" role="status" aria-live="polite"></div></section>
-    <aside class="field-book" aria-label="当前地区的物资和修复"><header class="book-top"><b>归乡手记</b>
-      <button class="gear" data-open="settings" aria-label="设置">${icon.gear}</button></header>
-      <div class="wallet"><button id="energy" data-open="energy" aria-label="体力补给">${icon.energy}<b id="en"></b><i>+</i></button>
-      <div aria-label="金币">${coin}<b id="money"></b></div></div>
-      <div id="panel"></div><section id="requests" aria-label="居民委托和故事"></section>
-      <div class="field-supplies"><button class="gather" id="gather"></button><button class="shop-more" data-open="shops" aria-label="选择材料来源">⌄</button></div>
-      <button class="album-link" data-open="album">${icon.book} 材料图鉴</button></aside>`;
+  return `<section class="playfield" aria-label="可拖合的家园地图">
+    <div id="world"></div>
+    <header class="map-hud">
+      <button class="location" data-open="map" aria-label="切换地区">${icon.map}<span id="region-name"></span></button>
+      <button class="low-energy" id="energy" data-open="energy" aria-label="体力补给" hidden>${icon.energy}<b id="en"></b></button>
+    </header>
+    <aside class="work-note" id="panel" aria-label="当前工地"></aside>
+    <nav class="map-tools" aria-label="随身物品">
+      <button class="map-tool" id="notebook" data-open="notebook">${icon.book}<span>手记</span></button>
+      <button class="map-tool" id="bag" data-open="bag" aria-label="打开背包" hidden>${icon.bag}<span>背包</span><b id="bag-num"></b></button>
+    </nav>
+    <aside class="selection" id="selection" aria-label="所选材料" hidden></aside>
+    <div class="field-message" id="field-message" role="status" aria-live="polite"></div>
+  </section>`;
 }
 
-export function ordersView(s,r,story) {
-  if(story || !s.orders.length){
-    const [who,line]=r?MOTIVES[r.id]:['lina','海湾里又有了灯火。'];
-    const note=story || {who,text:line};
-    return `<button class="map-story" data-open="journal">${img('cast-'+note.who,'story-person')}
-      <span><b>${CAST[note.who].name}</b><small>${esc(note.text)}</small></span></button>`;
-  }
-  return `<div class="orders-heading">居民委托</div><div class="orders-list">${s.orders.map(o=>{
-    const t=R.orderById(o.id),ready=!!R.pickForOrder(s,o);
-    return `<button class="request-chip ${ready?'ready':''}" data-order="${t.id}" aria-label="${CAST[t.who].name}，${esc(t.text)}">${portrait(t.who)}<span>${t.needs.map(([c,l])=>piece(c,l)).join('')}</span>
-      <small>${ready?'交付':coin+t.coins}</small></button>`;}).join('')}</div>`;
+export function notebookView(s) {
+  const entry=(key,mark,label,note='')=>`<button data-pick="${key}">${mark}<span>${label}</span><small>${note}</small></button>`;
+  return `<div class="book-index">
+    ${entry('jobs',icon.lamp,'修复计划',s.done.length+' / '+R.REPAIRS.length)}
+    ${entry('story',icon.book,'归乡故事','手记 '+s.diary.length+' / '+DIARY.length)}
+    ${entry('bag',icon.bag,'背包',s.bag.length+' / '+s.bagSize)}
+    ${s.orders.length||s.orderLog.length?entry('orders',icon.lamp,'居民来信','选做'):''}
+  </div><div class="book-footer"><button data-pick="energy" aria-label="查看体力和金币">${icon.energy} ${s.energy}/${s.maxEnergy}　${coin} ${s.coins}</button>
+    <button data-pick="settings">${icon.gear} 设置</button></div>`;
+}
+
+export function orderResult(s,t) {
+  return t.keepsake || (t.diary && !s.diary.includes(t.diary) ? '找回一页外婆的手记' : '');
+}
+export function ordersView(s,repair) {
+  const entries=s.orders.map(o=>({o,t:R.orderById(o.id),impact:R.orderImpact(s,o,repair)}));
+  const rank=e=>!e.impact.available?2:e.impact.usesProject?1:0;
+  const row=({o,t,impact})=>{
+    const status=!impact.available?'材料未齐':impact.usesProject?'工地也要用':'余料可交';
+    return `<button data-pick="${o.id}" class="neighbor-letter">${portrait(t.who)}
+      <span><strong>${CAST[t.who].name}</strong><small>${esc(t.text)}</small></span><b>${status}</b></button>`;
+  };
+  entries.sort((a,b)=>rank(a)-rank(b));
+  const main=entries.filter(e=>e.t.keepsake || e.t.diary);
+  const prior=entries.filter(e=>!e.t.keepsake && !e.t.diary);
+  const list=rows=>'<div class="letter-list">'+rows.map(row).join('')+'</div>';
+  const answered=R.STORY_LETTERS.filter(t=>s.orderLog.includes(t.id));
+  const receipts=answered.map(t=>`<button class="neighbor-letter" data-pick="recall-${t.id}">${portrait(t.who)}
+    <span><strong>${CAST[t.who].name}</strong><small>${t.keepsake || '找回了外婆的手记 · 第 '+(t.diary+1)+' 页'}</small></span><b>${t.keepsake?'去看看':'读这页'}</b></button>`);
+  return (main.length?list(main):'<p>目前没有新的故事来信。</p>')+
+    (prior.length?`<details class="memory"><summary>以前收到的请求（${prior.length}）</summary>${list(prior)}</details>`:'')+
+    (answered.length?`<details class="memory" ${main.length?'':'open'}><summary>已回的信（${answered.length}）</summary><div class="letter-list">${receipts.join('')}</div></details>`:'');
 }
 export function shortage(r,p) {
   if (p.ready) return '材料已齐';
   if (p.staged && p.half) return '另一半到了，可以合拢';
-  if (p.staged) return '已试装一半 · 再做一件 L'+(r.level-1);
+  if (p.staged) return '已试装一半 · 还需'+quantity(r.chain,r.level-1,'一');
   if (!p.missing) return '材料够了，合成即可';
   if (!p.highest) return '先到'+WORKSHOPS[CHAIN_SHOP[r.chain]]+'采集材料';
   const step=Math.log2(p.missing);
-  if(Number.isInteger(step))return '还差 1 件'+nameOf(r.chain,step+1);
+  if(Number.isInteger(step))return '还差'+quantity(r.chain,step+1,'一');
   const next=nameOf(r.chain,p.nextLevel);
   if(!p.nextGap)return '现在可以合出'+next;
   return '再攒 '+p.nextGap+' 份基础料可合出'+next;
@@ -57,36 +80,36 @@ export function shortage(r,p) {
 export function bar(progress) {
   return `<span class="meter"><i style="width:${Math.round(100*progress.total/progress.need)}%"></i></span>`;
 }
-export function repairPanel(s,r) {
-  if(!r)return `<div class="epilogue">${img('scene-ferry')}<span><strong>家园重建完成</strong><small>已修好的空地仍可摆放和合成</small></span><button data-open="journal">看手记</button></div>`;
+export function repairPanel(s,r,step) {
+  if (!r) return `<button class="work-summary" data-open="journal">${img('scene-ferry')}<span><strong>家园修复完成</strong><small>回看归乡故事</small></span></button>`;
   const p=R.progressFor(s,r);
-  const action=p.ready?'修复':p.staged&&p.half?'合拢':p.half&&r.level>=5&&!p.staged?'试装':'查看';
-  return `<div class="repair-head"><b>${icon.lamp} 当前修复</b><button data-open="jobs">${R.availableRepairs(s).length>1?'换个目标':'重建进度'} ›</button></div>
-    <div class="repair-main">${piece(r.chain,r.level)}<div class="repair-copy"><h2>${JOB_NAMES[r.id]}</h2>
-    <div class="progress-line">${bar(p)}<small>${p.total}/${p.need}</small></div><p>${shortage(r,p)}</p></div>
-    <button class="job-act ${p.ready?'bright':''}" data-job-act="${r.id}">${action}</button></div>
-    <div class="benefit">${icon.lamp}<span>修好后</span>${BENEFITS[r.id]}${p.staged?`<button class="take-back" data-retrieve="${r.id}">取回试装件</button>`:''}</div>`;
+  let line=shortage(r,p), action='';
+  switch(step.kind) {
+    case 'install': line=nameOf(r.chain,r.level)+'已做好'; action='修复'; break;
+    case 'assemble': line='另一半已做好'; action='合拢'; break;
+    case 'stage': line='第一件'+nameOf(r.chain,r.level-1)+'已做好'; action='试装'; break;
+    case 'merge':
+      line=step.remote?REGIONS[step.where].name+'有一对搭档':!step.from.cell?'背包里有一件搭档':
+        `把${quantity(r.chain,step.to.level,'两')}拖到一起`;
+      if(p.staged)line='已装一半 · '+line;
+      break;
+    case 'move': line=step.reason==='split'?'把分在两地的搭档放到一起':step.reason==='bag'?'先从背包取出'+nameOf(r.chain,step.item.level):'把组件移到开阔处再合成'; break;
+    case 'gather': if(!p.highest && !p.staged)line='去'+WORKSHOPS[CHAIN_SHOP[r.chain]]+'取料'; break;
+  }
+  return `<div class="site-ticket">
+    <button class="work-summary" data-job-info="${r.id}" aria-label="工地详情 · ${JOB_NAMES[r.id]}">
+      ${piece(r.chain,r.level)}<span><strong>${JOB_NAMES[r.id]}</strong><small>${esc(line)}</small></span></button>
+    ${action?`<button class="job-act ${p.ready?'bright':''}" data-job-act="${r.id}">${action}</button>`:''}
+    ${p.staged?`<button class="take-back" data-retrieve="${r.id}" aria-label="取回试装件">取回</button>`:''}
+    </div>`;
 }
-export function itemPanel(s,i) {
-  const source=CHAIN_SHOP[i.chain];
-  const jobs=R.availableRepairs(s).filter(r=>r.chain===i.chain);
-  const ready=jobs.find(r=>r.level===i.level);
-  const trial=jobs.find(r=>r.level>=5 && r.level-1===i.level && !R.progressFor(s,r).ready);
-  const job=ready||trial;
-  const store=`<button class="job-act" data-store="${i.id}">入包</button>`;
-  const action=ready?`<button class="job-act bright" data-item-repair="${ready.id}">送工地</button>`:
-    trial?`<button class="job-act" data-item-fit="${trial.id}">试装</button>`:store;
-  const use=job?REGIONS[SPOT_REGION[job.spot]].short+' · '+JOB_NAMES[job.id]:i.level===7?'最高级 · 可整件移动':'拖到同级素材上升级';
-  return `<div class="repair-head"><b>${CHAINS[i.chain].label} · L${i.level}${R.occupiedCells(i).length>1?' · 三格组件':''}</b><button data-open="deselect" aria-label="取消选择">收起详情 ×</button></div>
-    <div class="repair-main inspect">${piece(i.chain,i.level)}<div class="repair-copy"><h2>${nameOf(i.chain,i.level)}</h2>
-    <button class="text-action" data-chain="${i.chain}">${WORKSHOPS[source]}产出 · 查看合成链 ›</button></div>
-    ${action}</div>
-    <div class="inspect-foot"><span>${use}</span>${job?`<button data-store="${i.id}">入包</button>`:''}<button data-sell="${i.id}">出售 ${coin}${R.sellPrice(i.level)}</button></div>`;
-}
-export function gatherView(s,id) {
-  const g=R.GENERATORS[id], upgraded=R.generatorBetter(s,id);
-  return `${img(id==='logs'&&upgraded?'sawmill':WORK_ART[id],'shop-pic')}
-    <span><b>${WORKSHOPS[id]} · 取料</b><small>${CHAINS[g.chain].label}材料${upgraded?' · 已升级':''}</small></span><i>${icon.energy}1</i>`;
+export function itemPanel(s,i,r) {
+  const canDeliver=r && i.chain===r.chain && i.level===r.level;
+  const canFit=r && r.level>=5 && i.chain===r.chain && i.level===r.level-1 && !R.progressFor(s,r).ready;
+  const note=canDeliver?'可拖到工地修复':canFit?'可拖到工地试装':i.level===7?'最高级':'';
+  return `<button class="selected-token" data-item-info="${i.id}" aria-label="材料详情 · ${nameOf(i.chain,i.level)}">
+    ${piece(i.chain,i.level)}<span><strong>${nameOf(i.chain,i.level)}</strong>${note?`<small>${note}</small>`:''}</span></button>
+    <button class="clear-selection" data-open="deselect" aria-label="取消选择">${icon.close}</button>`;
 }
 export function jobsView(s,tracked) {
   const list=R.availableRepairs(s);
@@ -101,11 +124,27 @@ export function jobDetail(s,r) {
     ${bar(p)}<p class="reward-strip">修好后 · ${BENEFITS[r.id]}</p>
     ${r.level>=5?`<div class="fitting-slot">${img(matName(r.chain,r.level-1))}<div><b>${p.staged?'已在工地：'+nameOf(p.staged.chain,p.staged.level):'试装位'}</b><small>${p.staged?'可取回，或送来另一件合拢':'可先放一件 L'+(r.level-1)+'，腾出工作格'}</small></div></div>`:''}`;
 }
-export function orderDetail(s,o) {
+export function orderDetail(s,o,job,impact) {
   const t=R.orderById(o.id);
+  let allocation='';
+  const project=impact.project || job;
+  if(project && impact.available) {
+    const title=JOB_NAMES[project.id];
+    if(!impact.usesProject)allocation='这份余料可以交，'+title+'的备料进度不变。';
+    else if(impact.after.missing>impact.before.missing){
+      const missing=impact.after.missing, level=Math.log2(missing)+1;
+      const gap=Number.isInteger(level)?quantity(project.chain,level,'一'):missing+' 份基础料';
+      allocation=impact.before.missing===0
+        ? '交出后，'+title+'还差'+gap+'。'
+        : title+'的基础料缺口会从 '+impact.before.missing+' 份变成 '+missing+' 份。';
+    } else if(impact.lostReady)allocation='会用到给'+title+'做好的成品。余料够，但需要重新合成。';
+    else allocation='会用到给'+title+'准备的半件，需要再合一件。';
+  }
+  const outcome=orderResult(s,t);
   return `<div class="note-person">${portrait(t.who)}<div><b>${CAST[t.who].name}</b><p>${esc(t.text)}</p></div></div>
     <div class="order-parts">${t.needs.map(([c,l])=>`<button data-pick="chain-${c}">${piece(c,l)}<small>${nameOf(c,l)} · L${l}</small></button>`).join('')}</div>
-    <div class="reward-strip">交付可得 ${reward(t)} ${t.diary&&!s.diary.includes(t.diary)?' · 手记一页':''}</div>`;
+    <div class="reward-strip">${reward(t)} ${outcome?' · '+outcome:''}</div>
+    ${allocation?`<p class="allocation ${impact.usesProject?'uses-stock':''}">${allocation}</p>`:''}`;
 }
 export function journalView(s,tab) {
   const done=[...s.done].reverse().map(R.repairById).filter(Boolean);
@@ -125,7 +164,9 @@ export function chainView(s,c) {
       const count=[...s.bag,...s.items,...Object.values(s.fittings||{})].filter(i=>i.chain===c&&i.level===n+1).length;
       return `<div class="chain-row ${known?'':'undiscovered'}">${img(matName(c,n+1))}<b>L${n+1}</b><span>${known?name:'未发现'}</span><small>${count?'持有 '+count:''}</small></div>`;}).join('')}</div>`;
 }
-export function bagView(s) {
-  return `<p class="sheet-intro">${s.bag.length} / ${s.bagSize} 格 · 点素材放回当前地区</p><div class="bag-grid">${Array.from({length:s.bagSize},(_,n)=>{
-    const i=s.bag[n]; return i?`<button data-pick="${i.id}">${piece(i.chain,i.level)}<small>${nameOf(i.chain,i.level)}</small></button>`:'<span class="empty-slot">空格</span>';}).join('')}</div>`;
+export function bagView(s,selected) {
+  const canPair=i=>i && selected?.cell && selected.level<7 && i.chain===selected.chain && i.level===selected.level;
+  const help=s.bag.some(canPair)?'点标有「合成」的搭档，可以直接合到草地上':'点素材放回当前地区';
+  return `<p class="sheet-intro">${s.bag.length} / ${s.bagSize} 格 · ${help}</p><div class="bag-grid">${Array.from({length:s.bagSize},(_,n)=>{
+    const i=s.bag[n]; return i?`<button data-pick="${i.id}">${piece(i.chain,i.level)}<small>${canPair(i)?'合成':nameOf(i.chain,i.level)}</small></button>`:'<span class="empty-slot">空格</span>';}).join('')}</div>`;
 }

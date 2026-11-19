@@ -41,12 +41,12 @@ test('map: regions do not overlap and spots never sit on buildable land', () => 
 });
 
 // ---------- Prototype B: pure merge ----------
-function playB(seed) {
+function playB(seed,residents=false) {
   let s = B.freshState(0, seed), t = 0;
   const step = r => { assert.ok(r.ok, r.message); s = r.state; };
   for (let n = 0; n < 8000 && s.done.length < B.REPAIRS.length; n++) {
     t += 1000; B.tick(s, t);
-    const hint = B.suggestion(s);
+    const hint = B.suggestion(s,{residents});
     if (hint.type === 'install') { const it = [...s.items, ...s.bag].find(i => i.id === hint.item); if (!it.cell) step(B.unbag(s, it.id, [0, 0])); else step(B.install(s, hint.item, hint.repair)); continue; }
     if (hint.type === 'deliver') { step(B.deliver(s, hint.order)); continue; }
     if (hint.type === 'merge') {
@@ -64,15 +64,23 @@ function playB(seed) {
   return s;
 }
 
-test('B: a hint-following player finishes all seventeen repairs across seeds', () => {
+test('B: a player following repairs alone can finish the entire chapter', () => {
   for (const seed of [1, 7, 42, 2026]) {
     const s = playB(seed);
     assert.equal(s.done.length, B.REPAIRS.length, `seed ${seed}: ${s.done.join(',')}`);
     assert.ok(B.validate(s));
     assert.ok(s.stats.heals >= 15, 'merging beside debris clears storm tiles');
-    assert.ok(s.stats.orders >= 8, 'orders are part of the loop');
-    assert.ok(s.diary.length >= 6, 'diary pages are found along the way');
+    assert.equal(s.stats.orders,0,'residents are optional');
+    assert.ok(s.diary.length>=5,'the repairs themselves return diary pages');
   }
+});
+
+test('B: players can still choose to help residents and earn the extra diary pages',()=>{
+  const s=playB(42,true);
+  assert.equal(s.done.length,B.REPAIRS.length);
+  assert.ok(s.stats.orders>0);
+  assert.ok(s.orderLog.every(id=>B.STORY_LETTERS.some(t=>t.id===id)));
+  assert.ok(s.diary.length>=6);
 });
 
 test('B: generators cost energy, drop into their own region, and refuse when it is full', () => {

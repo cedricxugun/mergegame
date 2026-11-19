@@ -30,9 +30,9 @@ export function bayBoard(container, handlers) {
     if (!el) { el = document.createElementNS(svgNS,'path'); rings.append(el); outlines.set(id,el); }
     el.setAttribute('d',d); el.setAttribute('class',cls);
   }
-  function showTerrain(s, selected) {
+  function showTerrain(s) {
     const land = R.landCells(s), open = R.isOpen(s,'river');
-    const signature = [open,s.healed.join('|'),selected?.id || '',s.stats.merges<1].join(':');
+    const signature = [open,s.healed.join('|')].join(':');
     if (signature === terrainKey) return;
     terrainKey = signature;
     const allowed = new Set(land.map(c => key(...c)));
@@ -50,13 +50,23 @@ export function bayBoard(container, handlers) {
         const [x,y]=plateOf(tile.cell);
         world.upsertSprite('salvage-'+id,{name:matName(cached.chain,cached.level),foot:[x+1,y+1],extent:PLATE.cell*.72,lift:0,cls:'salvage'});
       } else world.removeSprite('salvage-'+id);
-      const near = selected?.cell && neighbors(...selected.cell).some(c=>key(...c)===id);
-      world.badge('debris-'+id,tile.cell,edge && (near || (!s.stats.merges && id==='-1,-1'))?'L'+tile.level:null);
     }
     world.setCells(entries);
     if (fogKey !== String(open)) {
       fogKey = String(open);
       world.fog('creek', open ? null : [...AREA.creek, ...AREA.river]);
+    }
+  }
+  function previewLanding(s, piece, target) {
+    world.clearMarks('will-open');
+    world.clearMarks('could-open');
+    if(!piece || !target || piece.level>=7)return;
+    const partners=Array.isArray(target)?target:[target];
+    for(const partner of partners) {
+      if(!partner.cell || piece.id===partner.id || piece.chain!==partner.chain || piece.level!==partner.level)continue;
+      const cells=R.clearableBeside(s,partner.cell,partner.level+1);
+      if(cells.length && piece.level>=5 && !R.merge(s,piece.id,partner.id).ok)continue;
+      for(const cell of cells)world.markCell(cell,partners.length>1?'could-open':'will-open');
     }
   }
   function showLandmarks(s) {
@@ -91,9 +101,11 @@ export function bayBoard(container, handlers) {
     creek.set(R.done(s,'stream')?'flow':s.fittings?.stream?'trial':'dry');
     renderLife(world,s.done,art);
   }
-  function render(s,{region,job,selected=null,carried=null,onJob,onWorkshop}) {
+  function render(s,{region,job,selected=null,carried=null,showSource=null,onJob,onWorkshop}) {
     const picked = s.items.find(i=>i.id===selected);
-    showTerrain(s,picked);showLandmarks(s);
+    showTerrain(s);showLandmarks(s);
+    const partners=picked?s.items.filter(i=>i.id!==picked.id && i.chain===picked.chain && i.level===picked.level && regionOfCell(i.cell)===regionOfCell(picked.cell)):[];
+    previewLanding(s,picked,partners);
     world.clearMarks('under-module');
     const live = new Set();
     for (const i of s.items) {
@@ -120,21 +132,23 @@ export function bayBoard(container, handlers) {
       const id = 'job-'+r.id;
       if (job?.id!==r.id || SPOT_REGION[r.spot]!==region) { world.removePin(id); continue; }
       const [x,y] = plateOf(SPOTS[r.spot]), ready = !!R.progressFor(s,r).ready;
+      const canFit=picked && picked.chain===r.chain && r.level>=5 && picked.level===r.level-1 && !ready;
+      const pinText=ready?'送到这里':canFit?'可试装':'工地';
       world.upsertPin(id,{anchor:[x,y-PLATE.cell*1.36],cls:'clickable site waypoint'+(ready?' ready':''),label:'工地 · '+JOB_NAMES[r.id],
-        html:ready ? icon.check+'<span>修复</span>' : icon.lamp+'<span>'+JOB_NAMES[r.id]+'</span>',onClick:()=>onJob(r)});
+        html:(ready?icon.check:icon.lamp)+'<span>'+pinText+'</span>',onClick:()=>onJob(r)});
     }
     for (const [id,g] of Object.entries(R.GENERATORS)) {
       if (!R.generatorOpen(s,id) || g.region!==region) {world.removePin('shop-'+id);continue;}
       const [x,y] = plateOf(SPOTS[g.spot]);
-      world.upsertPin('shop-'+id,{anchor:[x+PLATE.cell*.67,y+PLATE.cell*.47], cls:'clickable shop-pin',
-        label:'采集 · '+WORKSHOPS[id],html:icon.energy,onClick:()=>onWorkshop(id)});
+      const showVerb=showSource===id;
+      world.upsertPin('shop-'+id,{anchor:[x+PLATE.cell*.67,y+PLATE.cell*.47],cls:'clickable shop-pin'+(showVerb?' named':''),
+        label:'采集 · '+WORKSHOPS[id]+'，消耗 1 体力',html:showVerb?'<span>取料</span>'+icon.energy+'1':icon.energy,onClick:()=>onWorkshop(id)});
     }
   }
   function focus(s,region,animate=true) {
     const land = R.landCells(s).filter(c=>regionOfCell(c)===region),keys=new Set(land.map(c=>key(...c)));
     const rim = R.stormCells(s).filter(t=>t.region===region && neighbors(...t.cell).some(n=>keys.has(key(...n)))).map(t=>t.cell);
-    const right=()=>container.clientWidth-document.querySelector('.field-book').offsetLeft+8;
-    return world.fit(regionFrame(region,[...land,...rim]),{right,pad:.05,maxScale:1.82,top:44,bottom:44,overscroll:true,animate,duration:360});
+    return world.fit(regionFrame(region,[...land,...rim]),{pad:.05,maxScale:1.82,top:76,bottom:40,overscroll:true,animate,duration:360});
   }
-  return {world,render,focus,outline,creek};
+  return {world,render,focus,outline,creek,previewLanding};
 }

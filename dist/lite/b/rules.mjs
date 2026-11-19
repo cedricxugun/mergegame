@@ -49,11 +49,11 @@ export const spotOfRepair = r => SPOTS[r.spot];
 // Repairs that recover a page of the grandmother's diary.
 const DIARY_REPAIRS = {fire: 1, spring: 3, shore: 5, ferry: 7};
 
-// Orders: residents' requests. They pay coins and refund part of the energy
-// spent, but compete with repairs for the same items — that is the decision.
+// Keep the full ledger so letters already received in a v2 save can still pay
+// out. New offers have a lasting consequence in the scenery or the diary.
 export const ORDERS = [
-  {id: 'o1', who: 'lina', needs: [['wood', 2]], energy: 1, coins: 4, text: '想给小屋做个板凳。', after: ['roof']},
-  {id: 'o2', who: 'mira', needs: [['wood', 3]], energy: 2, coins: 6, text: '工具箱的盖子也漏了。', after: ['roof']},
+  {id: 'o1', who: 'lina', needs: [['wood', 2]], energy: 1, coins: 4, text: '想给小屋做个板凳。', after: ['roof'], keepsake:'棚门旁添一张板凳'},
+  {id: 'o2', who: 'mira', needs: [['wood', 3]], energy: 2, coins: 6, text: '工具箱的盖子也漏了。', after: ['roof'], keepsake:'倒木堆旁添一个工具箱'},
   {id: 'o3', who: 'lina', needs: [['wood', 1], ['wood', 2]], energy: 1, coins: 5, text: '给灯做个挂钩！', after: ['roof']},
   {id: 'o4', who: 'mira', needs: [['wood', 4]], energy: 3, coins: 10, text: '晾衣架被吹断了。', after: ['fire']},
   {id: 'o5', who: 'lina', needs: [['wood', 3]], energy: 2, coins: 6, text: '小书架！放外婆的手记。', after: ['fire'], diary: 2},
@@ -73,7 +73,7 @@ export const ORDERS = [
   {id: 'o19', who: 'rowan', needs: [['dock', 5]], energy: 5, coins: 20, text: '渡口要一块新踏板。', after: ['shore']},
   {id: 'o20', who: 'lina', needs: [['wood', 4], ['dock', 3]], energy: 5, coins: 16, text: '给邻居们做一排长凳！', after: ['ferry']}
 ];
-export const ACTIVE_ORDERS = 3;
+export const STORY_LETTERS = ORDERS.filter(t=>t.keepsake || t.diary);
 
 // Land: each region starts with a small clearing and grows by clearing the
 // storm debris around it. Debris further out needs higher-level merges.
@@ -179,7 +179,7 @@ export function wharfPractice(now = Date.now()) {
   s.healed = [...STORM.keys()];
   s.discovered = {wood:6, water:6, reed:6, dock:6};
   s.diary = [0,1,2,3,5]; s.stats.repairs = s.done.length;
-  s.orders=[]; s.orderLog = ORDERS.slice(0,12).map(o=>o.id);
+  s.orders=[]; s.orderLog = ['o1','o2','o5'];
   s.stats.orders = s.orderLog.length;
   [[3,[9,-2]], [3,[10,-2]], [4,[10,-1]], [5,[11,-2]]].forEach(([level,cell])=>newItem(s,'dock',level,cell));
   refillOrders(s);
@@ -216,7 +216,7 @@ export function merge(state, aId, bId) {
   s.stats.merges++;
   const k = key(...cell); if (!s.blooms.includes(k)) { s.blooms.push(k); events.push({type: 'bloom', cell}); }
   discover(s, a.chain, lv, events);
-  for (const n of neighbors(...cell)) heal(s, n, lv, events);
+  for (const n of clearableBeside(s, cell, lv)) heal(s, n, events);
   if (expandsAtSite(s,item)) {
     item.wide=true;
     const land=landCells(s);
@@ -238,9 +238,14 @@ export function salvageAt(tile) {
   const chain = tile.region === 'camp' ? 'wood' : ['water','reed','dock'][hash(r,q)%3];
   return {chain,level:1 + variety%2};
 }
-function heal(s, n, lv, events) {
+export function clearableBeside(s, cell, resultLevel) {
+  return neighbors(...cell).filter(n => {
+    const k=key(...n), tile=STORM.get(k);
+    return tile && isOpen(s,tile.region) && !s.healed.includes(k) && resultLevel>=tile.level;
+  });
+}
+function heal(s, n, events) {
   const tile = STORM.get(key(...n));
-  if (!tile || s.healed.includes(key(...n)) || !isOpen(s, tile.region) || lv < tile.level) return;
   s.healed.push(key(...n)); s.stats.heals++;
   const event = {type: 'heal', cell: n, level: tile.level}, h = hash(...n) % 6;
   const salvage = salvageAt(tile);
@@ -370,8 +375,7 @@ export function deliver(state, orderId) {
   return ok(s, events);
 }
 export function refillOrders(s, events = []) {
-  for (const t of ORDERS) {
-    if (s.orders.length >= ACTIVE_ORDERS) break;
+  for (const t of STORY_LETTERS) {
     if (s.orderLog.includes(t.id) || s.orders.some(o => o.id === t.id)) continue;
     if ((t.after || []).every(id => s.done.includes(id))) { s.orders.push({id: t.id}); events.push({type: 'order', order: t.id}); }
   }
@@ -391,6 +395,60 @@ export function progressFor(s, repair) {
   const lowerValue = stock.filter(i=>i.level<nextLevel).reduce((n,i)=>n+2**(i.level-1),0);
   const nextGap = Math.max(0,2**(nextLevel-1)-lowerValue);
   return {total: Math.min(need, total), need, missing: Math.max(0, need - total), ready, half, staged, nextLevel, nextGap, highest};
+}
+
+// Use the actual pieces that would leave the board or bag. Excess stock counts
+// as spare, but losing the only ready component or trial half still matters.
+export function orderImpact(s, order, repair) {
+  const picks=pickForOrder(s,order);
+  if (!picks) return {available:false};
+  const ids=new Set(picks);
+  const remaining={...s,items:s.items.filter(i=>!ids.has(i.id)),bag:s.bag.filter(i=>!ids.has(i.id))};
+  const otherJobs=availableRepairs(s).filter(r=>r.id!==repair?.id);
+  for(const project of repair?[repair,...otherJobs]:otherJobs){
+    const before=progressFor(s,project), after=progressFor(remaining,project);
+    const lostReady=!!before.ready && !after.ready;
+    const lostHalf=project.level>=5 && !after.ready && !!before.half && !after.half;
+    if(after.total<before.total || lostReady || lostHalf)
+      return {available:true,usesProject:true,project,before,after,lostReady,lostHalf};
+  }
+  return {available:true,usesProject:false,project:repair};
+}
+
+// The card and the tap-for-guidance action describe the same next move.
+// When several pairings work, favor a local pair that can clear a real tile.
+export function nextRepairStep(s, repair, region=SPOT_REGION[repair.spot]) {
+  const p=progressFor(s,repair);
+  if (p.ready) return {kind:'install',item:p.ready};
+  if (p.staged && p.half) return {kind:'assemble',item:p.half};
+  if (!p.staged && repair.level>=5 && p.half && p.missing>0) return {kind:'stage',item:p.half};
+  const cap=p.staged ? repair.level-1 : repair.level;
+  const pool=[...s.items,...s.bag].filter(i=>i.chain===repair.chain && i.level<cap);
+  let best=null, score=-1;
+  for (const to of pool.filter(i=>i.cell)) {
+    const where=regionOfCell(to.cell);
+    const from=pool.find(i=>i.id!==to.id && i.level===to.level && i.cell && regionOfCell(i.cell)===where)
+      || pool.find(i=>i.level===to.level && !i.cell);
+    if (!from) continue;
+    const opening=clearableBeside(s,to.cell,to.level+1);
+    const finishes=to.level+1===cap;
+    const rank=(finishes?10000:0)+(where===region?1000:0)+(from.cell?100:0)+opening.length*8+to.level;
+    if (rank<=score) continue;
+    if (to.level>=5 && !merge(s,from.id,to.id).ok) continue;
+    best={kind:'merge',from,to,where,remote:where!==region,opening}; score=rank;
+  }
+  if (best) return best;
+  // Two halves may be ready even when the bank cannot hold the expanded
+  // piece. The site's trial slot still accepts them without any empty land.
+  if(!p.staged && repair.level>=5 && p.half)return {kind:'stage',item:p.half};
+  // A pair split between two regions (or two bag slots) needs moving first.
+  const a=pool.find((i,n)=>pool.slice(n+1).some(j=>i.level===j.level));
+  if (a) {
+    const mate=pool.find(i=>i.id!==a.id && i.level===a.level);
+    const reason=(!a.cell&&!mate.cell)?'bag':a.cell&&mate.cell&&regionOfCell(a.cell)!==regionOfCell(mate.cell)?'split':'space';
+    return {kind:'move',item:a,mate,reason};
+  }
+  return {kind:'gather'};
 }
 
 export function stagePart(state, repairId, itemId) {
@@ -461,13 +519,15 @@ export function isStuck(s) {
   return !s.orders.some(o => pickForOrder(s, o));
 }
 
-// What the player should do next — used for the hint button and the hand.
-export function suggestion(s) {
+// A chapter walkthrough for rule checks. Optional resident errands are a
+// separate play style; the live worksite card uses nextRepairStep.
+export function suggestion(s, {residents=false}={}) {
   const repairs = availableRepairs(s);
   for (const r of repairs) { const it = [...s.items, ...s.bag].find(i => i.chain === r.chain && i.level === r.level); if (it) return {type: 'install', item: it.id, repair: r.id}; }
-  for (const o of s.orders) if (pickForOrder(s, o)) return {type: 'deliver', order: o.id};
+  if (residents) for (const o of s.orders) if (pickForOrder(s,o)) return {type:'deliver',order:o.id};
   const pool = [...s.items, ...s.bag].filter(i => i.level < MAX_LEVEL);
-  const wanted = new Set([...repairs.map(r => r.chain), ...s.orders.flatMap(o => orderNeeds(o).map(n => n[0]))]);
+  const orderChains=residents ? s.orders.flatMap(o=>orderNeeds(o).map(n=>n[0])) : [];
+  const wanted = new Set([...repairs.map(r=>r.chain),...orderChains]);
   const pairs = [];
   for (let x = 0; x < pool.length; x++) for (let y = x + 1; y < pool.length; y++) {
     const a = pool[x], b = pool[y];
@@ -480,7 +540,7 @@ export function suggestion(s) {
     if (low) return s.bag.length < s.bagSize ? {type: 'store', item: low.id} : {type: 'sell', item: low.id};
   }
   const gens = Object.keys(GENERATORS).filter(id => generatorOpen(s, id));
-  const chains = [...repairs.map(r => r.chain), ...s.orders.flatMap(o => orderNeeds(o).map(n => n[0])), 'wood', 'water', 'reed', 'dock'];
+  const chains = [...repairs.map(r=>r.chain),...orderChains,'wood','water','reed','dock'];
   const gen = chains.map(c => gens.find(id => GENERATORS[id].chain === c)).find(Boolean);
   return gen ? {type: 'tap', generator: gen} : {type: 'wait'};
 }

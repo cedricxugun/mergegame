@@ -5,11 +5,11 @@ import {recoverHomeland} from './resume.mjs';
 import * as V from './views.mjs';
 import {bayBoard} from './board.mjs';
 import {art, materialSound} from './art.mjs';
-import {WORKSHOPS, WORK_ART, CHAIN_SHOP, JOB_NAMES, BENEFITS, REGION_COPY} from './story.mjs';
+import {WORKSHOPS, CHAIN_SHOP, JOB_NAMES, BENEFITS, REGION_COPY} from './story.mjs';
 import {REGIONS, SPOTS, SPOT_REGION, regionOfCell, spotAt} from '../shared/map.mjs';
 import {matName, nameOf, CHAINS} from '../shared/art.mjs';
 import {key, parseKey} from '../shared/hex.mjs';
-import {CAST, LETTER} from '../shared/chapter.mjs';
+import {CAST, DIARY, LETTER} from '../shared/chapter.mjs';
 import {createStore,createMetrics} from '../shared/store.mjs';
 import {$, sheet, esc, wait} from '../shared/ui.mjs';
 import {sfx, setMuted, unlock} from '../shared/audio.mjs';
@@ -32,8 +32,7 @@ let state=recovery.state || (practice ? R.wharfPractice() : R.beginVoyage());
 R.refillOrders(state);
 let region = REGIONS[saved.view] && R.isOpen(state,saved.view) ? saved.view : practice ? 'river' : 'camp';
 let tracked = saved.tracked;
-let shop = saved.shop;
-let selected = null, drag = null, busy = false, story = null, feedbackTimer = 0;
+let selected = null, drag = null, busy = false, feedbackTimer = 0;
 let muted = !!saved.muted, vibrations = saved.vibrations !== false;
 const metrics = createMetrics(saved.metrics);
 setMuted(muted);
@@ -47,7 +46,7 @@ const field=$('.playfield'), board=bayBoard($('#world'),{onTap:tapTile,onPress:u
 const {world}=board;
 const pulse = ms => { if(vibrations) haptic(ms); };
 function save() {
-  store.save({state, view:region, tracked, shop, muted, vibrations, metrics:metrics.data});
+  store.save({state, view:region, tracked, muted, vibrations, metrics:metrics.data});
 }
 const findItem = (id,s=state) => [...s.items,...s.bag].find(i=>i.id===id);
 const matches = (a,b) => a&&b&&a.id!==b.id&&a.chain===b.chain&&a.level===b.level&&a.level<7;
@@ -55,46 +54,39 @@ function currentJob() {
   const available=R.availableRepairs(state);
   return available.find(r=>r.id===tracked) || available.find(r=>SPOT_REGION[r.spot]===region) || available[0];
 }
-function currentShop() {
-  const available=Object.keys(R.GENERATORS).filter(id=>R.generatorOpen(state,id) && R.GENERATORS[id].region===region);
-  const preferred=CHAIN_SHOP[currentJob()?.chain];
-  return available.includes(shop)?shop:available.includes(preferred)?preferred:available[0] || 'logs';
+function html(el,markup) {
+  if(el._view!==markup){el._view=markup;el.innerHTML=markup;}
 }
-function html(el,markup) { if(el._view!==markup){el._view=markup;el.innerHTML=markup;} }
 function renderWallet() {
-  $('#en').textContent=state.energy>state.maxEnergy?state.energy:state.energy+'/'+state.maxEnergy;
-  $('#money').textContent=state.coins;
-  $('#energy').classList.toggle('low',state.energy<=4);
+  $('#energy').hidden=state.energy>4;
+  $('#en').textContent=state.energy;
 }
-function renderWorld(s=state,carried=null) {
-  board.render(s,{region,job:currentJob(),selected:carried || selected,carried,onJob:showJob,onWorkshop:gather});
+function renderWorld(s=state,carried=null,job=currentJob(),step=null) {
+  const showSource=!carried && !selected && step?.kind==='gather' ? CHAIN_SHOP[job.chain] : null;
+  board.render(s,{region,job,selected:carried || selected,carried,showSource,onJob:showJob,onWorkshop:gather});
 }
-function coach() {
-  if(state.done.length || selected) return '';
-  if(!state.stats.merges && state.items.length>=2) return '将两件相同的材料拖到一起';
-  if(R.progressFor(state,R.repairById('roof')).ready) return '补片已做好，点「修复」送去棚顶';
-  const pair=state.items.some((a,n)=>state.items.slice(n+1).some(b=>matches(a,b)));
-  return pair ? '两件相同的材料可以再合一级' : '点倒木堆，再取一些木料';
-}
-function message(text='',duration=2000) {
+function message(text='',duration=2000,who=null) {
   clearTimeout(feedbackTimer);
   const el=$('#field-message');
-  el.textContent=text || coach(); el.classList.toggle('show',!!el.textContent);
-  if(text) feedbackTimer=setTimeout(()=>{feedbackTimer=0;message();},duration);
-  else feedbackTimer=0;
+  if(who)el.innerHTML=V.portrait(who)+'<span>'+esc(text)+'</span>';
+  else el.textContent=text;
+  el.classList.toggle('show',!!text);
+  feedbackTimer=text ? setTimeout(()=>message(),duration) : 0;
+}
+function renderBagTarget() {
+  $('#bag').hidden=!(selected || drag || state.bag.length);
+  $('#bag-num').textContent=state.bag.length || '';
 }
 function render() {
-  const r=currentJob(), current=findItem(selected);
-  tracked=r?.id||null; shop=currentShop();
-  renderWorld(drag?.draft || state,drag?.id); renderWallet();
-  $('#chapter-number').textContent=state.done.length+'/'+R.REPAIRS.length;
+  const r=currentJob(), current=!drag && findItem(selected);
+  const step=r && R.nextRepairStep(state,r,region);
+  tracked=r?.id||null;
+  renderWorld(drag?.draft || state,drag?.id,r,step); renderWallet(); renderBagTarget();
   $('#region-name').textContent=REGIONS[region].name+(practice?' · 练习':'');
-  const requestEl=$('#requests'), scroll=requestEl.querySelector('.orders-list')?.scrollLeft||0;
-  html(requestEl,V.ordersView(state,r,story)); if(scroll && requestEl.querySelector('.orders-list'))requestEl.querySelector('.orders-list').scrollLeft=scroll;
-  $('#bag-num').textContent=state.bag.length+'/'+state.bagSize;
-  html($('#panel'),current?V.itemPanel(state,current):V.repairPanel(state,r));
-  const gatherEl=$('#gather'); html(gatherEl,V.gatherView(state,shop)); gatherEl.dataset.shop=shop;
-  if(!feedbackTimer)message();
+  html($('#panel'),V.repairPanel(state,r,step));
+  const inspector=$('#selection');
+  inspector.hidden=!current;
+  html(inspector,current?V.itemPanel(state,current,r):'');
 }
 function commit(res) {
   if(!res.ok){message(res.message,2800);sfx.error();return false;}
@@ -103,7 +95,7 @@ function commit(res) {
   return true;
 }
 function placeAt(i) {
-  if(!i)return centerOf($('#gather'));
+  if(!i)return centerOf($('#notebook'));
   if(!i.cell)return centerOf($('#bag'));
   return regionOfCell(i.cell)===region ? world.spriteClient('item-'+i.id)||world.cellToClient(i.cell) : centerOf($('.location'));
 }
@@ -112,17 +104,11 @@ function popAt(point,level=2,color='#ffcd70') {
   burst(point[0],point[1],{count:7+Math.min(14,level*2),colors:[color,'#fff3cf','#ffdf85'],spread:24+level*5,duration:410});
   ring(point[0],point[1],{size:35+level*6,color,duration:330,width:3});
 }
-let storyClock=0;
-function sendLine(who,text,ms=5000) {
-  clearTimeout(storyClock); story={who,text};
-  render();
-  storyClock=setTimeout(()=>{story=null;if(!busy&&!drag)render();},ms);
-}
 async function focus(next,{pick=true,animate=true}={}) {
   if(!R.isOpen(state,next))return;
   selected=null; region=next;
   if(pick && SPOT_REGION[currentJob()?.spot]!==next)tracked=R.availableRepairs(state).find(r=>SPOT_REGION[r.spot]===next)?.id;
-  shop=currentShop();render();save();await board.focus(state,next,animate);
+  render();save();await board.focus(state,next,animate);
 }
 function revealMerge(events) {
   const joins=events.filter(e=>e.type==='merge'), latest=joins.at(-1), healed=events.filter(e=>e.type==='heal');
@@ -148,11 +134,11 @@ function gather(id) {
   unlock();
   const res=R.tapGenerator(state,id);
   if(!res.ok){if(res.needEnergy){showEnergy();return;}message(res.message,2800);sfx.error();return;}
-  const e=res.events[0];selected=null;shop=id;
+  const e=res.events[0];selected=null;
   if(!commit(res))return;
   metrics.count('采集'); render();
   const dest=placeAt(e.item), source=world.spriteEl('gen-'+id)||world.spriteEl('site-'+R.GENERATORS[id].spot);
-  const from=source?centerOf(source):centerOf($('#gather'));
+  const from=source?centerOf(source):world.cellToClient(SPOTS[R.GENERATORS[id].spot]);
   const el=world.spriteEl('item-'+e.item.id);
   if(el&&!reducedMotion()){
     el.style.visibility='hidden';
@@ -162,7 +148,7 @@ function gather(id) {
   }
   materialSound(e.item.chain,muted);
   pulse(5);
-  if(state.energy===0)message('体力已用完，还可以合成或交付委托');
+  if(state.energy===0)message('体力用完了，草地上的材料仍可合成');
 }
 function performMerge(a,b) {
   const first=findItem(a), at=placeAt(first), target=findItem(b), to=placeAt(target);
@@ -203,6 +189,7 @@ function lift(cell,id) {
   const i=id?.startsWith('item-')?findItem(id.slice(5)):R.itemAt(state,cell);
   if(!i)return false;
   drag={id:i.id,draft:state,events:[],target:null,lastJoin:null}; selected=i.id;
+  renderBagTarget(); $('#selection').hidden=true;
   renderWorld(state,i.id);
   world.spriteEl('item-'+i.id)?.classList.add('lifted');sfx.lift();pulse(5);
   return true;
@@ -210,7 +197,7 @@ function lift(cell,id) {
 function dragTarget(cell,client) {
   const [x,y]=client, bounds=field.getBoundingClientRect(), hit=document.elementFromPoint(x,y);
   if(hit?.closest('#bag'))return {type:'bag'};
-  if(hit?.closest('.field-book,.map-hud,.map-tools'))return null;
+  if(hit?.closest('.work-note,.selection,.map-hud,.map-tools'))return null;
   if(x<bounds.left||x>bounds.right||y<bounds.top||y>bounds.bottom)return null;
   const s=drag.draft, i=findItem(drag.id,s);
   const raw=world.cellAt(x,y);
@@ -262,6 +249,7 @@ function carry(cell,foot,client) {
       else style='blocked-outline';
     }
     board.outline('drop',shape,style);board.outline('shift',shifts,'shift-outline');
+    board.previewLanding(drag.draft,part,target?.type==='merge'?target.other:null);
   }
   world.moveSprite('item-'+drag.id,foot,{z:8500});
 }
@@ -296,16 +284,17 @@ function drop(cell,foot,client) {
     const dx=(old.point[0]-to[0])/world.cam.scale,dy=(old.point[1]-to[1])/world.cam.scale;
     el.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],{duration:230,easing:'cubic-bezier(.15,.75,.25,1)'});
   }
-  if(target.type==='repair')return repair(target.r,findItem(d.id));
-  if(target.type==='stage')return fitPart(target.r,findItem(d.id));
   const events=[...d.events,...next.events];
   if(events.some(e=>e.type==='merge'))revealMerge(events);
-  else if(target.type==='bag')message('已收入背包，点背包可以取回');
+  if(target.type==='repair')return repair(target.r,findItem(d.id));
+  if(target.type==='stage')return fitPart(target.r,findItem(d.id));
+  if(target.type==='bag')message('已收入背包，点背包可以取回');
   sfx.drop();
 }
 async function fitPart(r,i) {
   if(!i)return;
   const from=placeAt(i),res=R.stagePart(state,r.id,i.id);
+  if(res.ok)tracked=r.id;
   if(!commit(res))return;
   if(region!==SPOT_REGION[r.spot])await focus(SPOT_REGION[r.spot],{pick:false});
   selected=null;render();
@@ -327,9 +316,8 @@ async function repair(r,i) {
     region=SPOT_REGION[r.spot];
     // Keep both the old site and the component visible until the flight starts.
     board.render(before,{region,job:r,onJob:showJob,onWorkshop:gather});
-    const right=field.clientWidth-$('.field-book').offsetLeft+8;
     const localPart=i.cell && regionOfCell(i.cell)===region;
-    await world.fit(localPart?[i.cell,site]:[site],{right,maxScale:1.55,pad:1.3,top:36,bottom:30,animate:true,duration:240});
+    await world.fit(localPart?[i.cell,site]:[site],{maxScale:1.55,pad:1.3,top:76,bottom:42,animate:true,duration:240});
     const from=staged?world.spriteClient('fit-'+r.id)||world.cellToClient(site):placeAt(i);
     const to=world.cellToClient(site);
     world.removePin('job-'+r.id);world.removeSprite(staged?'fit-'+r.id:'item-'+i.id);
@@ -347,56 +335,55 @@ async function repair(r,i) {
   } finally {
     try {await focus(r.opens?'creek':region,{animate:false});} finally {busy=false;save();}
   }
-  const [who,line]=r.lines.at(-1);sendLine(who,line,3000);
   const returned=result.events.find(e=>e.type==='retrieve');
-  message(JOB_NAMES[r.id]+' · '+BENEFITS[r.id]+(returned?' · 试装件已退回'+(returned.item.cell?'草地':'背包'):''),3000);
+  if(returned)message('试装件已退回'+(returned.item.cell?'草地':'背包'));
+  else {const [who,line]=r.lines.at(-1);message(line,3600,who);}
 }
-async function deliver(id) {
-  const order=state.orders.find(o=>o.id===id);
-  if(!order||busy)return;
-  const picks=R.pickForOrder(state,order);
-  if(!picks)return showOrder(order);
-  const job=currentJob(), progress=job&&R.progressFor(state,job);
-  const wouldUseOnlyReady=progress?.ready && picks.includes(progress.ready.id) && ![...state.bag,...state.items].some(i=>!picks.includes(i.id)&&i.chain===job.chain&&i.level===job.level);
-  if(wouldUseOnlyReady){
-    const choice=await sheet({title:'这件材料也能修复',body:'<p>交给居民后，「'+JOB_NAMES[job.id]+'」需要再做一件。</p>'+V.orderDetail(state,order),actions:[{label:'交给居民',value:'send'},{label:'留给工地',kind:'secondary',value:'keep'}]});
-    if(choice!=='send')return;
-  }
-  const current=state.orders.find(o=>o.id===id); if(!current)return;
-  const t=R.orderById(id), res=R.deliver(state,id);
-  if(!res.ok){message(res.message);return;}
-  const dest=centerOf($('[data-order="'+id+'"]')||$('#requests'));
-  const flights=res.events[0].consumed.map(i=>({i,at:placeAt(i)}));
-  busy=true;selected=null;commit(res);render();
-  try{await Promise.all(flights.map(({i,at})=>fly(art(matName(i.chain,i.level)),at,dest,{size:38,duration:240,arc:-50})));}finally{busy=false;}
+async function deliver(order) {
+  if(busy)return;
+  const t=R.orderById(order.id), result=R.deliver(state,order.id);
+  if(!result.ok){message(result.message);return;}
+  const dest=centerOf($('#notebook'));
+  const flights=result.events[0].consumed.map(i=>({i,at:placeAt(i)}));
+  busy=true;selected=null;commit(result);render();
+  try {
+    await Promise.all(flights.map(({i,at})=>fly(art(matName(i.chain,i.level)),at,dest,{size:38,duration:240,arc:-50})));
+  } finally {busy=false;}
   materialSound('stamp',muted);sfx.coin();pulse(12);popAt(dest,2);
   metrics.count('完成请求');
-  const arrival=id==='o1'?'莉娜把板凳放到了棚门旁':id==='o2'?'米拉把工具箱放回了倒木堆旁':CAST[t.who].name+'收到了';
-  message(arrival+' · 金币 +'+t.coins+' · 体力 +'+t.energy);
-  if(t.diary)sendLine(t.who,'看，我找到了一页外婆的手记。',2400);
+  const arrival=t.id==='o1'?'板凳已经放在棚门旁':t.id==='o2'?'工具箱已经放回倒木堆旁':CAST[t.who].name+'收到了';
+  if(result.events.some(e=>e.type==='diary'))message('这是我找到的那一页，收进手记吧。',3200,t.who);
+  else message(arrival+' · 金币 +'+t.coins+' · 体力 +'+t.energy);
 }
-
 
 async function showJob(r) {
   if(!r || busy || drag)return;
-  const p=R.progressFor(state,r), buttons=[];
-  if(p.ready)buttons.push({label:'送去修复 · '+JOB_NAMES[r.id],value:'install'});
-  if(p.half && r.level>=5 && !p.ready)buttons.push({label:p.staged?'送上另一半，现场合拢':'先将一半放到试装位',value:'stage'});
-  if(p.staged)buttons.push({label:'取回试装件',kind:'secondary',value:'retrieve'});
-  if(!p.ready)buttons.push({label:'去'+WORKSHOPS[CHAIN_SHOP[r.chain]]+'备料',kind:buttons.length?'secondary':'primary',value:'track'});
-  const action=await sheet({title:JOB_NAMES[r.id],body:V.jobDetail(state,r),actions:buttons});
-  if(!action)return;
-  tracked=r.id; selected=null; save();
+  const step=R.nextRepairStep(state,r,region), p=R.progressFor(state,r), actions=[];
+  if(p.ready)actions.push({label:'送去修复',value:'install'});
+  else {
+    if(step.kind==='merge'||step.kind==='move')actions.push({label:'找这对材料',value:'guide'});
+    if(r.level>=5 && p.half)actions.push({label:p.staged?'把另一半合拢':'先试装一半',value:'stage'});
+    if(step.kind==='gather' || step.kind==='stage'){
+      const id=CHAIN_SHOP[r.chain], local=R.GENERATORS[id].region===region;
+      actions.push({label:local?WORKSHOPS[id]+'取料 · 1 体力':'去'+WORKSHOPS[id]+'取料',value:'source'});
+    }
+  }
+  if(p.staged)actions.push({label:'取回试装件',kind:'secondary',value:'retrieve'});
+  if(R.availableRepairs(state).length>1)actions.push({label:'换个工地',value:'jobs',kind:'secondary'});
+  const choice=await sheet({title:JOB_NAMES[r.id],body:V.jobDetail(state,r),actions});
+  if(!choice)return;
+  if(choice==='jobs')return showJobs();
+  tracked=r.id;selected=null;save();render();
   const latest=R.progressFor(state,r);
-  if(action==='install'&&latest.ready)return repair(r,latest.ready);
-  if(action==='stage'&&latest.half) {
-    if(region!==SPOT_REGION[r.spot])await focus(SPOT_REGION[r.spot],{pick:false});
-    return fitPart(r,latest.half);
+  if(choice==='install' && latest.ready)return repair(r,latest.ready);
+  if(choice==='stage' && latest.half)return fitPart(r,latest.half);
+  if(choice==='retrieve')return retrieve(r);
+  if(choice==='guide')return hint();
+  if(choice==='source'){
+    const id=CHAIN_SHOP[r.chain], next=R.GENERATORS[id].region;
+    if(next===region)gather(id);
+    else {await focus(next,{pick:false});message('点'+WORKSHOPS[id]+'取料');}
   }
-  if(action==='retrieve') {
-    return retrieve(r);
-  }
-  if(action==='track') {shop=CHAIN_SHOP[r.chain];await focus(R.GENERATORS[shop].region,{pick:false});message('已追踪'+JOB_NAMES[r.id]+' · '+V.shortage(r,latest));}
 }
 async function retrieve(r) {
   const res=R.retrievePart(state,r.id);
@@ -407,11 +394,41 @@ async function showJobs() {
   if(choice){const r=R.repairById(choice);if(!r)return;tracked=r.id;
     await focus(SPOT_REGION[r.spot],{pick:false});await showJob(r);}
 }
+async function showOrders() {
+  const pick=await sheet({title:'居民来信',body:V.ordersView(state,currentJob())});
+  if(pick?.startsWith('recall-')){
+    const id=pick.slice(7), t=R.orderById(id);
+    if(!state.orderLog.includes(id) || !t)return;
+    if(t.diary) {
+      await sheet({title:'外婆的手记 · 第 '+(t.diary+1)+' 页',body:'<p>'+esc(DIARY[t.diary])+'</p>'});
+    } else if(t.keepsake) {
+      await focus('camp',{pick:false});
+      const gift=world.spriteEl(id==='o1'?'bench-gift':'toolbox-gift');
+      if(gift){popAt(centerOf(gift),2);squash(gift);}
+      message(t.keepsake);
+    }
+    return;
+  }
+  const o=state.orders.find(order=>order.id===pick);
+  if(o)await showOrder(o);
+}
 async function showOrder(o) {
-  const ready=!!R.pickForOrder(state,o);
-  const choice=await sheet({title:'居民委托',body:V.orderDetail(state,o),actions:ready?[{label:'交付委托',value:'deliver'}]:[]});
-  if(choice==='deliver')return deliver(o.id);
+  const job=currentJob(), impact=R.orderImpact(state,o,job), t=R.orderById(o.id);
+  const send={label:'交给'+CAST[t.who].name,value:'deliver'};
+  let actions=[];
+  if(impact.available){
+    actions=impact.usesProject
+      ? [{label:'留给工地',value:'keep'},{...send,kind:'secondary'}]
+      : [send];
+  }
+  const choice=await sheet({title:CAST[t.who].name+'的来信',body:V.orderDetail(state,o,job,impact),actions});
+  if(choice==='deliver')return deliver(o);
   if(choice?.startsWith('chain-'))return showChain(choice.slice(6));
+}
+async function showNotebook() {
+  const pick=await sheet({title:'归乡手记',body:V.notebookView(state)});
+  const open={jobs:showJobs,story:()=>showJournal(),bag:showBag,orders:showOrders,energy:showEnergy,settings:showSettings};
+  if(pick)await open[pick]?.();
 }
 async function showMap() {
   const choices=Object.entries(REGIONS).map(([id,v])=>{
@@ -421,22 +438,49 @@ async function showMap() {
   const result=await sheet({title:'故乡地图',body:'<div class="map-stops">'+choices+'</div>',actions});
   if(result&&REGIONS[result]){await focus(result);message(REGIONS[result].name);}
 }
-async function showShops() {
-  const body=Object.entries(R.GENERATORS).map(([id,g])=>`<button class="choice" data-pick="${id}" ${R.generatorOpen(state,id)?'':'disabled'}>
-    ${V.img(id==='logs'&&R.generatorBetter(state,id)?'sawmill':WORK_ART[id])}<span><b>${WORKSHOPS[id]}</b>
-    <small>${R.generatorOpen(state,id)?REGIONS[g.region].name+(R.generatorBetter(state,id)?' · 已升级':' · 已开放'):'修好旧路开放'}</small></span><i>›</i></button>`).join('');
-  const pick=await sheet({title:'选择材料来源',body});
-  if(pick&&R.generatorOpen(state,pick)){shop=pick;await focus(R.GENERATORS[pick].region);message('已选'+WORKSHOPS[pick]);}
-}
 async function showBag() {
-  const id=await sheet({title:'随身背包',body:V.bagView(state)});if(!id)return;
-  const res=R.unbag(state,id,REGIONS[region].center);
-  if(commit(res)){selected=id;render();message('已放回'+REGIONS[region].name);sfx.drop();}
+  const picked=findItem(selected);
+  const pick=await sheet({title:'随身背包',body:V.bagView(state,picked),actions:[{label:'材料图鉴',kind:'secondary',value:'album'}]});
+  if(!pick)return;
+  if(pick==='album')return showAlbum();
+  if(picked?.cell && matches(findItem(pick),picked))return performMerge(pick,picked.id);
+  const res=R.unbag(state,pick,REGIONS[region].center);
+  if(commit(res)){selected=pick;render();message('已放回'+REGIONS[region].name);sfx.drop();}
+}
+async function showItemInfo(id) {
+  const item=findItem(id);
+  if(!item)return;
+  const actions=[];
+  for(const job of R.availableRepairs(state).filter(j=>j.chain===item.chain)){
+    if(job.level===item.level)actions.push({label:'送去'+JOB_NAMES[job.id],value:'install:'+job.id});
+    else if(job.level>=5 && job.level-1===item.level && !R.progressFor(state,job).ready){
+      const fitting=state.fittings?.[job.id];
+      actions.push({label:JOB_NAMES[job.id]+(fitting?' · 合拢':' · 试装'),value:'fit:'+job.id});
+    }
+  }
+  if(item.cell)actions.push({label:'收入背包',value:'store'});
+  actions.push({label:'查看合成链',kind:'secondary',value:'chain'},
+               {label:'出售 · '+R.sellPrice(item.level)+' 金币',kind:'secondary',value:'sell'});
+  const choice=await sheet({title:nameOf(item.chain,item.level),body:`<div class="detail-piece">${V.piece(item.chain,item.level)}<span><b>${CHAINS[item.chain].label} · L${item.level}</b><small>${WORKSHOPS[CHAIN_SHOP[item.chain]]}产出</small></span></div>`,actions});
+  if(choice?.startsWith('install:'))return repair(R.repairById(choice.slice(8)),findItem(id));
+  if(choice?.startsWith('fit:'))return fitPart(R.repairById(choice.slice(4)),findItem(id));
+  if(choice==='chain')return showChain(item.chain);
+  if(choice==='store' && commit(R.store(state,id))){selected=null;render();sfx.drop();message('已收入背包');}
+  if(choice==='sell'){
+    if(item.level>=3) {
+      const yes=await sheet({title:'出售'+nameOf(item.chain,item.level)+'？',body:'<p>出售可得 '+R.sellPrice(item.level)+' 金币。</p>',actions:[{label:'留下',value:false},{label:'出售',kind:'secondary',value:true}]});
+      if(!yes)return;
+    }
+    if(commit(R.sell(state,id))){selected=null;render();sfx.coin();message('金币 +'+R.sellPrice(item.level));}
+  }
 }
 async function showChain(chain) {
   const id=CHAIN_SHOP[chain];
-  const pick=await sheet({title:CHAINS[chain].label+'合成链',body:V.chainView(state,chain),actions:R.generatorOpen(state,id)?[{label:'前往'+WORKSHOPS[id],value:'go'}]:[]});
-  if(pick){shop=id;await focus(R.GENERATORS[id].region);message('点'+WORKSHOPS[id]+'可采集');}
+  const where=R.GENERATORS[id].region, local=region===where;
+  const actions=R.generatorOpen(state,id)?[local?{label:WORKSHOPS[id]+'取料 · 1 体力',value:'take'}:{label:'前往'+WORKSHOPS[id],value:'go'}]:[];
+  const pick=await sheet({title:CHAINS[chain].label+'合成链',body:V.chainView(state,chain),actions});
+  if(pick==='take')gather(id);
+  if(pick==='go'){await focus(where,{pick:false});message('点'+WORKSHOPS[id]+'可采集');}
 }
 async function showAlbum() {
   const body=Object.entries(CHAINS).map(([c,meta])=>`<button class="choice" data-pick="${c}">${V.img(matName(c,Math.max(1,state.discovered[c])))}<span><b>${meta.label}</b><small>已发现 ${state.discovered[c]} / 7</small></span><i>›</i></button>`).join('');
@@ -487,51 +531,48 @@ async function showEnd() {
     actions:[{label:'回到家园',value:true}]});
 }
 async function hint() {
-  const r=currentJob(),p=r&&R.progressFor(state,r);
-  if(p?.ready){message(JOB_NAMES[r.id]+'的材料齐了，点「修复」');return;}
-  if(p?.staged&&p.half){message('另一半已经做好，去工地合拢');return;}
-  const chain=r?.chain||R.GENERATORS[shop].chain;
-  const items=state.items.filter(i=>i.chain===chain && (!r||i.level<r.level));
-  const pair=items.find((a,n)=>items.slice(n+1).some(b=>matches(a,b)));
-  if(pair) {
-    const other=items.find(b=>matches(pair,b));
-    await focus(regionOfCell(other.cell),{pick:false});selected=pair.id;render();
-    const el=world.spriteEl('item-'+other.id);el?.classList.add('hint');
-    message('把发亮的两件'+nameOf(pair.chain,pair.level)+'合起来');return;
+  const r=currentJob();
+  if(!r || busy || drag)return;
+  const step=R.nextRepairStep(state,r,region);
+  if(step.kind==='install'){message('材料已做好，拖到'+JOB_NAMES[r.id]+'的工地');return;}
+  if(step.kind==='assemble'||step.kind==='stage'){message(step.kind==='assemble'?'另一半已做好，可以合拢':'把半件拖到工地可先试装');return;}
+  if(step.kind==='merge'){
+    await focus(step.where,{pick:false});
+    selected=step.from.cell?step.from.id:step.to.id;render();
+    if(!step.from.cell){message('背包里有搭档，点背包可以合成');return;}
+    world.spriteEl('item-'+step.to.id)?.classList.add('hint');
+    message(step.opening.length?'拖到发亮的搭档上，旁边能开地':'把两件发亮的材料合起来');return;
   }
-  shop=CHAIN_SHOP[chain];await focus(R.GENERATORS[shop].region,{pick:false});
-  message(R.freeCount(state,region)?'去'+WORKSHOPS[shop]+'采集'+CHAINS[chain].label+'材料':'空地满了，点一件材料放进背包');
+  if(step.kind==='move'){
+    if(!step.item.cell){await showBag();return;}
+    await focus(regionOfCell(step.item.cell),{pick:false});selected=step.item.id;render();
+    message(step.mate.cell&&regionOfCell(step.mate.cell)!==region
+      ? '把这件带到'+REGIONS[regionOfCell(step.mate.cell)].name+'，那里有搭档'
+      : '挪到开阔处再合成，或先在工地试装');
+    return;
+  }
+  const id=CHAIN_SHOP[r.chain];
+  await focus(R.GENERATORS[id].region,{pick:false});
+  const full=!R.freeCount(state,region);
+  message(full?'空地满了，选一件放进背包':'点地图上的'+WORKSHOPS[id]+'取料');
 }
 
-const screens={jobs:showJobs,journal:showJournal,energy:showEnergy,settings:showSettings,map:showMap,hint,
-  bag:showBag,shops:showShops,album:showAlbum,deselect:()=>{selected=null;render();}};
-app.addEventListener('click', async e=>{
-  const b=e.target.closest('button');
-  if(!b||!app.contains(b)||busy||drag)return;
+const screens={jobs:showJobs,notebook:showNotebook,journal:showJournal,energy:showEnergy,settings:showSettings,map:showMap,
+  bag:showBag,deselect:()=>{selected=null;render();}};
+app.addEventListener('click',async e=>{
+  const button=e.target.closest('button');
+  if(!button || !app.contains(button) || busy || drag)return;
   unlock();
-  if(b.dataset.open)return screens[b.dataset.open]?.();
-  if(b.dataset.shop)return gather(b.dataset.shop);
-  if(b.dataset.order){
-    const o=state.orders.find(o=>o.id===b.dataset.order);
-    if(o)return R.pickForOrder(state,o)?deliver(o.id):showOrder(o);
-  }
-  if(b.dataset.jobAct){
-    const r=R.repairById(b.dataset.jobAct),p=R.progressFor(state,r);
-    if(p.ready)return repair(r,p.ready);
-    if(p.half&&r.level>=5)return fitPart(r,p.half);
+  const d=button.dataset;
+  if(d.open)return screens[d.open]?.();
+  if(d.itemInfo)return showItemInfo(d.itemInfo);
+  if(d.retrieve)return retrieve(R.repairById(d.retrieve));
+  if(d.jobInfo)return showJob(R.repairById(d.jobInfo));
+  if(d.jobAct){
+    const r=R.repairById(d.jobAct),step=R.nextRepairStep(state,r,region);
+    if(step.kind==='install')return repair(r,step.item);
+    if(step.kind==='stage'||step.kind==='assemble')return fitPart(r,step.item);
     return showJob(r);
-  }
-  if(b.dataset.chain)return showChain(b.dataset.chain);
-  if(b.dataset.itemRepair)return repair(R.repairById(b.dataset.itemRepair),findItem(selected));
-  if(b.dataset.itemFit)return fitPart(R.repairById(b.dataset.itemFit),findItem(selected));
-  if(b.dataset.retrieve)return retrieve(R.repairById(b.dataset.retrieve));
-  if(b.dataset.store){
-    if(commit(R.store(state,b.dataset.store))){selected=null;render();sfx.drop();message('已收入背包');}return;
-  }
-  if(b.dataset.sell){
-    const i=findItem(b.dataset.sell);if(!i)return;
-    if(i.level>=3){const yes=await sheet({title:'出售'+nameOf(i.chain,i.level)+'？',body:'<p>这件素材将换成 '+R.sellPrice(i.level)+' 金币。</p>',actions:[{label:'留在棋盘',value:false},{label:'出售',value:true,kind:'secondary'}]});if(!yes)return;}
-    if(commit(R.sell(state,i.id))){selected=null;render();sfx.coin();message('已出售 · 金币 +'+R.sellPrice(i.level));}
   }
 });
 app.addEventListener('keydown',e=>{
@@ -558,4 +599,4 @@ for(const id of state.done){const r=R.repairById(id);if(r)world.reveal(SPOTS[r.s
 if(R.done(state,'stream')){world.reveal([4,-2],3,{instant:true});world.reveal([1,-1],1.6,{instant:true});}
 render();await board.focus(state,region,false);save();metrics.enter('play');
 if(recovery.notice)message(recovery.notice,5000);
-if(practice && !state.stats.merges && !state.fittings?.ferry && !state.done.includes('ferry'))message('从 L3 连合到 L6，或先试装一半',5200);
+else if(!saved.state && !practice)message('外婆的毯子都湿了。我们先把棚顶补好吧。',3200,'lina');

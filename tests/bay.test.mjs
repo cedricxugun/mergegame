@@ -128,3 +128,73 @@ test('a drop preview and the committed three-cell displacement agree on every bl
   assert.deepEqual(byId(moved,wide.id).cell,dest);assert.equal(byId(moved,wide.id).turn,plan.turn);
   assert.ok(B.validate(moved));
 });
+
+test('giving away a lower part can break a complete ferry recipe; an extra copy in the bag is spare',()=>{
+  const s=B.wharfPractice(0), job=B.repairById('ferry'), order=s.orders.find(o=>o.id==='o15');
+  const warning=B.orderImpact(s,order,job);
+  assert.ok(warning.usesProject);
+  assert.equal(warning.before.total,32); assert.equal(warning.after.total,24);
+  const paid=apply(B.deliver(s,order.id));
+  assert.equal(B.progressFor(paid,job).missing,warning.after.missing);
+  stock(s,'dock',4);
+  assert.equal(B.orderImpact(s,order,job).usesProject,false);
+  assert.equal(B.progressFor(apply(B.deliver(s,order.id)),job).missing,0);
+});
+
+test('ready components and installed halves are accounted for even when raw material totals look sufficient',()=>{
+  const s=B.freshState(0);s.done=['roof','fire'];
+  const order={id:'o4'};s.orders=[order];
+  stock(s,'wood',4,[0,0]);stock(s,'wood',3);stock(s,'wood',3);
+  const clash=B.orderImpact(s,order,B.repairById('path'));
+  assert.ok(clash.usesProject);
+  const exact=B.orderImpact(s,order,B.repairById('fence'));
+  assert.ok(exact.lostReady);assert.equal(exact.after.missing,0);
+  s.done.push('path');
+  const otherSite=B.orderImpact(s,order,B.repairById('spring'));
+  assert.equal(otherSite.usesProject,true);assert.equal(otherSite.project.id,'fence');
+  let river=B.wharfPractice(0);const ferry=B.repairById('ferry');
+  const half=river.items.find(i=>i.level===5);
+  river=apply(B.stagePart(river,ferry.id,half.id));
+  const staged=B.orderImpact(river,{id:'o15'},ferry);
+  assert.equal(staged.after.staged.id,half.id);assert.equal(staged.after.missing,8);
+});
+
+test('the actionable prompt guides the wharf chain to a real component and respects the cost of landing on an edge',()=>{
+  let s=B.wharfPractice(0);const ferry=B.repairById('ferry');
+  for(let lv=3;lv<=5;lv++){
+    const step=B.nextRepairStep(s,ferry,'river');
+    assert.equal(step.kind,'merge');assert.equal(step.from.level,lv);
+    s=apply(B.merge(s,step.from.id,step.to.id));
+  }
+  const finish=B.nextRepairStep(s,ferry,'river');
+  assert.equal(finish.kind,'install');assert.equal(B.occupiedCells(finish.item).length,3);
+  const fresh=B.beginVoyage(0), cell=fresh.items.find(i=>i.cell[1]===-1);
+  const preview=B.clearableBeside(fresh,cell.cell,2);
+  assert.ok(preview.length);
+  const res=B.merge(fresh,fresh.items.find(i=>i!==cell).id,cell.id);
+  assert.deepEqual(res.events.filter(e=>e.type==='heal').map(e=>e.cell),preview);
+  assert.equal(fresh.healed.length,0);
+});
+
+test('five optional letters unlock from repairs without filling or blocking an old save’s pending requests',()=>{
+  let s=B.wharfPractice(0);
+  s.orders=[{id:'o3'},{id:'o4'},{id:'o6'}];s.orderLog=[];s.diary=[0,1,3,5];
+  B.refillOrders(s);
+  const authored=['o1','o2','o5','o15','o18'];
+  assert.deepEqual(s.orders.map(o=>o.id),['o3','o4','o6',...authored]);
+  for(const id of authored){
+    for(const [chain,level] of B.orderNeeds({id}))stock(s,chain,level);
+    s=apply(B.deliver(s,id));
+    assert.ok(!B.deliver(s,id).ok);
+  }
+  assert.deepEqual(s.orders.map(o=>o.id),['o3','o4','o6']);
+  assert.ok([2,4,6].every(page=>s.diary.includes(page)));
+  const old=s.orders[0], payout=B.orderById(old.id);
+  for(const [chain,level] of payout.needs)stock(s,chain,level);
+  const before=s.coins;
+  s=apply(B.deliver(s,old.id));
+  assert.equal(s.coins,before+payout.coins);
+  assert.deepEqual(s.orders.map(o=>o.id),['o4','o6']);
+  const fresh=B.wharfPractice(0);
+  assert.ok(fresh.orders.every(o=>authored.includes(o.id)));
+});

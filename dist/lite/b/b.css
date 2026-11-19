@@ -12,15 +12,8 @@
 .bay-app img,.bay-body .sheet img {display:block;object-fit:contain}
 .bay-app button {appearance:none;touch-action:manipulation}
 .bay-app button:active,.bay-body .sheet button:active {transform:translateY(1px)}
-.wallet,.wallet>* {display:flex;align-items:center}
-.wallet {gap:5px}.wallet>* {padding:0 8px;gap:4px;font-variant-numeric:tabular-nums}
-.wallet button#energy {padding-right:4px}
-.wallet #energy span {display:grid;place-items:center;border-radius:50%;color:#fff;font:850 15px/1 var(--font)}
-.wallet .gear {width:31px;padding:0;justify-content:center}
 .gold-coin {font-family:Georgia,serif;display:inline-grid;vertical-align:middle;place-items:center;background:linear-gradient(135deg,#fff58e,#ffc647 57%,#ed9e27);border:1.5px solid #bb791e;box-shadow:inset 0 0 0 1px #ffe495,0 1px #ae752b;border-radius:50%;width:16px;height:16px;color:#ab631a;font-size:12px;line-height:1;font-style:normal}
 .bay-body .sheet .face {object-fit:cover;flex:none;border:2px solid #fff5cc;border-radius:50%}
-.tickets {display:flex;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none}
-.tickets::-webkit-scrollbar {display:none}
 .playfield {flex:1;position:relative;min-height:0;overflow:hidden;background:#95ae70}
 .playfield #world {position:absolute;inset:0;background:#7c9b7e}
 .playfield::after {content:"";position:absolute;inset:0;box-shadow:inset 0 5px 8px -7px #1c312b,inset 0 -6px 10px -9px #21392b;pointer-events:none}
@@ -56,54 +49,11 @@
 .bay-app .shop-pin {display:grid;place-items:center;padding:1px;width:24px;height:24px;border-radius:50%;border:1.5px solid #ffe5a4;background:#17565c;box-shadow:0 2px 2px #21473855}
 .bay-app .shop-pin::after {display:none}
 .bay-app .shop-pin svg {width:16px;height:16px}
-/* The task and the workshop stay in thumb reach. */
-.deck {position:relative;z-index:3;flex:none;background:linear-gradient(#fff2d2,#f7dfac);padding:8px 10px max(8px,var(--safe-bottom));border-top:3px solid #bc9460;box-shadow:0 -3px 7px #233a322b}
-#panel {padding:7px 11px 6px;background:linear-gradient(110deg,#fffaf0,#fff1d0);border:1px solid #ceab72;border-radius:15px;box-shadow:inset 0 1px #fffef5,0 2px 0 #c2a47b}
-.repair-head,.repair-main,.tools-row,.inspect-foot,.epilogue {display:flex;align-items:center}
-.repair-head,.inspect-foot {justify-content:space-between;gap:6px}
-.repair-head>b {color:#87653b;display:flex;align-items:center;gap:4px;font-size:11px;letter-spacing:.08em}
-.repair-head svg {width:14px;height:14px}
-.bay-app .repair-head button,.bay-app .text-action,.bay-app .inspect-foot button {background:none;border:0;padding:2px;color:#287077;font-size:11px}
-.repair-main {min-height:58px;gap:8px}
 .piece-pic {position:relative;display:inline-grid;place-items:center;width:48px;height:48px;flex:none;border-radius:13px;border:1px solid #d4bb86;background:radial-gradient(at 35% 25%,#fff6d8,#ecd8a3);box-shadow:inset 0 1px #fff,0 1px #cebd96}
 .piece-pic img {width:93%;height:93%;object-fit:contain}
-.piece-pic b {position:absolute;right:-2px;bottom:-1px;border-radius:8px;min-width:16px;padding:0 3px;line-height:14px;background:#526a58;border:1px solid #fff3d0;color:white;font-size:10px;font-style:normal;text-align:center}
-.repair-copy {min-width:0;flex:1}
-.repair-copy h2,.epilogue strong {margin:0;color:#254e51;font-size:19px;line-height:1.2;letter-spacing:.015em}
-.repair-copy p,.epilogue small {margin:2px 0 0;font-size:11px;font-weight:700;color:#6a6751;line-height:1.35}
-.progress-line {display:flex;align-items:center;gap:5px;margin-top:3px}
-.meter {height:7px;display:block;overflow:hidden;flex:1;background:#ddd3ac;border-radius:9px;box-shadow:inset 0 1px 2px #9f9668a6}
+.piece-pic b {position:absolute;right:-2px;bottom:-1px;border-radius:8px;min-width:16px;padding:0 3px;line-height:14px;background:#526a58;border:1px solid #fff3d0;color:white;font-size:11px;font-style:normal;text-align:center}
+.meter {height:7px;display:block;overflow:hidden;background:#ddd3ac;border-radius:9px;box-shadow:inset 0 1px 2px #9f9668a6}
 .meter i {display:block;height:100%;border-radius:inherit;background:linear-gradient(#73c7aa,#3a9f88);box-shadow:inset 0 1px #b7dfae;transition:width .24s}
-.progress-line small {color:#657162;font-weight:800;font-size:10px;font-variant-numeric:tabular-nums}
-.bay-app .job-act,.epilogue button {min-height:35px;min-width:54px;padding:4px 9px;border:1.5px solid #43817d;border-radius:11px;background:linear-gradient(#528f84,#34766e);color:#fffae7;font-size:13px;box-shadow:inset 0 1px #a6c8af,0 2px #285757}
-.bay-app .job-act.bright {color:#493817;background:linear-gradient(#ffdc73,#f5b345);border-color:#cf9132;box-shadow:inset 0 1px #fff0a1,0 2px #b48439}
-.benefit,.inspect-foot {border-top:1px dashed #dac396;min-height:23px;margin-top:3px;padding-top:4px;color:#38665e;font-size:11px;font-weight:720}
-.benefit {display:flex;align-items:center;gap:5px}
-.benefit span,.inspect-foot>span {color:#857457}
-.benefit svg {width:13px;height:13px}
-.inspect-foot .gold-coin {width:12px;height:12px;font-size:8px}
-.epilogue {min-height:92px;gap:8px}
-.epilogue span {flex:1}
-.epilogue strong,.epilogue small {display:block}
-.epilogue img {width:54px}
-.tools-row {gap:8px;padding-top:8px}
-.bay-app .side-tool {position:relative;background:linear-gradient(#fff3cf,#e9cca0);border:1.5px solid #bf9966;box-shadow:inset 0 1px #fff9e5,0 2px #ac865f;color:#5a5d48;border-radius:13px;width:55px;height:50px;display:flex;flex:none;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:2px}
-.side-tool>span {font-size:11px;line-height:14px}
-.side-tool>i {position:absolute;top:-3px;right:-3px;border-radius:7px;background:#466b62;color:#fff5d5;font-size:8px;line-height:12px;padding:0 3px;font-style:normal}
-.side-tool.drop {outline:3px solid #3ac9af}
-.shop-group {display:flex;flex:1;min-width:0;align-items:stretch;height:52px;color:white;background:linear-gradient(#ffb071,#f68657 55%,#df6946);border:1.5px solid #b85b37;border-radius:15px;box-shadow:inset 0 2px #ffd49a,0 3px #a65b3f}
-.bay-app .gather,.bay-app .shop-more {border:0;background:none;color:#fffbee}
-.gather {flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;padding:3px 5px}
-.gather .shop-pic {width:40px;height:40px;flex:none}
-.gather span {text-align:left}
-.gather b,.gather small {display:block;white-space:nowrap}
-.gather b {font-size:16px;text-shadow:0 1px 1px #914326}
-.gather small {margin-top:2px;font-size:10px;color:#592e22}
-.gather i {display:flex;align-items:center;gap:1px;font-size:11px;background:#945134a6;padding:1px 4px;border-radius:8px;font-style:normal}
-.gather i svg {width:12px;height:14px}
-.bay-app .shop-more {width:30px;padding:0;border-left:1px solid #ce764a;font-size:19px}
-
-
 /* The same illustrated travel journal for inventory, work orders and story. */
 .bay-body .sheet-wrap {color:#294b4c;padding:12px 0 0}
 .bay-body .sheet-wrap.open {background:#0e323a91;backdrop-filter:blur(2px)}
@@ -154,16 +104,6 @@
 .bay-body .settings-list button {background:transparent;border:0;border-bottom:1px dashed #d3c09b;width:100%;justify-content:space-between;font-size:14px}
 .settings-list b {color:#357d6b}.supply-count {justify-content:center;font-size:24px}
 .supply-count svg {width:32px!important;height:32px!important}
-@media (max-height:720px) {
-  .deck {padding-top:5px}.repair-main {min-height:46px}.repair-main>.piece-pic {width:40px;height:40px}
-  .benefit,.inspect-foot {min-height:18px}.tools-row {padding-top:5px}
-  .shop-group,.bay-app .side-tool {height:44px}
-}
-@media (max-width:350px) {
-  .shop-group .gather {gap:3px}
-  .gather .shop-pic {width:29px;height:32px}.gather b {font-size:14px}
-  .bay-app .side-tool {width:43px}.shop-more {max-width:24px}.repair-copy h2 {font-size:17px}
-}
 @media (min-width:650px) and (min-height:720px) {
   .bay-app {height:min(96dvh,970px);border-radius:23px;border:2px solid #e7d7af;box-shadow:0 13px 52px #082f39b3,inset 0 0 0 1px #fff0c5}
   .bay-body .sheet-wrap {align-items:center;padding:14px}.bay-body .sheet {border-radius:22px;border:2px solid #dac095;max-height:min(90svh,760px)}
@@ -176,4 +116,3 @@
 .bay-app .debris {opacity:.94}
 .bay-app .fog {opacity:.56;filter:blur(4px)}
 .bay-app .creek[data-state="trial"] .flow {opacity:1;clip-path:inset(0 0 0 67%);transition:opacity .3s}
-.bay-app .benefit .take-back {margin-left:auto;border:0;background:#d8e8d8;border-radius:7px;padding:3px 6px;color:#25655e;font-size:11px;white-space:nowrap}
