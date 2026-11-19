@@ -149,3 +149,88 @@ Use case: stylized-concept. Original game sprites for a cozy post-storm woodland
 | sawmill | 957, 140, 736, 643 | 7, 6, 306, 268 | 320 × 299 | 0.51, 0.79 |
 
 分别选取三段木料接地投影中心与锯架支脚、侧面木束所围成的支承区中心作为原图脚点，再用透明边距注册到地图现有坐标。各坐标轴相对于既有脚点的取整偏差均小于 0.3 像素。
+
+## 2026-11-19 · 河道与渡口工地
+
+四件工地美术使用内置 ImageGen 和透明输出。试装件呈现现场装上可拆组件的完整状态。泊位的松绳扣和卷好的蓝篷固定在半栈桥上，通航后由系稳的蓝篷渡船、连船踏板与暖灯替换。试水用的短木槽直接卡在原泉石的出口，取回后可换回普通泉石。桥下的开口带 alpha，溪水由实际地图层提供。
+
+编辑前查看本项目原有半栈桥、落成渡口、泉石、引水槽、断码头和过溪木桥，并对照前述开发商棋盘图。为保持位置，使用透明定位稿：半栈桥置于 1000 × 600 的 `[70,120,395,405]` 区域；原泉石置于 900 × 540 的 `[375,62,446,402]` 区域。后两次引水修订还对照了实际试水时显露的溪道落点。
+
+下表位置指 1536 × 1024 底图上的**最终地脚**，已经包含垂直偏移。尺寸以一个六边半径 42.667 像素为单位。
+
+| 工地状态 | 最终地脚（世界坐标） | 显示长边 | 图内脚点 |
+| --- | --- | ---: | --- |
+| 原半栈桥入口双桩 | 1270.8, 417.3 | 1.65 格半径 | 岸侧 UV 0.287, 0.947 |
+| 临时泊位框架 | 1270.8, 417.3 | 3.95 格半径 | UV 0.121, 0.854 |
+| 通航渡口 | 1270.8, 417.3 | 4.36 格半径 | UV 0.1125, 0.949 |
+| 普通泉石 | 827.4, 416.5 | 2.40 格半径 | UV 0.51, 0.76 |
+| 临时引水接口 | 827.4, 416.5 | 3.034 格半径 | UV 0.6132, 0.7633 |
+| 双桥台木桥 | 625, 423.5 | 2.10 格半径 | UV 0.520, 0.630 |
+
+渡口各态的入口双桩间距约 24.5 世界像素。按原半栈桥既有中心脚点绘制时，等效绘制足点为 `[1285.4,401.3]`。船体中部下方实测为海水。以原泉石顶部苔帽的边界和质心配准试装图，短水线尖端落在 `[748.8,425.1]`，位于试装显露段。木桥近、远桥头的接触中心在 `[597,450]`、`[653,397]` 左右；桥下 `[632.0,421.2]` 的木桥 alpha 为零，其下方的溪水不透明。
+
+### 四次初始请求的共同结尾
+
+```text
+Production sprite for the continuous outdoor map of an original coastal restoration game. Use polished 2.5D casual illustration: generous rounded contours, softly modeled warm wood, cream highlights and teal accents, with a few connected construction details that make a real place for people. Readable as a single scene at about 100–160 pixels. Warm upper-left daylight, front-right colored form shadows, physically convincing supports. It will be layered ON TOP OF the real landscape and river painted by the game. All background and all spaces through the structure must be true transparent alpha, clean anti-aliased outer edges. No text, logos, people, UI, card, tile, printed marks, glowing border, floating island, backdrop, standalone display plinth or big cast drop shadow. Keep small occlusion shadows immediately below actual connections and feet. No rectangular patch of water, no bed of dirt or illustrated grass.
+```
+
+### 泊位临时框架
+
+初始调用使用下面的正文，其后拼接共同结尾。
+
+```text
+Use case: precise-object-edit. Image 1 is the EDIT TARGET: our EXISTING partial pier, already placed on a wide transparent landscape canvas with a large clear area on the RIGHT for extending over the water. PRESERVE the location, size, cream pile caps, camera angle, original alternating short teal/ivory boards, rope handrail and coral buoy. Especially preserve the EXACT two nearest shore-side round golden piles and their footing on the lower-left. Image 2 is the design reference for the old blue ferry canopy (only its color/fabric). Image 3 is a style reference for clear ordinary mobile board items, never reproduce its content. Draw the NEXT INTERMEDIATE WORKSITE STATE, as if the boatwright just brought a timber frame and temporarily fitted it onto the existing vacant right side of the dock. A low airy RECTANGULAR MOORING FRAME of only two honey-timber outriggers and one crossbeam is actually fastened into the OUTER right-facing edge of the existing deck with one chunky brass pin. The frame protrudes RIGHT, out over the water in the currently transparent part of the canvas. Leave a generous visibly empty space within it through which actual game water will show. Very clear functional foreground: one CORAL mooring line remains loose, its cream/brass rope clasp unhooked and hanging, while a folded SKY-BLUE CANVAS ROLL lies flat and furled across the new outer rail; the canopy is not raised at all. No operating ferry, no boat, no lamp yet. It is an unmistakable partly fitted landing for a future ferry, joined to the turquoise deck, not a second kit or a boat floating beside it. The main heavy shore piles stay at the left, east/water is on the right; the farthest part of the new frame should extend roughly one existing pier width past those root posts. Side extension and empty bay should claim the RIGHT two-thirds of the final crop, with no painted terrain on the left. Keep sprite fully in frame on a WIDE transparent canvas.
+```
+
+最终原图 `exec-232d2b5a-849c-458a-a3b8-0aaccc71f552.png`，SHA-256 `5f2817555ebfb44c6ae0b43f78cb3da5e4cc50fd11dff07f3516eac6d4bf4888`。源尺寸 `1752 × 897`，源裁框 `[57,87,1601,779]`，WebP 尺寸 `640 × 311`。
+
+### 通航渡口
+
+初始调用使用下面的正文，其后拼接共同结尾。
+
+```text
+Use case: precise-object-edit. Image 1 is the EDIT TARGET: our EXISTING fixed half-pier placed on a wide transparent canvas with a generous free space to the RIGHT. Keep the exact same deck silhouette, camera angle, original alternating seafoam and ivory slats, rope rail, small coral buoy and TWO NEAREST ROUND SHORE-SIDE WOODEN PILES in their original positions, unchanged height and scale. The sole shore-side root of the finished composition is those two piles at the lower left. Image 2 is a reference for our blue-canopy ferry's identity, small golden lantern and coral pennant; its old jetty is not used in place of Image 1. Image 3 is only an art-language reference for clear ordinary game objects. Complete the physical working FERRY LANDING by expanding the construction to the RIGHT of Image 1, where the real bay water will be visible under it. Add a low warm-wood mooring crossbar physically bolted to the RIGHT edge of the outer landing with two broad support beams. A beautiful plump little TEAL-HULLED PASSENGER FERRY lies alongside the landing to the RIGHT, waterline flush with the base of the piles, bow upper right and cabin side to the player. It has a taut raised sky-blue fabric canopy on four simple posts, welcoming cream seat, one coral pennant. A SHORT CLEAR-IVORY BOARDING GANGPLANK significantly bridges the visible gap from dock edge into the boat entrance; it must TOUCH both dock and boat and be visibly usable. A taut mooring rope runs from a dock cleat to the bow and is visibly tied. Hang one WARM GOLDEN BOAT LAMP giving a contained amber light under the outer front canopy corner, charming in daylight with no bloom cloud. Cohesive installed scene, not a display of independent toy props. Two nearest shore piles on the left, boat distinctly over the water on the right; keep the negative space between the outer pier feet and the hull TRANSPARENT and very clear, with open water to its right. No raised plinth, sandy island or water slab. If showing any grounding at all restrict it to brief soft contact at the shore-side piles. The ferry and gangplank account for more than one existing pier width to the RIGHT of its shore posts. Keep all parts completely in frame.
+```
+
+最终原图 `exec-9a64e404-d6ab-4f6e-9983-e1629c49b3b1.png`，SHA-256 `9d944be635b30489cfa5b8ca1e01406de5ae052d299e6c5f75aec045fa3652da`。源尺寸 `1620 × 971`，源裁框 `[39,72,1541,761]`，WebP 尺寸 `640 × 316`。
+
+### 临时引水接口
+
+初始调用使用下面的正文，其后拼接共同结尾。
+
+```text
+Use case: precise-object-edit. Image 1 is the EDIT TARGET, our current exact three smooth violet-grey spring rocks and their green moss cap on the RIGHT HALF of a wide transparent canvas. It has free room to the LEFT. Hold that particular intact rock shape, landmark scale, three boulders, small low front stones, camera, moss position and center of the footprint, ideally identical pixel-for-pixel. Image 2 is our warm wooden irrigation-flume language, to be used only for the material and joint shape. Image 3 is a stylistic reference for legible bright map art, not a subject to reproduce. REPLACE ONLY the current broad turquoise spill at the rock opening with a physically fitted, removable TEMPORARY WATER FEED CONNECTION. Nest the high end of a half-round golden timber chute snugly right UNDER the existing dark spring cleft at the front-left face of the rocks. One prominent simple copper U-collar (or coral clamp) secures the upper end to a little short brace against the stone; the mouth of chute and opening must visibly overlap and connect. The chute runs LEFT and only slightly down, crossing part of the empty canvas to the left, and it tapers toward a moderate, shallow lower outlet at the front-left, supported by one low bracket on a smooth stone foot. At this stage only a NARROW modest ribbon of CYAN water runs from the cleft INSIDE the chute; at its left end the trickle slips down briefly towards the LEFT into the real stream bed, narrow tapered organic tip, no pool. This part visually reads as an engineering test that can be unclamped; no broad gush, waterfall or large sluice. The actual three rocks are still the main landmark and should be on the right half of the crop. Add no land base or new scenery; the stones, attached channel and brief test flow are one non-floating washed-in installation. Centered on a WIDE transparent canvas, with all contours contained.
+```
+
+定稿前的针对性修订：
+
+```text
+Use case: precise-object-edit. Edit INPUT 1, the transparent illustration of our stone spring and attached temporary flume. This correction is about FITTING INTO THE EXISTING GAME RIVER. INPUT 2 is our original three mossy spring rocks and confirms their EXACT geometry. INPUT 3 is only a rounded mobile-art STYLE reference, never draw its objects/UI. Keep the boulders, moss, copper connector and viewpoint exactly the same in the new illustration. Important change: SHORTEN the previously very long left-projecting wooden gutter to NEARLY HALF ITS LENGTH and bring its outlet UP. Form a SHORT installed coupling that points ALMOST HORIZONTALLY DIRECTLY TO THE LEFT, not steeply toward the viewer. The lower tip of the tiny trickle must end ABOUT LEVEL WITH THE MIDDLE OF THE LEFT SMALL FRONT PEBBLE or slightly above that pebble, NOT well below the main rocks. This determines where it connects to the game’s real stream. Keep the source rock in the right part of a wide transparent composition. The clamp is directly under the mouth feeding a slim turquoise test ribbon into a handsome short timber chute, running more than 85% left and less than 15% down; a single very LOW supporting bracket and a small crooked flat sliver of warm stone under the outer lip at LEFT ground it in the same terrain. The trough is about HALF A ROCK CLUSTER'S WIDTH by projection, chunky and practical rather than a long walkway. Tip: one tiny 1–2cm splash over the lip that flows LEFT almost horizontally and fades cleanly onto transparent alpha; absolutely no dangling vertical waterfall or long tail. Keep a visible open clasp detail to show it is temporarily attached. New working installation = object ONE, actually joined, resting at its stone spring outlet. Very clean softly rounded 2.5D contours, broad lovely shaded shapes, actual transparent gaps, same warm left light. NO solid backdrop, no riverbed tile, no ground island, dark backdrop, text, props apart from those described or large shadows. All contours fully in frame.
+```
+
+最终水线根据河床位置再做局部编辑。定位稿为 604 × 431，编辑目标保持透明，第二份参考图的洋红标记只用于指出接水位置。
+
+```text
+Use case: precise-object-edit. Image 1 is the actual transparent asset to edit. Image 2 is a technical POSITION GUIDE only: it shows the EXACT SAME ART and a little magenta ring indicating the position of a real water channel that will be rendered under the sprite. Single localized edit: replace the two tiny sideways blue droplets at the very LEFT LIP of the timber water chute with ONE connected narrow arcing streamlet. It must emerge from the tiny notch on the left lip, flowing LEFTWARD for a little distance and then CURVING GENTLY DOWN and leftwards through the previously empty region so its tiny tapered tail ends at the CENTER OF THE MAGENTA TARGET shown in Image 2. In source pixels this goes from near (100,300) to near (47,351) on the 604×431 transparent canvas. Gentle, narrow, lively turquoise test trickle, 4-8 source pixels in typical width, with one pale blue highlight. This should look like a small amount of water falling from a spout into the real creek that will already be there, not a broad waterfall or pond. Keep the locations, scale, viewing angle and silhouettes of ALL existing stones, timber chute, central clamp, tiny front pebbles and supports UNCHANGED. Render the WHOLE identical asset plus this tiny curved pour; do not repaint or recompose the rest. Leave generous transparent margins all around the entire silhouette. The technical magenta ring, its color, and the example green backdrop must NOT appear in the output. No scene background, ground base, imagery under the tip, text, guide arrows, extra rocks or glow. True alpha transparency everywhere outside the object and thin test stream.
+```
+
+最终原图 `exec-6adb2b33-91af-4d3a-b5c6-b440a825136c.png`，SHA-256 `c02c2ed9c97ed4441f7d7007b050ea9ef39e6daf56c0d90867a705498c7326ca`。源尺寸 `1485 × 1059`，源裁框 `[111,41,1327,942]`，WebP 尺寸 `520 × 369`。
+
+### 双桥台木桥
+
+初始调用使用下面的正文，其后拼接共同结尾。
+
+```text
+Use case: stylized-concept. Make a newly drawn outdoor FOOTBRIDGE THAT ACTUALLY SPANS AN EAST-WEST STREAM on an illustrated coastal map. Image 1 gives the old wooden bridge's material and restrained teal post-cap identity, but you must CHANGE ITS PROJECTED ORIENTATION and make room for the real stream to be seen under it. Image 2 gives the existing flume's timber color. Image 3 is a style guide only for the usual polished colored rendering. Show one modest graceful, physically anchored timber footbridge over NOTHING (actual game water is a separate layer). The walkable deck runs from LOWER LEFT/NEAR bank to UPPER RIGHT/FAR bank, crossing the painting predominantly VERTICALLY. The horizontal movement between its near and far landing centers should be only about ONE-HALF the VERTICAL movement; i.e. the bridge runs up the image from 7 o'clock to 1 o'clock, rather than across it. Clearly portray two separate bridgehead thresholds with a short, flat grey stone footing and a minute tuft directly at each landing: one threshold in the lower-left foreground, the other on the upper-right bank. The footings touch opposite banks in the game. No water painted below. The honey-colored deck gently bows up, just five or six broad inviting planks, with a neat low curving handrail and a few solid short posts with muted teal caps on the outside edges. Show a clean prominent OPEN ARCH UNDER THE DECK from the exposed front-right side, with real transparent background visible through the opening; no central ground post, no plank skirt, black fill, blue paint under the bridge, black cast shadow or stylized river. Give the two distinct support feet tangible weight through compact stone/moss at the two ends only. Compact, substantial timber structure, a usable permanent footbridge in a forest, no giant ornate props. Slightly elevated three-quarter camera, retain a strong visible upper walking surface AND show right hand arch with a generous open transparent span. No clipping or cropped vegetation, no link to any pictured surrounding diorama. Actual alpha transparent sprite, medium portrait framing to allow a steeper bridge.
+```
+
+定稿前的针对性修订：
+
+```text
+Use case: precise-object-edit. Strengthen the structure of Image 1, a golden timber forest bridge in the correct projected direction from lower left front landing to upper right back landing. Image 2 gives its project shape/colors, Image 3 only the mobile polish/craft style. This is a transparent map sprite placed over an EXISTING EAST–WEST FLOWING RIVER; the player needs to SEE THEIR ACTUAL RIVER DIRECTLY THROUGH AN OBVIOUS OPEN ARCH UNDER THE BRIDGE. The current ramp hugs the ground too tightly. RAISE THE SHORT WOODEN DECK ON TWO NOTICEABLE LOW STONE BRIDGE ABUTMENTS at the banks (only at the ends). Keep the longitudinal direction up and to the right; the far landing's threshold should be well above and a little right of the near landing, about 7 o'clock to 1 o'clock in the image. Use an elegant single span of curved caramel timber: its right, viewer-facing longitudinal load-bearing arch rises CLEAR of both bank footings and the bottom curvature makes a substantial CLEAR THROUGH-OPENING with free TRANSPARENT ALPHA under its center. Give the distant bank block a low foot and a visible inward face; raise the near bank block enough that you can see a good patch of clear transparency BETWEEN these supports and UNDER the center of the bridge instead of an opaque brown ramp. Broad arch, no intermediate pier or diagonal infill beneath the deck. The actual map will show blue water through this region when installed; DO NOT paint any water, blue or black fill into it. This is a small installed footbridge, with usable warm wooden deck, low rounded green-capped handrail, one little cream stone threshold at each end, and gently peaked 3/4 ground perspective, no central raised island. Reduce massive side rails and widen the visible void; keep enough of the deck surface to read its walking direction. All grass limited to two tiny tufts touching the stone ends. The viewer must see the two threshold anchors and unmistakable arch at 75 pixels. Keep the same near-upright overall composition from Image 1 while increasing the space under the longitudinal side. No text, labels, particles, water-plane, land-strip, board UI, backdrop or cast shadow filling the arch. Crisp transparent alpha.
+```
+
+最终原图 `exec-a9f92f31-be63-4449-95d5-220ef797ea73.png`，SHA-256 `ce4361f0c538569748a653909c75aa77c65d371dcca54d393d543d959a44aa09`。源尺寸 `1221 × 1288`，源裁框 `[16,28,1179,1208]`，WebP 尺寸 `508 × 520`。
+
+试装接口的初稿与第二稿原图为 `exec-aba08e44-cd6e-4835-bb85-f6dbe19da7f3.png`、`exec-7d078cdb-acf1-4a67-95f0-e6080a38af2d.png`；过溪桥首稿为 `exec-77f08e4d-1bfb-4a0d-84d4-742e29b0eb37.png`。四件运行时成品均采用保留抗锯齿边缘的 WebP，quality 91、alphaQuality 100。

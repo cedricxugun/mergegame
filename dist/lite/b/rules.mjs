@@ -5,7 +5,8 @@ import {key, parseKey, neighbors, distance} from '../shared/hex.mjs';
 import {occupiedCells, layoutFor, applyLayout} from './placement.mjs';
 export {occupiedCells};
 import {MAX_LEVEL} from '../shared/art.mjs';
-import {SPOTS, AREA, regionOfCell, SPOT_REGION, isSpot, isCreek} from '../shared/map.mjs';
+import {SPOTS, regionOfCell, SPOT_REGION, isSpot, isCreek} from '../shared/map.mjs';
+import {WORK_AREA as AREA, WORK_POCKETS, REPAIR_CLEARINGS, freightOpen, yardFor} from './route.mjs';
 import {REPAIRS as CHAPTER, DIARY} from '../shared/chapter.mjs';
 
 export const VERSION = 2;
@@ -86,6 +87,7 @@ const OPEN = {
 const DEBRIS = {camp: c => ring(c, [0, 0]) <= 2 ? 2 : 3, creek: () => 3, river: c => ring(c, [10, -2]) <= 2 ? 3 : 4};
 export const STORM = new Map(Object.entries(AREA).flatMap(([region, cells]) => cells.filter(c => !OPEN[region](c)).map(c => [key(...c), {cell: c, region, level: DEBRIS[region](c)}])));
 export const BASE = Object.fromEntries(Object.entries(AREA).map(([region, cells]) => [region, cells.filter(c => OPEN[region](c))]));
+const baseKeys=new Set(Object.values(BASE).flat().map(c=>key(...c)));
 export const REGION_GATE = {camp: null, creek: 'path', river: 'path'};
 export const regionOf = regionOfCell;
 const hash = (q, r) => ((q * 73856093) ^ (r * 19349663)) >>> 0;
@@ -110,12 +112,12 @@ export const isOpen = (s, region) => !REGION_GATE[region] || done(s, REGION_GATE
 export function isLand(s, cell) {
   const k = key(...cell), region = regionOfCell(cell);
   if (!AREA[region] || !isOpen(s, region) || isSpot(cell) || isCreek(cell)) return false;
-  return BASE[region].some(c => key(...c) === k) || s.healed.includes(k);
+  return baseKeys.has(k) || (STORM.has(k) && (s.healed.includes(k) || yardFor(s.done,cell)));
 }
 export const itemAt = (s, cell) => s.items.find(i => occupiedCells(i).some(c => c[0] === cell[0] && c[1] === cell[1])) || null;
 export const isFree = (s, cell) => isLand(s, cell) && !itemAt(s, cell);
-export const landCells = s => Object.keys(AREA).filter(r => isOpen(s, r)).flatMap(r => [...BASE[r], ...AREA[r].filter(c => s.healed.includes(key(...c)))]);
-export const stormCells = s => [...STORM.values()].filter(t => !s.healed.includes(key(...t.cell)) && isOpen(s, t.region));
+export const landCells = s => Object.keys(AREA).filter(r=>isOpen(s,r)).flatMap(r=>AREA[r].filter(c=>isLand(s,c)));
+export const stormCells = s => [...STORM.values()].filter(t=>isOpen(s,t.region) && !isLand(s,t.cell));
 export const freeCount = (s, region) => landCells(s).filter(c => (!region || regionOfCell(c) === region) && !itemAt(s, c)).length;
 export const generatorOpen = (s, id) => !GENERATORS[id].opensWith || done(s, GENERATORS[id].opensWith);
 export const generatorBetter = (s, id) => done(s, GENERATORS[id].upgradeBy);
@@ -176,7 +178,8 @@ export function wharfPractice(now = Date.now()) {
   const s = freshState(now);
   s.done = CHAPTER.filter(r=>!['ferry','feast'].includes(r.id)).map(r=>r.id);
   s.maxEnergy = 70; s.energy = 60; s.bagSize = 6;
-  s.healed = [...STORM.keys()];
+  s.healed = [...STORM.values()].filter(t=>t.region==='creek').map(t=>key(...t.cell));
+  s.healed.push('-2,1','-1,2','8,-1','9,0','10,0','12,-3');
   s.discovered = {wood:6, water:6, reed:6, dock:6};
   s.diary = [0,1,2,3,5]; s.stats.repairs = s.done.length;
   s.orders=[]; s.orderLog = ['o1','o2','o5'];
@@ -190,15 +193,26 @@ export function tapGenerator(state, id, now = Date.now()) {
   const g = GENERATORS[id];
   if (!g || !generatorOpen(state, id)) return fail(state, '这里还没开放。');
   if (state.energy < 1) return fail(state, '体力用完了。', {needEnergy: true});
-  const cell = nearestFreeTo(state, SPOTS[g.spot], g.region);
-  if (!cell || regionOfCell(cell) !== g.region) return fail(state, `${({camp: '营地', creek: '溪谷', river: '河湾'})[g.region]}的空地满了。先合成，或把素材收进背包。`, {noSpace: true});
+  const free=landCells(state).filter(c=>regionOfCell(c)===g.region && !itemAt(state,c));
+  if (!free.length) return fail(state, `${({camp: '营地', creek: '溪谷', river: '河湾'})[g.region]}的空地满了。先合成，或把素材收进背包。`, {noSpace: true});
   const s = clone(state), lv = roll(s, generatorBetter(s, id) ? g.better : g.odds);
+  const cell=dropFromSource(s,g,id,lv,free);
   if (s.energy >= s.maxEnergy) s.energyAt = now;
   s.energy -= 1; s.stats.taps++;
   const item = newItem(s, g.chain, lv, cell), events = [{type: 'spawn', generator: id, item: {...item}}];
   discover(s, g.chain, lv, events);
   if (s.energy === 0) { s.stats.outOfEnergy++; events.push({type: 'empty'}); }
   return ok(s, events);
+}
+
+function dropFromSource(s,g,id,level,free) {
+  const yard=WORK_POCKETS[id];
+  const freeKeys=new Set(free.map(c=>key(...c)));
+  const local=yard.filter(c=>freeKeys.has(key(...c)));
+  const partners=s.items.filter(i=>i.chain===g.chain && i.level===level && regionOfCell(i.cell)===g.region);
+  const besidePartner=c=>partners.some(i=>distance(c,i.cell)===1);
+  if(local.length)return local.find(besidePartner)||local[0];
+  return free.sort((a,b)=>distance(a,yard[0])-distance(b,yard[0]) || distance(a,SPOTS[g.spot])-distance(b,SPOTS[g.spot]))[0];
 }
 
 // Merging heals adjacent storm tiles whose debris level is at most the new
@@ -241,7 +255,7 @@ export function salvageAt(tile) {
 export function clearableBeside(s, cell, resultLevel) {
   return neighbors(...cell).filter(n => {
     const k=key(...n), tile=STORM.get(k);
-    return tile && isOpen(s,tile.region) && !s.healed.includes(k) && resultLevel>=tile.level;
+    return tile && isOpen(s,tile.region) && !isLand(s,n) && resultLevel>=tile.level;
   });
 }
 function heal(s, n, events) {
@@ -259,33 +273,25 @@ function heal(s, n, events) {
 
 export function dropLayout(state,id,cell) {
   const item=[...state.items,...state.bag].find(i=>i.id===id);
-  if (!item || !isLand(state,cell)) return null;
-  return layoutFor(state.items,landCells(state),expandsAtSite(state,item)?{...item,wide:true}:item,cell);
+  if(!item || !isLand(state,cell))return null;
+  const other=itemAt(state,cell),wide=item.wide||expandsAtSite(state,item);
+  if(wide || (other && occupiedCells(other).length>1))
+    return layoutFor(state.items,landCells(state),wide?{...item,wide:true}:item,cell);
+  if(other && other.id!==id){
+    if(!item.cell)return null;
+    return {cell,turn:null,shifts:[{id:other.id,cell:item.cell,turn:null}],swap:other.id};
+  }
+  return {cell,turn:null,shifts:[]};
 }
 
-export function move(state, id, cell) {
-  const s = clone(state), item = s.items.find(i => i.id === id) || s.bag.find(i => i.id === id);
-  if (!item) return fail(state, '找不到这件素材。');
-  if (!isLand(s, cell)) return fail(state, '这里不能放。');
-  if(expandsAtSite(s,item))item.wide=true;
-  if (item.wide || item.level === MAX_LEVEL || occupiedCells(itemAt(s,cell)||{}).length>1) {
-    const plan = layoutFor(s.items, landCells(s), item, cell);
-    if (!plan) return fail(state, '周围没有足够的地格让位。');
-    if (!item.cell) { s.bag = s.bag.filter(i => i.id !== id); s.items.push(item); }
-    applyLayout(s.items, item, plan);
-    return ok(s, [{type: 'move', id, shifts: plan.shifts}]);
-  }
-  const other = itemAt(s, cell);
-  if (other && other.id === id) return ok(s, []);
-  if (other) {
-    if (!item.cell) return fail(state, '那里已经有东西了。');
-    other.cell = item.cell; item.cell = cell;
-    return ok(s, [{type: 'swap', a: id, b: other.id}]);
-  }
-  const fromBag = !item.cell;
-  if (fromBag) { s.bag = s.bag.filter(i => i.id !== id); item.cell = cell; s.items.push(item); }
-  else item.cell = cell;
-  return ok(s, [{type: fromBag ? 'unbag' : 'move', id}]);
+export function move(state,id,cell) {
+  const plan=dropLayout(state,id,cell);
+  if(!plan)return fail(state,'这里放不下，素材仍在原处。');
+  const s=clone(state),item=[...s.items,...s.bag].find(i=>i.id===id),fromBag=!item.cell;
+  if(fromBag){s.bag=s.bag.filter(i=>i.id!==id);s.items.push(item);}
+  if(Number.isInteger(plan.turn))item.wide=true;
+  applyLayout(s.items,item,plan);
+  return ok(s,[plan.swap?{type:'swap',a:id,b:plan.swap,shifts:plan.shifts}:{type:fromBag?'unbag':'move',id,shifts:plan.shifts}]);
 }
 export function store(state, id) {
   if (state.bag.length >= state.bagSize) return fail(state, `背包 ${state.bagSize} 格已满。`);
@@ -330,6 +336,9 @@ export function install(state, id, repairId) {
     s=returned.state; events.push(...returned.events);
   }
   s.done.push(repair.id); s.stats.repairs++;
+  const cleared=(REPAIR_CLEARINGS[repair.id]||[]).filter(c=>!isLand(state,c));
+  if(cleared.length)events.push({type:'clearing',cells:cleared});
+  if(freightOpen(s.done) && !freightOpen(state.done))events.push({type:'home-delivery'});
   if (s.fittings) delete s.fittings[repairId];
   const r = repair.reward || {};
   if (r.maxEnergy) { s.maxEnergy += r.maxEnergy; s.energy += r.maxEnergy; }
@@ -337,7 +346,7 @@ export function install(state, id, repairId) {
   if (r.coins) s.coins += r.coins;
   if (repair.opens) events.push({type: 'open', regions: repair.opens});
   // The bridge washes away the creek valley's remaining debris.
-  if (repair.id === 'bridge') for (const [k, t] of STORM) if (t.region === 'creek' && !s.healed.includes(k)) { s.healed.push(k); events.push({type: 'heal', cell: t.cell, level: t.level, wash: true}); }
+  if (repair.id === 'bridge') for (const [k, t] of STORM) if (t.region==='creek' && !isLand(s,t.cell)) { s.healed.push(k); events.push({type:'heal',cell:t.cell,level:t.level,wash:true}); }
   const page = DIARY_REPAIRS[repair.id];
   if (page !== undefined && !s.diary.includes(page)) { s.diary.push(page); events.push({type: 'diary', page}); }
   if (repair.letter) events.push({type: 'letter'});

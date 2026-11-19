@@ -59,6 +59,7 @@ export function createWorld(container, handlers = {}, visuals = {}) {
   const decals = turf.querySelector('.decals'), cellsG = turf.querySelector('.cells'), rings = turf.querySelector('.rings');
 
   const cam = {scale: 1, x: 0, y: 0};
+  let cameraRun=0;
   const spriteMap = new Map(), pinMap = new Map(), cellMap = new Map(), activeSpots = new Set();
   let plates = null, focusRect = null, drawQueued = false;
   const plateNames = visuals.plates || ['homeland-gloom', 'homeland'];
@@ -108,6 +109,7 @@ export function createWorld(container, handlers = {}, visuals = {}) {
     return {x, y, width: x2 - x, height: y2 - y};
   }
   function frame(rect, opts = {}) {
+    const run=++cameraRun;
     const {pad = 0.3, top = 0, bottom = 0, right = 0, animate = false, maxScale = 1.3, duration = 650, overscroll = false} = opts;
     const insetRight=typeof right==='function'?right():right;
     slack = overscroll ? {top: top * 0.9, bottom: bottom * 0.6, right:insetRight} : {top: 0, bottom: 0, right: 0};
@@ -119,6 +121,7 @@ export function createWorld(container, handlers = {}, visuals = {}) {
     if (!animate || reduced()) { applyCamera(); return Promise.resolve(); }
     Object.assign(cam, from);
     return tween(duration, t => {
+      if(run!==cameraRun)return;
       const e = 1 - (1 - t) ** 3;
       cam.scale = from.scale + (target.scale - from.scale) * e; cam.x = from.x + (target.x - from.x) * e; cam.y = from.y + (target.y - from.y) * e;
       applyCamera();
@@ -140,7 +143,8 @@ export function createWorld(container, handlers = {}, visuals = {}) {
       const k = key(...e.cell); let node = cellMap.get(k);
       if (!node) {
         const [X,Y] = plateOf(e.cell);
-        node = svgEl('polygon',{points: corners(X,Y,PLATE.cell*.97).map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')});
+        node = svgEl('polygon',{points: corners(X,Y,PLATE.cell*(visuals.tileSize??.97)).map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')});
+        node.dataset.cell=k;
         cellsG.append(node); cellMap.set(k, node);
       }
       const tone = ((e.cell[0] - e.cell[1]) % 3 + 3) % 3;
@@ -187,17 +191,24 @@ export function createWorld(container, handlers = {}, visuals = {}) {
     if (s.name !== name) { s.el.querySelector('img').src = asset(name); s.name = name; }
     s.el.className = `spr ${cls}`; s.el.dataset.id = id;
     Object.assign(s.el.style, {left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, zIndex: String(z ?? Math.round(f[1] * 2))});
+    if(visuals.directDrag)s.el.style.translate='';
     Object.assign(s, {foot: f, extent, cell, lift});
     return s.el;
   }
   // Moves an existing sprite's foot without touching anything else (drag path).
   function moveSprite(id, foot, {z = null} = {}) {
     const s = spriteMap.get(id); if (!s) return;
+    if(visuals.directDrag){
+      s.el.style.translate=`${foot[0]-s.foot[0]}px ${foot[1]-s.foot[1]}px`;
+      if(z!==null)s.el.style.zIndex=String(z);
+      return;
+    }
     const box = boxFor(s.name, [foot[0], foot[1] + PLATE.cell * s.lift], s.extent);
     s.el.style.left = `${box.left}px`; s.el.style.top = `${box.top}px`; if (z !== null) s.el.style.zIndex = String(z);
   }
   function removeSprite(id) { const s = spriteMap.get(id); if (s) { s.el.remove(); spriteMap.delete(id); } }
   const spriteEl = id => spriteMap.get(id)?.el || null;
+  const spriteFoot = id => spriteMap.get(id)?.foot || null;
   const spriteIds = () => [...spriteMap.keys()];
   const spriteClient = id => { const s = spriteMap.get(id); if (!s) return null; const r = s.el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height * 0.55]; };
 
@@ -207,9 +218,10 @@ export function createWorld(container, handlers = {}, visuals = {}) {
     let p = pinMap.get(id);
     if (!p) {
       const el = document.createElement('button'); el.type = 'button'; pins.append(el); p = {el}; pinMap.set(id, p);
-      // A pin only claims taps on itself when nothing draggable is under it.
-      el.addEventListener('pointerdown', e => { if (!itemUnder(e.clientX, e.clientY)) e.stopPropagation(); });
-      el.addEventListener('click', e => { e.stopPropagation(); if (!itemUnder(e.clientX, e.clientY)) p.onClick?.(); });
+      // The explicit gather button still works while a newly born piece is passing it.
+      const claims=e=>(visuals.directDrag && el.classList.contains('shop-pin')) || !itemUnder(e.clientX,e.clientY);
+      el.addEventListener('pointerdown', e => { if (claims(e)) e.stopPropagation(); });
+      el.addEventListener('click', e => { e.stopPropagation(); if (claims(e)) p.onClick?.(); });
     }
     if (p.html !== html) { p.el.innerHTML = html; p.html = html; }
     p.el.className = `pin ${cls}`; p.anchor = anchor; p.onClick = onClick; if (label) p.el.setAttribute('aria-label', label); placePin(p);
@@ -275,7 +287,7 @@ export function createWorld(container, handlers = {}, visuals = {}) {
   let gesture = null;
   const targetOf = e => spriteAtPoint(e.clientX, e.clientY);
   container.addEventListener('pointerdown', e => {
-    if (gesture || e.button > 0 || e.isPrimary === false) return;
+    if (gesture || e.button > 0 || e.isPrimary === false || handlers.canPress?.()===false) return;
     if (e.target.closest?.('.pin') && !itemUnder(e.clientX, e.clientY)) return;
     const cell = cellAt(e.clientX, e.clientY), id = targetOf(e);
     gesture = {pointer: e.pointerId, start: [e.clientX, e.clientY], last: [e.clientX, e.clientY], cell, id, moved: false, dragging: false, panFrom: [cam.x, cam.y]};
@@ -289,25 +301,47 @@ export function createWorld(container, handlers = {}, visuals = {}) {
     const dx = e.clientX - gesture.start[0], dy = e.clientY - gesture.start[1];
     gesture.last = [e.clientX, e.clientY];
     if (!gesture.moved) {
-      if (Math.hypot(dx, dy) < 8) return;
-      gesture.moved = true; gesture.dragging = onDragStart(gesture.cell, gesture.id, [e.clientX, e.clientY]) === true;
+      const threshold=visuals.directDrag?(e.pointerType==='touch'?6:4):8;
+      if (Math.hypot(dx, dy) < threshold) return;
+      gesture.moved = true; gesture.dragging = onDragStart(gesture.cell, gesture.id, [e.clientX, e.clientY],gesture.start) === true;
+      ++cameraRun;
     }
-    if (gesture.dragging) { const foot = clientToPlate(e.clientX, e.clientY - liftPx); onDragMove(cellOfPlate(foot), foot, [e.clientX, e.clientY]); }
+    if (gesture.dragging) {
+      const foot=clientToPlate(e.clientX,e.clientY-liftPx);
+      const samples=visuals.directDrag && e.getCoalescedEvents ? e.getCoalescedEvents().map(s=>[s.clientX,s.clientY]) : [];
+      onDragMove(cellOfPlate(foot),foot,[e.clientX,e.clientY],samples);
+    }
     else { cam.x = gesture.panFrom[0] + dx; cam.y = gesture.panFrom[1] + dy; clamp(); applyCamera(); onPan(); }
   });
   function end(e, cancelled) {
     if (!gesture || gesture.pointer !== e.pointerId) return;
     const g = gesture; gesture = null;
     try { container.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    if(!cancelled && !g.moved && visuals.directDrag && Math.hypot(e.clientX-g.start[0],e.clientY-g.start[1])>=(e.pointerType==='touch'?6:4)){
+      g.moved=true;g.dragging=onDragStart(g.cell,g.id,[e.clientX,e.clientY],g.start)===true;
+    }
+    if(!cancelled && g.dragging && visuals.directDrag && (g.last[0]!==e.clientX || g.last[1]!==e.clientY)){
+      g.last=[e.clientX,e.clientY];
+      const foot=clientToPlate(e.clientX,e.clientY-liftPx);
+      onDragMove(cellOfPlate(foot),foot,g.last);
+    }
     if (g.dragging) { const foot = clientToPlate(g.last[0], g.last[1] - liftPx); onDragEnd(cancelled ? null : cellOfPlate(foot), foot, g.last); return; }
     if (!g.moved && !cancelled) onTap(g.cell, g.id, [e.clientX, e.clientY]);
+    if(g.moved && !cancelled)handlers.onPanEnd?.();
   }
   window.addEventListener('pointerup', e => end(e, false));
   window.addEventListener('pointercancel', e => end(e, true));
+  function cancelGesture(){
+    if(gesture)end({pointerId:gesture.pointer},true);
+  }
+  if(visuals.directDrag){
+    window.addEventListener('blur',cancelGesture);
+    container.addEventListener('lostpointercapture',e=>end(e,true));
+  }
 
   return {
     container, inner, cam, ready, fit, frame, rectOfCells, clientToPlate, plateToClient, cellAt, cellToClient,
-    setCells, markCell, clearMarks, ringCells, badge, decal, fadeDecal, upsertSprite, moveSprite, removeSprite, spriteEl, spriteIds, spriteClient,
-    upsertPin, removePin, pinEl, reveal, fog, clearFog, spriteAtPoint, itemUnder, isGesturing: () => !!gesture
+    setCells, markCell, clearMarks, ringCells, badge, decal, fadeDecal, upsertSprite, moveSprite, removeSprite, spriteEl, spriteIds, spriteClient, spriteFoot, cancelGesture,
+    upsertPin, removePin, pinEl, reveal, fog, clearFog, spriteAtPoint, itemUnder, isGesturing: () => !!gesture, stopFraming:()=>{++cameraRun;}
   };
 }

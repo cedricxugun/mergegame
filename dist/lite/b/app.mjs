@@ -4,16 +4,19 @@ import * as R from './rules.mjs';
 import {recoverHomeland} from './resume.mjs';
 import * as V from './views.mjs';
 import {bayBoard} from './board.mjs';
+import {plateOf,cellOfPlate,PLATE} from '../shared/world.mjs';
+import {hitEllipse,hoverAt,firstCrossing,softLanding,pulsePiece} from './handling.mjs';
+import {routeChoices,secondWay,freightOpen,REPAIR_CLEARINGS} from './route.mjs';
 import {art, materialSound} from './art.mjs';
-import {WORKSHOPS, CHAIN_SHOP, JOB_NAMES, BENEFITS, REGION_COPY} from './story.mjs';
+import {WORKSHOPS, CHAIN_SHOP, JOB_NAMES, BENEFITS} from './story.mjs';
 import {REGIONS, SPOTS, SPOT_REGION, regionOfCell, spotAt} from '../shared/map.mjs';
 import {matName, nameOf, CHAINS} from '../shared/art.mjs';
-import {key, parseKey} from '../shared/hex.mjs';
+import {key,parseKey,distance} from '../shared/hex.mjs';
 import {CAST, DIARY, LETTER} from '../shared/chapter.mjs';
 import {createStore,createMetrics} from '../shared/store.mjs';
-import {$, sheet, esc, wait} from '../shared/ui.mjs';
+import {$, sheet, esc} from '../shared/ui.mjs';
 import {sfx, setMuted, unlock} from '../shared/audio.mjs';
-import {burst, ring, fly, floatText, squash, haptic, centerOf, reducedMotion} from '../shared/fx.mjs';
+import {burst, ring, fly, squash, haptic, centerOf, reducedMotion} from '../shared/fx.mjs';
 import {icon} from '../shared/icons.mjs';
 
 const launchUrl=new URL(location.href);
@@ -32,7 +35,7 @@ let state=recovery.state || (practice ? R.wharfPractice() : R.beginVoyage());
 R.refillOrders(state);
 let region = REGIONS[saved.view] && R.isOpen(state,saved.view) ? saved.view : practice ? 'river' : 'camp';
 let tracked = saved.tracked;
-let selected = null, drag = null, busy = false, feedbackTimer = 0;
+let selected=null,drag=null,busy=false,feedbackTimer=0,tour=null,alternate=null,forkTimer=0;
 let muted = !!saved.muted, vibrations = saved.vibrations !== false;
 const metrics = createMetrics(saved.metrics);
 setMuted(muted);
@@ -42,7 +45,7 @@ document.body.classList.add('bay-body');
 document.body.style.setProperty('--postcard', 'url("'+art('river-postcard')+'")');
 document.body.style.setProperty('--homeland','url("'+art('world')+'")');
 app.innerHTML=V.shell();
-const field=$('.playfield'), board=bayBoard($('#world'),{onTap:tapTile,onPress:unlock,onDragStart:lift,onDragMove:carry,onDragEnd:drop});
+const field=$('.playfield'), board=bayBoard($('#world'),{canPress:()=>!busy,onTap:tapTile,onPress:unlock,onDragStart:lift,onDragMove:carry,onDragEnd:drop,onPanEnd:syncPannedRegion});
 const {world}=board;
 const pulse = ms => { if(vibrations) haptic(ms); };
 function save() {
@@ -52,7 +55,7 @@ const findItem = (id,s=state) => [...s.items,...s.bag].find(i=>i.id===id);
 const matches = (a,b) => a&&b&&a.id!==b.id&&a.chain===b.chain&&a.level===b.level&&a.level<7;
 function currentJob() {
   const available=R.availableRepairs(state);
-  return available.find(r=>r.id===tracked) || available.find(r=>SPOT_REGION[r.spot]===region) || available[0];
+  return available.find(r=>r.id===tracked) || routeChoices(available,region)[0];
 }
 function html(el,markup) {
   if(el._view!==markup){el._view=markup;el.innerHTML=markup;}
@@ -63,7 +66,20 @@ function renderWallet() {
 }
 function renderWorld(s=state,carried=null,job=currentJob(),step=null) {
   const showSource=!carried && !selected && step?.kind==='gather' ? CHAIN_SHOP[job.chain] : null;
-  board.render(s,{region,job,selected:carried || selected,carried,showSource,onJob:showJob,onWorkshop:gather});
+  board.render(s,{region,job,selected:carried || selected,carried,showSource,onJob:showJob,onWorkshop:gather,
+    alternate:!selected&&!busy&&!drag?alternate:null,onChoose:chooseRoute});
+}
+function clearFork(){clearTimeout(forkTimer);alternate=null;}
+function offerFork(jobs,last,next) {
+  clearFork();alternate=secondWay(jobs,last,next);
+  if(alternate)forkTimer=setTimeout(()=>{alternate=null;if(!drag&&!busy)render();},7200);
+}
+async function chooseRoute(id) {
+  const job=R.availableRepairs(state).find(r=>r.id===id);
+  if(!job || busy || drag)return;
+  clearFork();tracked=id;
+  await focus(SPOT_REGION[job.spot],{pick:false});
+  message(JOB_NAMES[id]+' · '+BENEFITS[id]);
 }
 function message(text='',duration=2000,who=null) {
   clearTimeout(feedbackTimer);
@@ -82,8 +98,8 @@ function render() {
   const step=r && R.nextRepairStep(state,r,region);
   tracked=r?.id||null;
   renderWorld(drag?.draft || state,drag?.id,r,step); renderWallet(); renderBagTarget();
-  $('#region-name').textContent=REGIONS[region].name+(practice?' · 练习':'');
-  html($('#panel'),V.repairPanel(state,r,step));
+  drawLocation();
+  html($('#panel'),V.repairPanel(state,r,step,region));
   const inspector=$('#selection');
   inspector.hidden=!current;
   html(inspector,current?V.itemPanel(state,current,r):'');
@@ -97,7 +113,13 @@ function commit(res) {
 function placeAt(i) {
   if(!i)return centerOf($('#notebook'));
   if(!i.cell)return centerOf($('#bag'));
-  return regionOfCell(i.cell)===region ? world.spriteClient('item-'+i.id)||world.cellToClient(i.cell) : centerOf($('.location'));
+  const p=world.spriteClient('item-'+i.id)||world.cellToClient(i.cell);
+  return withinMap(p) ? p : centerOf($('.location'));
+}
+function withinMap([x,y],margin=0) {
+  const r=field.getBoundingClientRect(),over=document.elementFromPoint(x,y);
+  return x>=r.left+margin && x<=r.right-margin && y>=r.top+margin && y<=r.bottom-margin &&
+    !over?.closest('.work-note,.map-tools,.map-hud,.selection');
 }
 function popAt(point,level=2,color='#ffcd70') {
   if(!point)return;
@@ -107,30 +129,44 @@ function popAt(point,level=2,color='#ffcd70') {
 async function focus(next,{pick=true,animate=true}={}) {
   if(!R.isOpen(state,next))return;
   selected=null; region=next;
-  if(pick && SPOT_REGION[currentJob()?.spot]!==next)tracked=R.availableRepairs(state).find(r=>SPOT_REGION[r.spot]===next)?.id;
-  render();save();await board.focus(state,next,animate);
+  if(pick && SPOT_REGION[currentJob()?.spot]!==next)tracked=routeChoices(R.availableRepairs(state),next)[0]?.id;
+  render();save();await board.focus(state,next,animate,currentJob());
 }
-function revealMerge(events) {
+function syncPannedRegion() {
+  const rect=field.getBoundingClientRect(),middle=world.cellAt(rect.x+rect.width*.5,rect.y+rect.height*.5);
+  const open=Object.keys(REGIONS).filter(id=>R.isOpen(state,id));
+  const near=open.sort((a,b)=>distance(middle,REGIONS[a].center)-distance(middle,REGIONS[b].center))[0];
+  if(!near || near===region || distance(middle,REGIONS[region].center)-distance(middle,REGIONS[near].center)<2)return;
+  region=near;selected=null;tracked=routeChoices(R.availableRepairs(state),near)[0]?.id;render();save();
+}
+function revealMerge(events,heard=0) {
   const joins=events.filter(e=>e.type==='merge'), latest=joins.at(-1), healed=events.filter(e=>e.type==='heal');
   for(const e of events) {
     if(e.type==='heal'||e.type==='bloom')world.reveal(e.cell,e.type==='heal'?.98:.6,{duration:430});
     if(e.type==='heal'){popAt(world.cellToClient(e.cell),1,'#a4eb85');metrics.count('清理残骸');}
   }
   if(!latest)return;
-  const i=latest.item; squash(world.spriteEl('item-'+i.id),{from:.72,peak:1.17,duration:260});
-  const at=placeAt(i);popAt(at,i.level,CHAINS[i.chain].color);sfx.merge(i.level,joins.length-1);pulse(10);
+  const i=latest.item;
+  if(heard<joins.length)feedbackJoin(i,placeAt(i),joins.length);
   metrics.count('合成',joins.length);
   const words=[];
   if(joins.length>1)words.push(joins.length+' 连合成');
-  if(events.some(e=>e.type==='discover'&&e.level>=3))words.push('发现'+nameOf(i.chain,i.level));
-  if(healed.length)words.push('新开 '+healed.length+' 格草地');
-  if(i.wide)words.push('组件在相连的三格展开');
+  if(i.wide)words.push(nameOf(i.chain,i.level)+'展开三格');
+  else if(healed.length)words.push('清出 '+healed.length+' 格草地');
+  else if(events.some(e=>e.type==='discover'&&e.level>=3))words.push('发现'+nameOf(i.chain,i.level));
   const rescued=healed.find(e=>e.bonus?.item)?.bonus.item;
   if(rescued)words.push('找回'+nameOf(rescued.chain,rescued.level));
   if(words.length) message(words.join(' · '));
 }
+function feedbackJoin(i,at,depth) {
+  pulsePiece(world.spriteEl('item-'+i.id),i.level,reducedMotion());
+  ring(at[0],at[1],{size:37+i.level*4,color:CHAINS[i.chain].color,duration:225,width:2.5});
+  burst(at[0],at[1],{count:i.level>=4?8:4,spread:20+i.level*3,duration:290,size:4,gravity:12,colors:[CHAINS[i.chain].color,'#ffe399','#fff2ce']});
+  sfx.merge(i.level,Math.min(3,depth-1));pulse(i.level>=4?14:7);
+}
 function gather(id) {
   if(busy||drag)return;
+  clearFork();
   unlock();
   const res=R.tapGenerator(state,id);
   if(!res.ok){if(res.needEnergy){showEnergy();return;}message(res.message,2800);sfx.error();return;}
@@ -141,10 +177,12 @@ function gather(id) {
   const from=source?centerOf(source):world.cellToClient(SPOTS[R.GENERATORS[id].spot]);
   const el=world.spriteEl('item-'+e.item.id);
   if(el&&!reducedMotion()){
-    el.style.visibility='hidden';
-    fly(art(matName(e.item.chain,e.item.level)),from,dest,{size:39,duration:185,arc:-30,endScale:.94}).finally(()=>{
-      el.style.visibility='';squash(el,{from:.80,peak:1.13,duration:200});
-    });
+    const dx=(from[0]-dest[0])/world.cam.scale,dy=(from[1]-dest[1])/world.cam.scale;
+    const timing={duration:190,easing:'ease-out'};
+    el.animate([{translate:`${dx}px ${dy}px`},{translate:`${dx*.27}px ${dy*.27-11}px`,offset:.50},
+      {translate:'0px 0px',offset:.84},{translate:'0px 0px'}],timing);
+    el.querySelector('img').animate([{scale:'.4',opacity:.62},{scale:'.94',opacity:1,offset:.50},
+      {scale:'1.05 .97',offset:.84},{scale:'1'}],timing);
   }
   materialSound(e.item.chain,muted);
   pulse(5);
@@ -153,8 +191,13 @@ function gather(id) {
 function performMerge(a,b) {
   const first=findItem(a), at=placeAt(first), target=findItem(b), to=placeAt(target);
   const r=R.merge(state,a,b); if(!commit(r))return;
-  selected=null;render();fly(art(matName(first.chain,first.level)),at,to,{size:35,duration:140,arc:-16});
-  revealMerge(r.events);
+  selected=null;render();
+  const joined=r.events[0].item;
+  fly(art(matName(first.chain,first.level)),at,to,{size:36,duration:115,arc:-12,endScale:.62});
+  revealMerge(r.events,1);
+  // The paid result is live immediately; the contact beat lands with the incoming piece.
+  if(reducedMotion())feedbackJoin(joined,to,1);
+  else setTimeout(()=>{if(findItem(joined.id))feedbackJoin(joined,placeAt(joined),1);},90);
 }
 function tapTile(cell,id) {
   if(busy||drag)return;
@@ -171,6 +214,8 @@ function tapTile(cell,id) {
       if(part.level===r.level)return repair(r,part);
       if(r.level>=5&&part.level===r.level-1)return fitPart(r,part);
     }
+    if(r && state.fittings?.[r.id])return showJob(r);
+    if(spot==='dock' && R.done(state,'ferry'))return readLetter();
     const id=Object.keys(R.GENERATORS).find(k=>R.GENERATORS[k].spot===spot && R.generatorOpen(state,k));
     if(r&&currentJob()?.id===r.id&&!id)return showJob(r);
     if(id)return gather(id);
@@ -181,163 +226,309 @@ function tapTile(cell,id) {
     if(commit(R.move(state,selected,cell))){selected=null;sfx.drop();render();}return;
   }
   const tile=R.STORM.get(key(...cell));
-  if(tile&&!state.healed.includes(key(...cell))&&R.isOpen(state,tile.region))message('在旁边合出 L'+tile.level+'，这格就能摆材料');
+  if(tile&&!R.isLand(state,cell)&&R.isOpen(state,tile.region))message('在旁边合出 L'+tile.level+'，这格就能摆材料');
   selected=null; render();
 }
-function lift(cell,id) {
-  if(busy||drag)return false;
-  const i=id?.startsWith('item-')?findItem(id.slice(5)):R.itemAt(state,cell);
-  if(!i)return false;
-  drag={id:i.id,draft:state,events:[],target:null,lastJoin:null}; selected=i.id;
-  renderBagTarget(); $('#selection').hidden=true;
-  renderWorld(state,i.id);
-  world.spriteEl('item-'+i.id)?.classList.add('lifted');sfx.lift();pulse(5);
-  return true;
+function lift(cell,id,_client,pressed) {
+  if(busy || drag)return false;
+  const item=id?.startsWith('item-')?findItem(id.slice(5)):R.itemAt(state,cell);
+  if(!item)return false;
+  const el=world.spriteEl('item-'+item.id), box=el.getBoundingClientRect();
+  const grip=[(pressed[0]-box.left)/box.width,(pressed[1]-box.top)/box.height];
+  drag={id:item.id,draft:state,events:[],heard:0,last:pressed,grip,snap:null,hover:null,mark:null,refused:null};
+  selected=item.id;
+  el.getAnimations().forEach(anim=>anim.cancel());
+  el.querySelector('img').getAnimations().forEach(anim=>anim.cancel());
+  renderBagTarget();$('#selection').hidden=true;renderWorld(state,item.id);
+  el.classList.add('lifted');registerGrip(item);
+  sfx.lift();pulse(5);return true;
 }
-function dragTarget(cell,client) {
-  const [x,y]=client, bounds=field.getBoundingClientRect(), hit=document.elementFromPoint(x,y);
-  if(hit?.closest('#bag'))return {type:'bag'};
-  if(hit?.closest('.work-note,.selection,.map-hud,.map-tools'))return null;
-  if(x<bounds.left||x>bounds.right||y<bounds.top||y>bounds.bottom)return null;
-  const s=drag.draft, i=findItem(drag.id,s);
-  const raw=world.cellAt(x,y);
-  const under=world.itemUnder(x,y,'item-'+i.id);
-  const other=(under && findItem(under.slice(5),s)) || R.itemAt(s,raw) || R.itemAt(s,cell);
-  if(matches(i,other))return {type:'merge',other};
-  const pin=hit?.closest('.waypoint');
-  const spot=pin?currentJob()?.spot:spotAt(raw)||spotAt(cell);
-  const r=R.availableRepairs(s).find(j=>j.spot===spot&&j.chain===i.chain);
-  if(r&&r.level===i.level)return {type:'repair',r};
-  if(r&&r.level>=5&&r.level-1===i.level)return {type:'stage',r};
-  if(other?.id===i.id)return {type:'stay'};
-  if(other)return {type:'move',cell:other.cell};
+function registerGrip(item) {
+  const id='item-'+item.id,rect=world.spriteEl(id).getBoundingClientRect(),base=world.spriteFoot(id);
+  const press=world.clientToPlate(rect.left+drag.grip[0]*rect.width,rect.top+drag.grip[1]*rect.height);
+  const anchor=plateOf(item.cell);
+  drag.offset=[base[0]-press[0],base[1]-press[1]];
+  drag.anchorOffset=[anchor[0]-base[0],anchor[1]-base[1]];
+  drag.pitch=PLATE.cell*Math.sqrt(3)*world.cam.scale;
+  drag.movingTargets=[];
+  drag.spots=drag.draft.items.filter(i=>i.id!==item.id).map(i=>{
+    const el=world.spriteEl('item-'+i.id),spot=hitEllipse(i,el.getBoundingClientRect(),drag.pitch);
+    if(el.getAnimations().some(a=>a.playState==='running'))drag.movingTargets.push({el,spot});
+    return spot;
+  });
+}
+function heldGeometry(client) {
+  const p=world.clientToPlate(...client), foot=[p[0]+drag.offset[0],p[1]+drag.offset[1]];
+  return {foot,cell:cellOfPlate([foot[0]+drag.anchorOffset[0],foot[1]+drag.anchorOffset[1]])};
+}
+function surfaceAt(client){
+  const hit=document.elementFromPoint(...client);
+  if(hit?.closest('#bag'))return 'bag';
+  return hit && field.contains(hit) && !hit.closest('.work-note,.selection,.map-hud,.map-tools,.skip-scene')?'map':null;
+}
+function dragTarget(client,cell) {
+  const surface=surfaceAt(client);
+  if(surface!=='map')return surface==='bag'?{type:'bag'}:null;
+  const s=drag.draft,part=findItem(drag.id,s),hit=document.elementFromPoint(...client);
+  const marked=hit?.closest('[data-site]')?.dataset.site;
+  const painted=hit?.closest('.spr.site')?.dataset.id?.replace(/^site-/,'');
+  const spot=marked||painted||spotAt(world.cellAt(...client))||spotAt(cell);
+  const job=spot&&R.availableRepairs(s).find(r=>r.spot===spot && r.chain===part.chain);
+  if(job?.level===part.level)return {type:'repair',r:job};
+  if(job && job.level>=5 && job.level-1===part.level && !R.progressFor(s,job).ready)return {type:'stage',r:job};
+  const hovering=hoverAt(client,drag.spots,drag.hover);
+  drag.hover=hovering?.item.id??null;
+  if(hovering && matches(part,hovering.item))return {type:'merge',other:hovering.item};
+  if(drag.snap && Math.hypot(client[0]-drag.snap[0],client[1]-drag.snap[1])<drag.pitch*.32)return {type:'stay'};
+  const occupant=hovering?.item || R.itemAt(s,cell);
+  if(occupant?.id===part.id)return {type:'stay'};
+  if(occupant)return matches(part,occupant)?{type:'merge',other:occupant}:{type:'move',cell:occupant.cell};
   if(R.isLand(s,cell))return {type:'move',cell};
-  if(R.isLand(s,raw))return {type:'move',cell:raw};
-  return {type:'stay'};
+  return {type:'blocked',cell};
 }
-function joinDraft(other,client) {
-  const r=R.merge(drag.draft,drag.id,other.id);
-  if(!r.ok){message(r.message);return false;}
-  drag.draft=r.state;drag.events.push(...r.events);
-  drag.id=r.events.find(e=>e.type==='merge').item.id;drag.lastJoin=client;selected=drag.id;
-  renderWorld(drag.draft,drag.id);
-  world.spriteEl('item-'+drag.id)?.classList.add('lifted');
-  popAt(client,2);sfx.merge(other.level+1,Math.min(3,drag.events.filter(e=>e.type==='merge').length-1));pulse(8);
+function shiftedSprites(before,after,except) {
+  if(reducedMotion())return [];
+  const shifted=[];
+  for(const item of after.items) {
+    if(item.id===except)continue;
+    const old=before.items.find(i=>i.id===item.id);
+    if(old?.cell && (key(...old.cell)!==key(...item.cell)||old.turn!==item.turn))
+      shifted.push([item.id,world.spriteClient('item-'+item.id)]);
+  }
+  return shifted;
+}
+function settleShifts(shifts){
+  for(const [id,from] of shifts){
+    const name='item-'+id;
+    softLanding(world.spriteEl(name),from,world.spriteClient(name),world.cam.scale,reducedMotion());
+  }
+}
+function joinDraft(target,contact) {
+  const d=drag, result=R.merge(d.draft,d.id,target.item.id);
+  if(!result.ok){if(d.refused!==target.item.id)message(result.message);d.refused=target.item.id;return false;}
+  const item=result.events[0].item,shifted=shiftedSprites(d.draft,result.state,item.id);
+  d.draft=result.state;d.id=item.id;d.heard++;d.events.push(...result.events);
+  d.hover=null;d.mark=null;d.refused=null;d.snap=[target.x,target.y];selected=item.id;
+  // Keep the same point on the growing material attached to the finger.
+  renderWorld(d.draft,item.id);
+  registerGrip(item);settleShifts(shifted);
+  world.moveSprite('item-'+item.id,heldGeometry(contact).foot,{z:8500});
+  feedbackJoin(item,[target.x,target.y],d.heard);
   return true;
 }
-function carry(cell,foot,client) {
-  if(!drag)return;
-  const target=dragTarget(cell,client);
-  const canChain=!drag.lastJoin||Math.hypot(client[0]-drag.lastJoin[0],client[1]-drag.lastJoin[1])>18;
-  if(target?.type==='merge'&&canChain) {
-    const [x,y]=placeAt(target.other);
-    if(Math.hypot(client[0]-x,client[1]-y)<Math.max(13,world.cam.scale*24) && joinDraft(target.other,client)) {
-      drag.target={type:'stay'};drag.markKey='';world.moveSprite('item-'+drag.id,foot,{z:8500});board.outline('drop',[],'');board.outline('shift',[],'');return;
-    }
-  }
-  drag.target=target;
-  $('#bag').classList.toggle('drop',target?.type==='bag');
-  const markKey=JSON.stringify([drag.id,target?.type,target?.cell,target?.other?.id,target?.r?.id]);
-  if (drag.markKey!==markKey) {
-    drag.markKey=markKey;
+function sweepTo(client) {
+  let start=drag.last;
+  if(surfaceAt(client)!=='map' || Math.hypot(client[0]-start[0],client[1]-start[1])<.5)return;
+  while(drag.heard<6){
     const part=findItem(drag.id,drag.draft);
-    let shape=target?.cell?[target.cell]:target?.other?[target.other.cell]:target?.r?[SPOTS[target.r.spot]]:[];
-    let shifts=[], style='drop-outline';
-    if(target?.type==='move'){
-      const plan=R.dropLayout(drag.draft,drag.id,target.cell);
-      if(plan){shape=R.occupiedCells(Number.isInteger(plan.turn)?{...part,wide:true}:part,target.cell,plan.turn);shifts=plan.shifts.flatMap(to=>R.occupiedCells(findItem(to.id,drag.draft),to.cell,to.turn));}
-      else style='blocked-outline';
-    }
-    board.outline('drop',shape,style);board.outline('shift',shifts,'shift-outline');
-    board.previewLanding(drag.draft,part,target?.type==='merge'?target.other:null);
+    const crossing=firstCrossing(start,client,drag.spots,t=>matches(part,t.item));
+    if(!crossing || surfaceAt(crossing.point)!=='map')break;
+    const {target,point}=crossing;
+    if(drag.snap && Math.hypot(target.x-drag.snap[0],target.y-drag.snap[1])<drag.pitch*.30)break;
+    if(!joinDraft(target,point))break;
+    start=point;
+    if(crossing.t>=.999)break;
   }
+}
+function drawDrop(target) {
+  $('#bag').classList.toggle('drop',target?.type==='bag');
+  const marker=JSON.stringify([drag.id,target?.type,target?.cell,target?.other?.id,target?.r?.id]);
+  if(drag.mark===marker)return;
+  drag.mark=marker;
+  const part=findItem(drag.id,drag.draft);
+  let shape=target?.cell?[target.cell]:target?.other?[target.other.cell]:target?.r?[SPOTS[target.r.spot]]:[];
+  let shifts=[],style=target?.type==='blocked'?'blocked-outline':'drop-outline';
+  if(target?.type==='move'){
+    const plan=R.dropLayout(drag.draft,drag.id,target.cell);
+    if(plan){
+      shape=R.occupiedCells(Number.isInteger(plan.turn)?{...part,wide:true}:part,target.cell,plan.turn);
+      shifts=plan.shifts.flatMap(to=>R.occupiedCells(findItem(to.id,drag.draft),to.cell,to.turn));
+    }else style='blocked-outline';
+  }
+  if(target?.type==='stay')shape=R.occupiedCells(part);
+  if(target?.type==='merge'){
+    style='join-outline';
+    if(part.level>=5) {
+      const merged=R.merge(drag.draft,part.id,target.other.id);
+      if(merged.ok){
+        shape=R.occupiedCells(merged.events[0].item);
+        shifts=merged.state.items.flatMap(i=>{
+          const old=findItem(i.id,drag.draft);
+          return old?.cell && (key(...old.cell)!==key(...i.cell)||old.turn!==i.turn)?R.occupiedCells(i):[];
+        });
+      }else style='blocked-outline';
+    }
+  }
+  board.outline('drop',shape,style);board.outline('shift',shifts,'shift-outline');
+  board.previewLanding(drag.draft,part,target?.type==='merge'?target.other:null);
+  board.hoverBuddy(target?.other?.id||null);
+}
+function carry(_cell,_foot,client,samples=[]) {
+  if(!drag)return;
+  // A newly gathered or displaced partner can be moving while the finger approaches.
+  drag.movingTargets=drag.movingTargets.filter(({el,spot})=>{
+    Object.assign(spot,hitEllipse(spot.item,el.getBoundingClientRect(),drag.pitch));
+    return el.getAnimations().some(a=>a.playState==='running');
+  });
+  for(const sample of samples){sweepTo(sample);drag.last=sample;}
+  sweepTo(client);
+  const {foot,cell}=heldGeometry(client);
+  drag.last=client;drawDrop(dragTarget(client,cell));
   world.moveSprite('item-'+drag.id,foot,{z:8500});
+}
+function clearCarry() {
+  drag=null;selected=null;
+  board.outline('drop',[],'');board.outline('shift',[],'');board.hoverBuddy(null);
+  $('#bag').classList.remove('drop');
 }
 function cancelDrag() {
   if(!drag)return;
-  drag=null;selected=null;board.outline('drop',[],'');board.outline('shift',[],'');$('#bag').classList.remove('drop');render();
+  const id=drag.id,from=world.spriteClient('item-'+id);
+  clearCarry();render();
+  softLanding(world.spriteEl('item-'+id),from,world.spriteClient('item-'+id),world.cam.scale,reducedMotion());
 }
-function drop(cell,foot,client) {
+function drop(cell,_foot,client) {
   if(!drag)return;
   if(!cell)return cancelDrag();
-  const target=dragTarget(cell,client);
+  const d=drag, geometry=heldGeometry(client),target=dragTarget(client,geometry.cell);
   if(!target)return cancelDrag();
-  const d=drag;
-  const oldCenters=new Map();
-  if(target.type==='move' && !reducedMotion()){
-    for(const part of d.draft.items)if(part.id!==d.id)oldCenters.set(part.id,{cell:part.cell,point:world.spriteClient('item-'+part.id)});
+  const from=world.spriteClient('item-'+d.id);
+  let result={ok:true,state:d.draft,events:[]},landed=d.id;
+  if(target.type==='merge'){result=R.merge(d.draft,d.id,target.other.id);if(result.ok)landed=result.events[0].item.id;}
+  else if(target.type==='move')result=R.move(d.draft,d.id,target.cell);
+  else if(target.type==='bag')result=R.store(d.draft,d.id);
+  if(!result.ok){cancelDrag();message(result.message);return;}
+  const shifted=shiftedSprites(d.draft,result.state,landed);
+  clearCarry();commit(result);render();settleShifts(shifted);
+  const events=[...d.events,...result.events];
+  if(events.some(e=>e.type==='merge'))revealMerge(events,d.heard);
+  if(target.type==='repair')return repair(target.r,findItem(d.id),from);
+  if(target.type==='stage')return fitPart(target.r,findItem(d.id),from);
+  if(target.type==='bag'){
+    if(from)fly(art(matName(findItem(landed).chain,findItem(landed).level)),from,centerOf($('#bag')),{size:36,duration:170,arc:-20});
+    message('已收入背包');return;
   }
-  drag=null;selected=null;board.outline('drop',[],'');board.outline('shift',[],'');$('#bag').classList.remove('drop');
-  let next={ok:true,state:d.draft,events:[]};
-  if(target.type==='merge')next=R.merge(d.draft,d.id,target.other.id);
-  if(target.type==='move')next=R.move(d.draft,d.id,target.cell);
-  if(target.type==='bag')next=R.store(d.draft,d.id);
-  if(!next.ok){message(next.message);render();return;}
-  // Installation and fittings operate on the newly merged component.
-  if(!commit(next))return;
-  render();
-  for(const part of state.items){
-    const old=oldCenters.get(part.id);
-    if(!old?.point || key(...old.cell)===key(...part.cell))continue;
-    const el=world.spriteEl('item-'+part.id),to=world.spriteClient('item-'+part.id);
-    if(!el||!to)continue;
-    const dx=(old.point[0]-to[0])/world.cam.scale,dy=(old.point[1]-to[1])/world.cam.scale;
-    el.animate([{translate:`${dx}px ${dy}px`},{translate:'0px 0px'}],{duration:230,easing:'cubic-bezier(.15,.75,.25,1)'});
-  }
-  const events=[...d.events,...next.events];
-  if(events.some(e=>e.type==='merge'))revealMerge(events);
-  if(target.type==='repair')return repair(target.r,findItem(d.id));
-  if(target.type==='stage')return fitPart(target.r,findItem(d.id));
-  if(target.type==='bag')message('已收入背包，点背包可以取回');
-  sfx.drop();
+  const end=world.spriteClient('item-'+landed);
+  softLanding(world.spriteEl('item-'+landed),from,end,world.cam.scale,reducedMotion());
+  if(!events.some(e=>e.type==='merge'))sfx.drop();
 }
-async function fitPart(r,i) {
-  if(!i)return;
-  const from=placeAt(i),res=R.stagePart(state,r.id,i.id);
-  if(res.ok)tracked=r.id;
-  if(!commit(res))return;
-  if(region!==SPOT_REGION[r.spot])await focus(SPOT_REGION[r.spot],{pick:false});
-  selected=null;render();
-  const to=world.cellToClient(SPOTS[r.spot]), closed=res.events[0].type==='assemble';
-  fly(art(matName(i.chain,i.level)),from,to,{duration:270,arc:-45,size:42});
-  popAt(to,3);sfx.merge(closed?r.level:i.level);pulse(12);
-  message(closed?'两半合拢了，点「修复」落成':'已试装在工地，工作格已腾出');
-}
-async function repair(r,i) {
-  if(busy||!i)return;
-  const result=R.install(state,i.id,r.id);
+async function fitPart(r,i,releasePoint=null) {
+  if(!i || busy)return;
+  const from=releasePoint||placeAt(i),before=state,result=R.stagePart(before,r.id,i.id);
   if(!result.ok){message(result.message);return;}
-  const before=state;
-  const site=SPOTS[r.spot];
-  const staged=before.fittings?.[r.id]?.id===i.id;
-  busy=true;selected=null;metrics.count('修复');metrics.event('repair',{id:r.id});
-  commit(result);
+  tracked=r.id;busy=true;selected=null;commit(result);
+  try{
+    const destination=SPOT_REGION[r.spot];
+    if(region!==destination || !withinMap(board.entrance(r.spot),28)){
+      region=destination;board.render(before,{region,job:r,onJob:showJob,onWorkshop:gather});
+      await board.focus(before,region,true,r);
+    }
+    const to=board.entrance(r.spot);
+    world.removeSprite('item-'+i.id);
+    await fly(art(matName(i.chain,i.level)),from,to,{duration:190,arc:-24,size:43});
+    const old=board.previousScene(r.spot);
+    render();board.buildInPlace(r.spot,old);popAt(to,3);
+    const assembled=result.events[0].type==='assemble';
+    sfx.merge(assembled?r.level:i.level);pulse(10);
+    message(assembled?'两半已经合拢，可以修复':r.id==='stream'?'接头装好了，一股细水流进溪床':r.id==='ferry'?'框架搭上了，还差另一半':'半件已试装，工作格空出来了');
+  }finally{busy=false;}
+}
+
+function drawLocation() {
+  $('#region-name').textContent=app.classList.contains('following-cart')?'物资回营地':REGIONS[region].name+(practice?' · 练习':'');
+}
+function followCart(on) {
+  app.classList.toggle('following-cart',on);drawLocation();
+}
+function interruptTour() {
+  if(tour?.following){tour.following=false;world.stopFraming();followCart(false);}
+}
+document.addEventListener('pointerdown',interruptTour,true);
+document.addEventListener('keydown',interruptTour,true);
+
+async function homeDelivery(returnRegion,finale=false) {
+  tour?.control.abort();
+  const run={control:new AbortController(),following:true};tour=run;
+  message('桥和渡口接通了，第一车物资出发了。',2800,'rowan');
+  if(!reducedMotion()){followCart(true);board.freightView();}
+  await board.life.travel(run.control.signal);
+  const watching=()=>tour===run && !run.control.signal.aborted && !document.hidden && run.following && !busy && !drag && !document.querySelector('.sheet-wrap');
   try {
-    region=SPOT_REGION[r.spot];
-    // Keep both the old site and the component visible until the flight starts.
+    if(!watching())return;
+    followCart(false);
+    await focus(returnRegion,{pick:false,animate:true});
+    if(!watching())return;
+    message('第一车物资到了，青布包已经卸在棚门口。',3300,'mira');
+    if(finale)await showEnd();
+  } finally {if(tour===run){tour=null;followCart(false);}}
+}
+
+async function readLetter() {
+  if(!R.done(state,'ferry'))return;
+  await sheet({title:'渡口捎来的信',body:V.img('ferry-letter','journal-cover')+'<p>'+esc(LETTER.text)+'</p>',actions:[{label:'收进手记',value:true}]});
+}
+async function repair(r,i,releasePoint=null) {
+  if(busy||!i)return;
+  clearFork();
+  const before=state,result=R.install(state,i.id,r.id);
+  if(!result.ok){message(result.message);return;}
+  const site=SPOTS[r.spot], destination=SPOT_REGION[r.spot], oldRegion=region;
+  const staged=before.fittings?.[r.id]?.id===i.id;
+  const available=R.availableRepairs(result.state);
+  const next=available.find(j=>j.id===tracked) || routeChoices(available,destination,r.id)[0];
+  const nextRegion=next?SPOT_REGION[next.spot]:destination;
+  const delivery=result.events.some(e=>e.type==='home-delivery');
+  const finale=result.events.some(e=>e.type==='finale');
+  busy=true;selected=null;metrics.count('修复');metrics.event('repair',{id:r.id});
+  commit(result);app.classList.add('building');
+  try{
+    region=destination;
     board.render(before,{region,job:r,onJob:showJob,onWorkshop:gather});
-    const localPart=i.cell && regionOfCell(i.cell)===region;
-    await world.fit(localPart?[i.cell,site]:[site],{maxScale:1.55,pad:1.3,top:76,bottom:42,animate:true,duration:240});
-    const from=staged?world.spriteClient('fit-'+r.id)||world.cellToClient(site):placeAt(i);
-    const to=world.cellToClient(site);
-    world.removePin('job-'+r.id);world.removeSprite(staged?'fit-'+r.id:'item-'+i.id);
-    await fly(art(matName(i.chain,i.level)),from,to,{size:54,arc:-58,duration:300});
-    render();popAt(to,7);sfx.build();pulse([12,30,14]);
-    squash(world.spriteEl('site-'+r.spot),{from:.73,peak:1.1,duration:400});
-    if(r.creek)board.creek.fill();
-    for(const e of result.events.filter(e=>e.type==='heal'))world.reveal(e.cell,.98,{instant:true});
-    if(r.creek){world.reveal([4,-2],3,{duration:850});world.reveal([1,-1],1.6,{duration:950});}
-    await world.reveal(site,r.reveal,{duration:500});
-    message(JOB_NAMES[r.id]+' · '+BENEFITS[r.id]);
-    if(r.letter)await sheet({title:'渡口捎来的信',body:V.img('ferry-letter','journal-cover')+'<p>'+esc(LETTER.text)+'</p>',actions:[{label:'收进手记',value:true}]});
-    if(result.events.some(e=>e.type==='finale')){sfx.fanfare();await showEnd();}
-    if(!reducedMotion())await wait(330);
-  } finally {
-    try {await focus(r.opens?'creek':region,{animate:false});} finally {busy=false;save();}
+    const local=i.cell&&regionOfCell(i.cell)===region;
+    const reframe=r.creek || oldRegion!==region || !withinMap(board.entrance(r.spot),32) || (local&&!withinMap(placeAt(i),8));
+    if(reframe){
+      const frame=r.creek?[SPOTS.spring,SPOTS.bridge,SPOTS.shelter]:[site];
+      if(local)frame.push(i.cell);
+      await world.fit(frame,{maxScale:1.47,pad:.85,top:56,bottom:38,animate:true,duration:280,overscroll:true});
+    }
+    const to=board.entrance(r.spot);
+    const from=releasePoint&&!reframe?releasePoint:staged?world.spriteClient('fit-'+r.id)||to:placeAt(i);
+    world.removePin('job-'+r.id);
+    if(!staged)world.removeSprite('item-'+i.id);
+    const length=Math.hypot(from[0]-to[0],from[1]-to[1]);
+    await fly(art(matName(i.chain,i.level)),from,to,{size:49,arc:-Math.min(48,length*.24),duration:Math.min(330,110+length*.56)});
+    const ghost=board.previousScene(r.spot);
+    if(delivery)board.life.prepareTravel();
+    if(r.creek)board.life.startWater();
+    tracked=next?.id||null;
+    render();board.buildInPlace(r.spot,ghost);
+    burst(to[0],to[1],{count:11,colors:['#ffe7a9','#c69c64','#f1d6ad'],shape:'chip',spread:35,size:5,gravity:15,duration:350});
+    sfx.build();pulse([10,25,12]);
+    const scenes=[world.reveal(site,r.reveal,{duration:365})];
+    if(r.creek){
+      scenes.push(board.creek.fill(1250,before.fittings?.stream?67:100).then(()=>board.life.finishWater()));
+      world.reveal([4,-2],3,{duration:830});world.reveal([1,-1],1.6,{duration:1180});
+    }
+    for(const e of result.events){
+      const cells=e.type==='clearing'?e.cells:e.type==='heal'?[e.cell]:[];
+      for(const c of cells){world.reveal(c,.83,{duration:340});world.markCell(c,'fresh-land');}
+    }
+    await Promise.all(scenes);
+    save();
+  }finally{busy=false;app.classList.remove('building');}
+  if(delivery){
+    void homeDelivery(nextRegion,finale);
+    return;
   }
+  offerFork(available,r.id,next);render();
+  if(nextRegion!==region){await focus(nextRegion,{pick:false,animate:true});}
+  else if(r.creek){await board.focus(state,region,true,next);}
   const returned=result.events.find(e=>e.type==='retrieve');
   if(returned)message('试装件已退回'+(returned.item.cell?'草地':'背包'));
-  else {const [who,line]=r.lines.at(-1);message(line,3600,who);}
+  else if(r.letter)message('船已经靠岸。点渡船，可以读妈妈的信。',3200,'rowan');
+  else if(r.opens)message('旧路通了。顺着溪床就能找到泉眼。',3000,'lina');
+  else {const [who,line]=r.lines.at(-1);message(line,3000,who);}
+  if(finale)await showEnd();
 }
 async function deliver(order) {
   if(busy)return;
@@ -386,13 +577,27 @@ async function showJob(r) {
   }
 }
 async function retrieve(r) {
+  if(busy||drag)return;
   const res=R.retrievePart(state,r.id);
-  if(commit(res)){await focus(SPOT_REGION[r.spot],{pick:false});message(res.events[0].item.cell?'已取回到工地旁，可以继续合成':'已取回到背包');}
+  if(!res.ok){message(res.message);return;}
+  const item=res.events[0].item, destination=SPOT_REGION[r.spot];
+  busy=true;
+  try {
+    if(region!==destination || !withinMap(board.entrance(r.spot),16))await focus(destination,{pick:false});
+    const from=world.spriteClient('fit-'+r.id)||board.entrance(r.spot), old=board.previousScene(r.spot);
+    selected=null;tracked=r.id;commit(res);render();board.buildInPlace(r.spot,old);
+    const el=world.spriteEl('item-'+item.id);
+    if(el){
+      softLanding(el,from,world.spriteClient('item-'+item.id),world.cam.scale,reducedMotion());
+      pulsePiece(el,item.level,reducedMotion(),135);
+    }else await fly(art(matName(item.chain,item.level)),from,centerOf($('#bag')),{size:42,duration:195,arc:-22});
+    sfx.drop();message(item.cell?'组件放回工地旁，可以继续合成':'组件已放回背包');
+  } finally {busy=false;}
 }
 async function showJobs() {
-  const choice=await sheet({title:'家园重建',body:V.jobsView(state,tracked)});
+  const choice=await sheet({title:'修复路线',body:V.jobsView(state,tracked,region)});
   if(choice){const r=R.repairById(choice);if(!r)return;tracked=r.id;
-    await focus(SPOT_REGION[r.spot],{pick:false});await showJob(r);}
+    await focus(SPOT_REGION[r.spot],{pick:false});world.pinEl('job-'+r.id)?.classList.add('landmark-focus');message(JOB_NAMES[r.id]+' · '+BENEFITS[r.id]);}
 }
 async function showOrders() {
   const pick=await sheet({title:'居民来信',body:V.ordersView(state,currentJob())});
@@ -431,11 +636,11 @@ async function showNotebook() {
   if(pick)await open[pick]?.();
 }
 async function showMap() {
-  const choices=Object.entries(REGIONS).map(([id,v])=>{
-    const open=R.isOpen(state,id), completed=R.REPAIRS.filter(r=>SPOT_REGION[r.spot]===id&&state.done.includes(r.id)).length;
-    return `<button class="map-stop ${id}" data-pick="${id}" ${open?'':'disabled'}><b>${v.name}</b><small>${REGION_COPY[id]} · ${open?'已修 '+completed+' 处':'接通旧路后开放'}</small><i>${open?(id===region?'当下':'前往 ›'):icon.lock}</i></button>`;}).join('');
-  const actions=[];
-  const result=await sheet({title:'故乡地图',body:'<div class="map-stops">'+choices+'</div>',actions});
+  const actions=[{label:'修复路线',kind:'secondary',value:'route'}];
+  if(freightOpen(state.done))actions.push({label:'沿桥送货',kind:'secondary',value:'delivery'});
+  const result=await sheet({title:'故乡地图',body:V.regionMap(state,region),actions});
+  if(result==='route')return showJobs();
+  if(result==='delivery'){void homeDelivery(region);return;}
   if(result&&REGIONS[result]){await focus(result);message(REGIONS[result].name);}
 }
 async function showBag() {
@@ -570,6 +775,7 @@ app.addEventListener('click',async e=>{
   if(d.jobInfo)return showJob(R.repairById(d.jobInfo));
   if(d.jobAct){
     const r=R.repairById(d.jobAct),step=R.nextRepairStep(state,r,region);
+    if(d.guide)return hint();
     if(step.kind==='install')return repair(r,step.item);
     if(step.kind==='stage'||step.kind==='assemble')return fitPart(r,step.item);
     return showJob(r);
@@ -580,12 +786,13 @@ app.addEventListener('keydown',e=>{
   if(spr&&(e.key==='Enter'||e.key===' ')){e.preventDefault();const i=findItem(spr.dataset.id.slice(5));if(i)tapTile(i.cell,spr.dataset.id);}
 });
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&!document.querySelector('.sheet-wrap')){if(drag)cancelDrag();else{selected=null;render();}}
+  if(e.key==='Escape'&&!document.querySelector('.sheet-wrap')){if(drag)world.cancelGesture();else{selected=null;render();}}
 });
 let restarting=false;
 function checkpoint(){
   if(restarting)return;
-  if(drag)cancelDrag();
+  if(drag)world.cancelGesture();
+  tour?.control.abort();
   metrics.flush();save();
 }
 document.addEventListener('visibilitychange',()=>{if(document.hidden)checkpoint();else{R.tick(state);renderWallet();}});
@@ -597,6 +804,7 @@ for(const k of state.healed)world.reveal(parseKey(k),.98,{instant:true});
 for(const k of state.blooms)world.reveal(parseKey(k),.6,{instant:true});
 for(const id of state.done){const r=R.repairById(id);if(r)world.reveal(SPOTS[r.spot],r.reveal,{instant:true});}
 if(R.done(state,'stream')){world.reveal([4,-2],3,{instant:true});world.reveal([1,-1],1.6,{instant:true});}
-render();await board.focus(state,region,false);save();metrics.enter('play');
+for(const id of state.done)for(const cell of REPAIR_CLEARINGS[id]||[])world.reveal(cell,.8,{instant:true});
+render();await board.focus(state,region,false,currentJob());save();metrics.enter('play');
 if(recovery.notice)message(recovery.notice,5000);
 else if(!saved.state && !practice)message('外婆的毯子都湿了。我们先把棚顶补好吧。',3200,'lina');

@@ -5,6 +5,7 @@ import {CAST, DIARY, LETTER} from '../shared/chapter.mjs';
 import {esc} from '../shared/ui.mjs';
 import {icon} from '../shared/icons.mjs';
 import {art} from './art.mjs';
+import {ROUTES,routeChoices,freightOpen,REPAIR_CLEARINGS} from './route.mjs';
 import {BENEFITS, CHAIN_SHOP, JOB_NAMES, MOTIVES, WORKSHOPS, WORK_ART} from './story.mjs';
 
 const coin = '<i class="gold-coin" aria-hidden="true">✦</i>';
@@ -80,26 +81,32 @@ export function shortage(r,p) {
 export function bar(progress) {
   return `<span class="meter"><i style="width:${Math.round(100*progress.total/progress.need)}%"></i></span>`;
 }
-export function repairPanel(s,r,step) {
+export function repairPanel(s,r,step,region) {
   if (!r) return `<button class="work-summary" data-open="journal">${img('scene-ferry')}<span><strong>家园修复完成</strong><small>回看归乡故事</small></span></button>`;
   const p=R.progressFor(s,r);
-  let line=shortage(r,p), action='';
+  let line=shortage(r,p), action='', guide=false;
   switch(step.kind) {
-    case 'install': line=nameOf(r.chain,r.level)+'已做好'; action='修复'; break;
+    case 'install': line=region && SPOT_REGION[r.spot]!==region?'送到'+REGIONS[SPOT_REGION[r.spot]].name:nameOf(r.chain,r.level)+'已做好'; action='修复'; break;
     case 'assemble': line='另一半已做好'; action='合拢'; break;
     case 'stage': line='第一件'+nameOf(r.chain,r.level-1)+'已做好'; action='试装'; break;
     case 'merge':
       line=step.remote?REGIONS[step.where].name+'有一对搭档':!step.from.cell?'背包里有一件搭档':
         `把${quantity(r.chain,step.to.level,'两')}拖到一起`;
       if(p.staged)line='已装一半 · '+line;
+      if(step.remote){action='找搭档';guide=true;}
       break;
     case 'move': line=step.reason==='split'?'把分在两地的搭档放到一起':step.reason==='bag'?'先从背包取出'+nameOf(r.chain,step.item.level):'把组件移到开阔处再合成'; break;
-    case 'gather': if(!p.highest && !p.staged)line='去'+WORKSHOPS[CHAIN_SHOP[r.chain]]+'取料'; break;
+    case 'gather': {
+      const shop=CHAIN_SHOP[r.chain], home=R.GENERATORS[shop].region;
+      if(!p.highest && !p.staged)line='去'+WORKSHOPS[shop]+'取料';
+      if(region && home!==region){line=REGIONS[home].name+'的'+WORKSHOPS[shop]+'有材料';action='去'+WORKSHOPS[shop];guide=true;}
+      break;
+    }
   }
   return `<div class="site-ticket">
     <button class="work-summary" data-job-info="${r.id}" aria-label="工地详情 · ${JOB_NAMES[r.id]}">
       ${piece(r.chain,r.level)}<span><strong>${JOB_NAMES[r.id]}</strong><small>${esc(line)}</small></span></button>
-    ${action?`<button class="job-act ${p.ready?'bright':''}" data-job-act="${r.id}">${action}</button>`:''}
+    ${action?`<button class="job-act ${p.ready?'bright':''}" data-job-act="${r.id}"${guide?' data-guide="true"':''}>${action}</button>`:''}
     ${p.staged?`<button class="take-back" data-retrieve="${r.id}" aria-label="取回试装件">取回</button>`:''}
     </div>`;
 }
@@ -111,17 +118,43 @@ export function itemPanel(s,i,r) {
     ${piece(i.chain,i.level)}<span><strong>${nameOf(i.chain,i.level)}</strong>${note?`<small>${note}</small>`:''}</span></button>
     <button class="clear-selection" data-open="deselect" aria-label="取消选择">${icon.close}</button>`;
 }
-export function jobsView(s,tracked) {
-  const list=R.availableRepairs(s);
-  return `<p class="sheet-intro">已修复 ${s.done.length} / ${R.REPAIRS.length} 处</p>${list.map(r=>{
-    const p=R.progressFor(s,r);
-    return `<button class="choice" data-pick="${r.id}">${piece(r.chain,r.level)}<span><b>${JOB_NAMES[r.id]}${r.id===tracked?' · 追踪中':''}</b><small>${REGIONS[SPOT_REGION[r.spot]].short} · ${shortage(r,p)}</small><em>${BENEFITS[r.id]}</em></span><i>›</i></button>`;}).join('') || '<p>渡口和营地的灯都亮了。</p>'}`;
+export function jobsView(s,tracked,region) {
+  const available=R.availableRepairs(s), ordered=routeChoices(available,region);
+  const sections=[...ROUTES].sort((a,b)=>Number(b.region===region)-Number(a.region===region));
+  return `<div class="route-book">${sections.map(row=>{
+    const here=ordered.filter(job=>SPOT_REGION[job.spot]===row.region);
+    const built=row.stops.filter(id=>s.done.includes(id)).length;
+    const stops=row.stops.map(id=>`<i class="${s.done.includes(id)?'done':id===tracked?'current':here.some(j=>j.id===id)?'open':''}" title="${JOB_NAMES[id]}"></i>`).join('');
+    return `<section class="route-section"><div class="route-heading"><b>${row.title}</b><small>${REGIONS[row.region].name} · ${built}/${row.stops.length}</small></div>
+      <div class="route-progress" aria-hidden="true">${stops}</div>${here.map(job=>`<button class="route-choice" data-pick="${job.id}">
+        ${piece(job.chain,job.level)}<span><b>${JOB_NAMES[job.id]}</b><small>${BENEFITS[job.id]}</small></span>${job.id===tracked?'<em>当前</em>':''}</button>`).join('')}
+      ${!here.length&&!R.isOpen(s,row.region)?'<small>接通旧路后可前往</small>':''}</section>`;
+  }).join('')}</div>`;
+}
+
+export function regionMap(s,current) {
+  const points={camp:[384,512],creek:[720,462],river:[1049,417]};
+  const westOpen=R.isOpen(s,'creek'),linked=freightOpen(s.done);
+  return `<div class="homeland-chart" aria-label="营地、溪谷和河湾的位置">
+    <svg viewBox="0 242 1536 470" preserveAspectRatio="none" aria-hidden="true">
+      <image href="${art('world')}" width="1536" height="1024"/>
+      <path class="chart-track ${westOpen?'walkable':''}" d="M384 512 Q550 530 607 496 T720 462"/>
+      <path class="chart-track ${linked?'walkable':''}" d="M720 462 Q840 370 919 392 T1049 417"/>
+    </svg>${ROUTES.map(row=>{
+      const id=row.region,open=R.isOpen(s,id),[x,y]=points[id];
+      return `<button class="chart-stop ${id===current?'current':''}" style="left:${x/15.36}%;top:${(y-242)/4.7}%" data-pick="${id}" ${open?'':'disabled'}>${open?icon.map:icon.lock}<span>${REGIONS[id].name}</span></button>`;
+    }).join('')}</div><p class="chart-caption">${linked?'木桥和渡口已经连通，物资能运回营地。':!westOpen?'营地东面的旧路通向溪谷与河湾。':
+      s.done.includes('ferry')?'渡船已靠岸，修好过溪木桥就能把物资送回家。':s.done.includes('bridge')?'木桥已通，重开渡口就能接回物资。':'可以沿溪修水路，也可以去东岸修渡口。'}</p>`;
 }
 export function jobDetail(s,r) {
   const p=R.progressFor(s,r),[who,quote]=MOTIVES[r.id];
+  const land=(REPAIR_CLEARINGS[r.id]||[]).filter(c=>!R.isLand(s,c)).length;
+  const joint=r.id==='ferry'||r.id==='bridge';
+  const partner=r.id==='ferry'?'bridge':'ferry';
   return `<div class="note-person">${portrait(who)}<div><b>${CAST[who].name}</b><p>${quote}</p></div></div>
     <div class="detail-piece">${piece(r.chain,r.level)}<span><b>${nameOf(r.chain,r.level)} · L${r.level}</b><small>${shortage(r,p)}</small></span></div>
-    ${bar(p)}<p class="reward-strip">修好后 · ${BENEFITS[r.id]}</p>
+    ${bar(p)}<p class="reward-strip">${BENEFITS[r.id]}${land?' · 清出 '+land+' 格草地':''}</p>
+    ${joint?`<p class="route-effect">${s.done.includes(partner)?'这处修好，第一车物资就能回营地。':'木桥和渡口都修好后，邻居会把物资运回营地。'}</p>`:''}
     ${r.level>=5?`<div class="fitting-slot">${img(matName(r.chain,r.level-1))}<div><b>${p.staged?'已在工地：'+nameOf(p.staged.chain,p.staged.level):'试装位'}</b><small>${p.staged?'可取回，或送来另一件合拢':'可先放一件 L'+(r.level-1)+'，腾出工作格'}</small></div></div>`:''}`;
 }
 export function orderDetail(s,o,job,impact) {

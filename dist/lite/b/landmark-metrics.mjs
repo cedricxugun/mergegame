@@ -7,5 +7,5 @@ export const LANDMARK_METRICS = {
   'scene-fire': {size: [296, 291], pivot: [0.486, 0.841]},
   'v11-cookfire': {size: [336, 333], pivot: [0.482, 0.86]},
   'ruin-dock': {size: [296, 262], pivot: [0.562, 0.816]},
-  'scene-ferry': {size: [368, 333], pivot: [0.436, 0.859]},
+  'scene-ferry': {size: [640, 316], pivot: [0.1125, 0.949]},
 };

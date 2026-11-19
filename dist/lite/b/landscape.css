@@ -74,14 +74,80 @@ html,body {width:100%;height:100%;overflow:hidden}
 .neighbor-letter b {font-size:13px;color:#7e6847}
 .bay-body .sheet .allocation {margin:10px 0 0;font-size:14px}
 .bay-body .sheet .uses-stock {border-left:3px solid #cc9045;padding:5px 9px;background:#ffebc3;color:#76502e}
-.bay-body .turf .cell.free {fill-opacity:.25;stroke-width:1.9;stroke-opacity:.75}
-.bay-body .turf .cell.free.t1 {fill-opacity:.35}
+.bay-body .homeland-tracks {position:absolute;inset:0;width:1536px;height:1024px;pointer-events:none}
+.homeland-tracks g {opacity:0;transition:opacity .65s}
+.homeland-tracks g.established {opacity:1}
+.homeland-tracks path {fill:none;stroke-linecap:round;stroke-linejoin:round}
+.homeland-tracks .track-surface {fill:#c6a676;stroke:#c1ad82;stroke-width:2;opacity:.47}
+.homeland-tracks .track-grain {stroke:#ae976d;stroke-width:1.6;opacity:.40}
+.bay-body .valley-mist{transition:opacity .75s}
+.bay-body .turf .cell.free {
+  fill:#cbd88a;fill-opacity:.16;stroke:#faecb0;stroke-width:1.2;stroke-opacity:.44;
+  transition:fill-opacity .15s,stroke-opacity .15s
+}
+.bay-body .turf .cell.free.t1 {fill:#dbe39b;fill-opacity:.22}
+.bay-body .turf .cell.free.t2 {fill:#88a977;fill-opacity:.16}
+.bay-body .turf .cell.creek {fill:#acd9bd}
+.bay-body .turf .cell.river {fill:#c3dbac}
+.bay-body .turf .cell.yard.local {stroke-opacity:.70;fill-opacity:.27}
+.meadow-beds path {pointer-events:none;stroke-linejoin:round;stroke-width:4;stroke:#94a465;stroke-opacity:.36;fill:#e4d392;fill-opacity:.17}
+.meadow-beds [data-yard="spring"] {fill:#8fc5aa;stroke:#809f88}
+.meadow-beds [data-yard="boat"] {fill:#eed39b;stroke:#b29f72}
+.meadow-beds [data-yard="reeds"] {fill:#b5d39b}
+.meadow-beds .far-yard {opacity:.28}
+.bay-body .turf .cell.free.distant {fill-opacity:.035;stroke-opacity:.09}
+.bay-body .turf .cell.storm {fill:#806a41;fill-opacity:.08;stroke-opacity:.28;stroke-width:1.1;stroke-dasharray:3 6}
+.bay-body .turf .cell.storm.distant {fill-opacity:.025;stroke-opacity:.09}
+.bay-body .turf .debris {opacity:.88}
+.bay-body .turf .debris.distant {opacity:.35}
+.bay-body .handling .turf .cell.free {stroke-opacity:.88;stroke-width:1.65;fill-opacity:.28}
+.bay-body .handling .turf .cell.distant {stroke-opacity:.39;fill-opacity:.13}
 .bay-body .turf .cell.under-module {stroke-opacity:0;fill-opacity:.11}
 .bay-body .turf .cell.storm.will-open {fill:#a1e489;fill-opacity:.68;stroke:#dcffc0;stroke-opacity:1;stroke-width:4;stroke-dasharray:6 3;filter:drop-shadow(0 1px 1px #46805b)}
 .bay-body .turf .cell.storm.could-open {fill:#abd995;fill-opacity:.42;stroke:#cdf1a8;stroke-width:2.5;stroke-opacity:.9}
 .bay-body .wide-part {stroke:#087783;stroke-width:4.5;fill:#58b2bd48;filter:drop-shadow(0 1px 1px #fff7c0)}
 .bay-body .spr.item[data-cells="3"]::after {content:attr(data-size-label);right:auto;left:3%;bottom:-3px;white-space:nowrap;background:#146c77;color:#fff9db;padding:1px 4px}
 .bay-body .waypoint {font-size:12px;min-height:25px}
+.bay-body .spr.item {will-change:auto}
+.bay-body .spr.item.lifted {will-change:translate}
+.bay-body .spr.item.lifted>img {transform:translateY(-3px) scale(1.055);filter:drop-shadow(0 4px 2px #28383164);transform-origin:50% 74%}
+.bay-body .spr.item>img {transform-origin:50% 76%;transition:transform .09s ease-out,filter .09s ease-out}
+.bay-body .spr.item.catching>img {transform:scale(1.09);filter:drop-shadow(0 0 2px #fff7ca) drop-shadow(0 0 4px #e8a646)}
+.bay-body .join-outline {fill:#ffd76a72;stroke:#ffebae;stroke-width:3;pointer-events:none}
+.bay-body .drop-outline {fill:#a4e9cf66;stroke:#167e79;stroke-width:3}
+.bay-body .resident,.bay-body .old-landmark {pointer-events:none!important}
+.bay-body .building .work-note,.bay-body .building .pins {opacity:.2;pointer-events:none;transition:opacity .13s}
+.bay-body .following-cart .pins {opacity:0;pointer-events:none}
+.bay-body .turf .cell.fresh-land {animation:clearing-in .7s ease-out both}
+@keyframes clearing-in {0%{fill:#d4ef9c;fill-opacity:.94;stroke:#fff1a1;stroke-width:3}100%{fill-opacity:.24}}
+.bay-body .spr.trial-scene>img {filter:drop-shadow(0 1px 1px #318f8977)}
+.bay-body .creek .flow {transition:none}
+.bay-body .creek[data-state="filling"] .flow {opacity:1;mask-image:none;-webkit-mask-image:none;animation:water-arrives 1.25s cubic-bezier(.28,.60,.35,1) both}
+@keyframes water-arrives {from{clip-path:inset(0 0 0 var(--dry-end,100%))}to{clip-path:inset(0 0 0 0)}}
+.bay-body .creek[data-state="flow"] .flow {clip-path:none}
+.bay-body .life-smoke i {width:12px;height:12px;filter:blur(2px)}
+.route-book {display:grid;gap:11px}
+.route-section {padding:8px 11px;border:1px solid #d9c79c;border-radius:12px;background:#fff8e5}
+.route-heading,.route-choice {display:flex;align-items:center;gap:8px}
+.route-heading {justify-content:space-between}
+.route-heading>b {font-size:16px;color:#285b5c}
+.route-heading small,.route-section>small {font-size:13px;color:#6b705d}
+.route-progress {display:flex;gap:3px;margin:5px 0 3px}
+.route-progress i {height:4px;border-radius:3px;flex:1;background:#e2d8ba}
+.route-progress i.done {background:#519781}.route-progress i.open {background:#c7d3ad}.route-progress i.current {background:#e9ac4c}
+.bay-body .route-choice {width:100%;padding:6px 0;background:transparent;text-align:left;border:0;border-top:1px dashed #d9cba9}
+.route-choice>.piece-pic {width:32px;height:32px}.route-choice>span:not(.piece-pic){display:grid;gap:2px;flex:1}
+.route-choice b {font-size:15px}.route-choice small,.route-choice em {font-size:13px;color:#527569;font-style:normal}
+.homeland-chart {position:relative;width:100%;aspect-ratio:3.05;overflow:hidden;border:1.5px solid #b5bd88;border-radius:13px;background:#94bf80}
+.homeland-chart>svg {position:absolute;inset:0;width:100%!important;height:100%!important}
+.chart-track {fill:none;stroke:#d8e5d1;stroke-width:10;stroke-dasharray:13 10;stroke-linecap:round}
+.chart-track.walkable {stroke:#fff3b3;stroke-dasharray:none;filter:drop-shadow(0px 3px 1px #71864c)}
+.bay-body .chart-stop {position:absolute;transform:translate(-50%,-50%);display:grid;justify-items:center;gap:2px;background:#fffae9ed;border:2px solid #b59665;border-radius:12px;color:#355e56;padding:4px 8px;white-space:nowrap;font-size:14px}
+.bay-body .chart-stop.current {background:#306f66;color:#fff6d1;border-color:#ffd88b}
+.bay-body .chart-stop svg {width:15px;height:15px}.chart-caption,.route-effect {font-size:14px;line-height:1.5}
+.bay-body .landmark-focus {animation:site-focus 1s ease-out 2}
+.bay-body .waypoint.route-fork {background:#e8f4dc;border-color:#a1bf9a;color:#397260}
+@keyframes site-focus {50%{box-shadow:0 0 0 5px #ffda697a}}
 .bay-body .shop-pin {min-width:27px;height:27px}
 .bay-body .shop-pin.named {display:flex;width:auto;align-items:center;gap:2px;padding:2px 6px;border-radius:12px;color:#fff5cd;font-size:12px}
 @media(max-height:350px) {

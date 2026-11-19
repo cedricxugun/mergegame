@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as B from '../dist/lite/b/rules.mjs';
+import {firstCrossing,hoverAt} from '../dist/lite/b/handling.mjs';
+import {REPAIR_CLEARINGS,WORK_POCKETS,freightOpen,routeChoices} from '../dist/lite/b/route.mjs';
+import {isSpot,isCreek} from '../dist/lite/shared/map.mjs';
+import {distance} from '../dist/lite/shared/hex.mjs';
+import {repairPanel} from '../dist/lite/b/views.mjs';
 
 const apply=r=>{assert.ok(r.ok,r.message);return r.state;};
 const byId=(s,id)=>[...s.items,...s.bag].find(i=>i.id===id);
@@ -12,6 +17,86 @@ function stock(s,chain,level,cell=null) {
 function fillLand(s,region=null) {
   for(const cell of B.landCells(s))if((!region||B.regionOf(cell)===region)&&B.isFree(s,cell))stock(s,'wood',1,cell);
 }
+test('sparse finger samples join the first compatible centre crossed, while grazing a rim just previews',()=>{
+  const near={item:{id:'near'},x:24,y:20,rx:10,ry:10};
+  const far={item:{id:'far'},x:64,y:20,rx:10,ry:10};
+  const spots=[far,near];
+  assert.equal(firstCrossing([0,20],[90,20],spots).target,near);
+  assert.equal(firstCrossing([90,20],[0,20],spots).target,far);
+  assert.equal(firstCrossing([0,20],[90,20],spots,t=>t!==near).target,far);
+  assert.equal(firstCrossing([0,28],[90,28],spots),null);
+  assert.equal(hoverAt([24,28],spots),near);
+  assert.equal(hoverAt([35,20],spots,'near'),near);
+  assert.equal(hoverAt([36,20],spots,'near'),null);
+  assert.equal(firstCrossing([0,0],[0,0],spots),null);
+});
+test('each source fills its own workable pocket and refuses a full region without spending a roll or energy',()=>{
+  for(const [id,generator] of Object.entries(B.GENERATORS)){
+    const s=B.wharfPractice(0);s.items=[];
+    const first=B.tapGenerator(s,id,0).events[0].item;
+    assert.equal(first.chain,generator.chain);
+    assert.ok(WORK_POCKETS[id].some(c=>distance(c,first.cell)===0));
+    const lastFree=WORK_POCKETS[id].filter(c=>B.isLand(s,c)).at(-1);
+    stock(s,generator.chain,first.level,lastFree);
+    const next=B.tapGenerator(s,id,0).events[0].item;
+    assert.equal(distance(lastFree,next.cell),1);
+    fillLand(s,generator.region);
+    const before=JSON.stringify(s),result=B.tapGenerator(s,id,0);
+    assert.equal(result.noSpace,true);assert.equal(result.state,s);assert.equal(JSON.stringify(s),before);
+  }
+});
+test('repairs grant their registered working land in old and new saves, without harvesting a cleared edge twice',()=>{
+  const s=B.freshState(0);s.done=['roof','fire','path','spring'];
+  for(const cell of REPAIR_CLEARINGS.spring)assert.ok(B.isLand(s,cell));
+  const [found,rest]=REPAIR_CLEARINGS.trough;
+  assert.equal(B.isLand(s,found),false);s.healed.push(found.join(','));
+  const job=B.repairById('trough'),part=stock(s,job.chain,job.level);
+  const result=B.install(s,part.id,job.id);
+  assert.ok(result.ok);assert.deepEqual(result.events.find(e=>e.type==='clearing').cells,[rest]);
+  assert.ok(!result.events.some(e=>e.type==='heal'));assert.equal(result.state.items.length,0);
+  const loaded=JSON.parse(JSON.stringify(result.state));loaded.healed=[];
+  for(const cell of REPAIR_CLEARINGS.trough)assert.ok(B.isFree(loaded,cell));
+  const land=B.landCells(loaded);assert.equal(new Set(land.map(c=>c.join(','))).size,land.length);
+  assert.ok(land.every(c=>!isSpot(c)&&!isCreek(c)));
+  assert.ok(!B.stormCells(loaded).some(t=>REPAIR_CLEARINGS.trough.some(c=>distance(c,t.cell)===0)));
+});
+test('the bridge and ferry open one home delivery in either order and persist as a connected world',()=>{
+  for(const order of [['bridge','ferry'],['ferry','bridge']]){
+    let s=B.wharfPractice(0);s.done=s.done.filter(id=>!order.includes(id));
+    let delivered=0;
+    for(const [index,id] of order.entries()){
+      const job=B.repairById(id),part=stock(s,job.chain,job.level),result=B.install(s,part.id,id);
+      s=apply(result);const events=result.events.filter(e=>e.type==='home-delivery');
+      assert.equal(events.length,index);delivered+=events.length;
+      assert.ok(!B.install(s,part.id,id).ok);assert.equal(freightOpen(JSON.parse(JSON.stringify(s)).done),index===1);
+    }
+    assert.equal(delivered,1);
+  }
+  const s=B.freshState(0);s.done=['roof','fire'];
+  assert.equal(routeChoices(B.availableRepairs(s),'camp','fire')[0].id,'path');
+  s.done.push('path');
+  const branches=routeChoices(B.availableRepairs(s),'camp','path').map(r=>r.id);
+  assert.deepEqual(branches.slice(0,2),['spring','cattail']);
+  s.done.push('cattail','reeds','pier','jetty','shore','ferry');
+  assert.equal(routeChoices(B.availableRepairs(s),'river','ferry')[0].id,'spring');
+});
+test('drag preview and release use the same two cells for an occupied cross-region drop',()=>{
+  const s=B.wharfPractice(0);s.items=[];
+  const a=stock(s,'wood',1,[0,0]),b=stock(s,'water',2,[5,1]);
+  const layout=B.dropLayout(s,a.id,b.cell),moved=apply(B.move(s,a.id,b.cell));
+  assert.deepEqual(layout.shifts.map(x=>[x.id,x.cell]),[[b.id,a.cell]]);
+  assert.deepEqual(byId(moved,b.id).cell,a.cell);assert.deepEqual(byId(moved,a.id).cell,b.cell);
+  assert.ok(B.validate(moved));
+});
+test('the bridge ticket leads directly to its source across the map and names the return destination',()=>{
+  const s=B.freshState(0);s.done=['roof','fire','path','spring','trough','stream'];
+  const bridge=B.repairById('bridge'),show=region=>repairPanel(s,bridge,B.nextRepairStep(s,bridge,region),region);
+  assert.match(show('creek'),/data-guide="true">去船台/);
+  assert.doesNotMatch(show('river'),/data-guide/);
+  stock(s,bridge.chain,bridge.level);
+  assert.match(show('river'),/送到旧溪谷/);
+  assert.match(show('river'),/>修复<\/button>/);
+});
 test('either direction of the opening merge creates playable land; a visible salvage is the item recovered',()=>{
   for(const reverse of [false,true]){
     const s=B.beginVoyage(0);

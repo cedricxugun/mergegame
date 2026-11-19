@@ -3,14 +3,18 @@ import {MATERIAL_METRICS} from './material-metrics.mjs';
 import {LANDMARK_METRICS} from './landmark-metrics.mjs';
 import {RIVER_METRICS} from './river-metrics.mjs';
 import {SCENIC_METRICS} from './scenic-metrics.mjs';
+import {LIFE_METRICS} from './life-metrics.mjs';
+import {FITTING_METRICS} from './fitting-metrics.mjs';
 
 const metrics = {
-  ...MATERIAL_METRICS, ...LANDMARK_METRICS, ...RIVER_METRICS, ...SCENIC_METRICS,
+  ...MATERIAL_METRICS, ...LANDMARK_METRICS, ...RIVER_METRICS, ...SCENIC_METRICS, ...LIFE_METRICS, ...FITTING_METRICS,
   sawbuck: {size:[320,320], pivot:[.48,.76]},
   sawmill: {size:[320,299], pivot:[.51,.79]},
   bench: {size:[256,184], pivot:[.50,.788]},
   toolbox: {size:[256,200], pivot:[.52,.79]},
   'trim-lantern': {size:[256,256], pivot:[98/256,228/256]},
+  'creek-bank-dry': {size:[288,80], pivot:[.5,69/80]},
+  'creek-bank-alive': {size:[288,80], pivot:[.5,69/80]},
   'trim-chime': {size:[256,256], pivot:[98/256,228/256]}
 };
 

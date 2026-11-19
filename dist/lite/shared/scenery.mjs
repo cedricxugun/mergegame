@@ -15,12 +15,13 @@ const EXTENT = {
 };
 const RUIN_SPOTS = [...new Set(REPAIRS.map(r => r.spot))];
 
-export function renderScenery(world, done, {visible = () => true, glow = new Set(), dim = () => false} = {}) {
+export function renderScenery(world, done, {visible = () => true, glow = new Set(), dim = () => false, appearance} = {}) {
   for (const spot of RUIN_SPOTS) {
     const id = 'site-' + spot, info = spotArt(done, spot);
     if (!info || !visible(spot)) { world.removeSprite(id); continue; }
-    world.upsertSprite(id, {name: info.art, cell: SPOTS[spot], extent: PLATE.cell * (EXTENT[info.art] || 2.3), lift: .25,
-      cls: `site ${info.done ? 'fixed' : 'ruin'} ${glow.has(spot) ? 'can-drop' : ''} ${dim(spot) ? 'dim' : ''}`});
+    const custom=appearance?.(spot,info)||{};
+    world.upsertSprite(id, {name: info.art, cell: SPOTS[spot], extent: PLATE.cell * (EXTENT[info.art] || 2.3), lift: .25,...custom,
+      cls: `site ${info.done ? 'fixed' : 'ruin'} ${glow.has(spot) ? 'can-drop' : ''} ${dim(spot) ? 'dim' : ''} ${custom.cls||''}`});
   }
 }
 
@@ -37,9 +38,10 @@ export function creekLayer(container, {bounds, dry = sprite('creek-dry'), flow =
   }
   return {
     set(state) { el.dataset.state = state; },
-    async fill() {
+    async fill(duration=2200,startAt=100) {
+      el.style.setProperty('--dry-end',startAt+'%');
       el.dataset.state = 'filling';
-      await new Promise(r => setTimeout(r, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 2200));
+      await new Promise(r => setTimeout(r, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : duration));
       el.dataset.state = 'flow';
     }
   };
